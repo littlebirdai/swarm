@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
+import ts from "typescript";
 import { isMachineDeliveredMessage } from "../../../packages/shared/contracts/machineMessages";
 import {
   AGENT_CLIENTS,
@@ -765,7 +766,16 @@ function fixture(transport = "tmux", cached = true) {
       "paneContentAfterLaunchEcho",
       "heldFatal",
     ];
+    const resume = functionBlock(source, "autoResumeSessionInner").text;
+    const sourceFile = ts.createSourceFile(
+      "daemon.ts",
+      source,
+      ts.ScriptTarget.Latest,
+    );
     const constants = [
+      "WEZTERM_KEY_SEQUENCES",
+      "STARTED_PANE_FATAL_ERRORS",
+      "CODEX_PERMISSION_PATTERNS",
       "RESUME_CWD_PICKER_RE",
       "COMPOSER_RULE",
       "HOLD_SCREEN_ROWS",
@@ -795,69 +805,74 @@ function fixture(transport = "tmux", cached = true) {
       "LAUNCH_SCRIPTS_DIRNAME",
       "STARTED_FATAL_CONFIRM_MS",
       "fatalPaneSince",
-    ].map((name) => {
-      const line = source
-        .split("\n")
-        .find((l) => new RegExp(`^(?:export )?\\s*const ${name} =`).test(l));
-      if (!line) throw new Error(`Missing constant ${name}`);
-      return line.replace("export ", "");
-    });
-    const resume = functionBlock(source, "autoResumeSessionInner").text;
-    const readiness = blockAt(
-      resume,
-      resume.indexOf("    while (Date.now() - startTime < maxPollMs)"),
-    ).text;
-    const warnings = blockAt(
-      resume,
-      resume.indexOf("    if (ready || !content)"),
-    ).text;
-    const fastProbe = blockAt(
-      resume,
-      resume.indexOf("  if (agentTypeHint)"),
-    ).text;
-    const resumeFatalStart = resume.indexOf("const fatalErrors = [");
-    const resumeFatalErrors = resume.slice(
-      resumeFatalStart,
-      resume.indexOf("];", resumeFatalStart) + 2,
+    ];
+    const constantNames = new Set([
+      ...constants,
+      "fatalErrors",
+      "handlePendingMessageBatch",
+    ]);
+    const constantStatements = new Map<string, string>();
+    function collectConstants(node: ts.Node) {
+      if (ts.isVariableStatement(node)) {
+        const list = node.declarationList;
+        for (const { name } of list.declarations) {
+          if (!ts.isIdentifier(name) || !constantNames.has(name.text)) continue;
+          if (
+            name.text === "fatalErrors" &&
+            !resume.includes(node.getText(sourceFile))
+          )
+            continue;
+          if (
+            !(list.flags & ts.NodeFlags.Const) ||
+            list.declarations.length !== 1
+          )
+            throw new Error(`Expected a standalone constant ${name.text}`);
+          if (constantStatements.has(name.text))
+            throw new Error(`Duplicate constant ${name.text}`);
+          constantStatements.set(name.text, list.getText(sourceFile) + ";");
+        }
+      }
+      ts.forEachChild(node, collectConstants);
+    }
+    collectConstants(sourceFile);
+    const constant = (name: string) => {
+      const statement = constantStatements.get(name);
+      if (!statement) throw new Error(`Missing constant ${name}`);
+      return statement;
+    };
+    const resumeBlock = (marker: RegExp) => {
+      const start = resume.search(marker);
+      if (start < 0) throw new Error(`Missing resume block ${marker}`);
+      return blockAt(resume, start).text;
+    };
+    const readiness = resumeBlock(
+      /\bwhile\s*\(\s*Date\.now\(\)\s*-\s*startTime\s*<\s*maxPollMs\s*\)/,
     );
+    const warnings = resumeBlock(/\bif\s*\(\s*ready\s*\|\|\s*!content\s*\)/);
+    const fastProbe = resumeBlock(/\bif\s*\(\s*agentTypeHint\s*\)/);
     const resumeScope =
       'const sessionId = "sid", shortId = "sid", agentType = "claude", tmuxSession = "target", promptPattern = /[❯›]/;';
     const catches = [fastProbe, readiness, warnings, resume].map(
       (region, i) => {
-        const handler = region.slice(
-          region.lastIndexOf("catch (err) {"),
-          region.lastIndexOf("\n"),
-        );
+        const handlers = [...region.matchAll(/\bcatch\s*\(\s*err\s*\)\s*\{/g)];
+        const catchStart = handlers.at(-1)?.index;
+        if (catchStart === undefined)
+          throw new Error(`Missing resume catch ${i}`);
+        const handler = region.slice(catchStart, region.lastIndexOf("\n"));
         return `async function propagation${i}(error) { ${resumeScope} try { throw error; } ${handler} return "fallback"; }`;
       },
     );
-    const fatalStart = source.indexOf("const STARTED_PANE_FATAL_ERRORS =");
-    // Multi-line array constants: the one-line reader above cannot take these.
-    const arrayConst = (name: string): string => {
-      const start = source.indexOf(`const ${name} =`);
-      if (start < 0) throw new Error(`Missing constant ${name}`);
-      return source.slice(start, source.indexOf("];", start) + 2);
-    };
     const code = [
       blockAt(source, source.indexOf("class InputBlockedError")).text,
       blockAt(source, source.indexOf("class UnreadableScreenError")).text,
-      blockAt(
-        source,
-        source.indexOf("const WEZTERM_KEY_SEQUENCES:"),
-      ).text.replace(/},?$/, "};"),
       "class UndeliverableMessageError extends Error {}",
-      source.slice(fatalStart, source.indexOf("];", fatalStart) + 2),
-      arrayConst("CODEX_PERMISSION_PATTERNS"),
-      ...constants,
+      ...constants.map(constant),
       ...names.map((name) => functionBlock(source, name).text),
       `const scheduleMessageRetry = ((setTimeout) => { ${functionBlock(source, "scheduleMessageRetry").text}; return scheduleMessageRetry; })(recordTimer);`,
       ...catches,
-      `async function resumeReadiness(content) { ${resumeScope} ${resumeFatalErrors} const startTime = Date.now(), maxPollMs = 100; let ready = false; ${readiness} return ready; }`,
+      `async function resumeReadiness(content) { ${resumeScope} ${constant("fatalErrors")} const startTime = Date.now(), maxPollMs = 100; let ready = false; ${readiness} return ready; }`,
       `async function resumeWarnings(content) { ${resumeScope} const ready = true; ${warnings} }`,
-      blockAt(
-        source,
-        source.indexOf("  const handlePendingMessageBatch = async"),
-      ).text,
+      constant("handlePendingMessageBatch"),
       "const handlePendingMessagesUpdate = handlePendingMessageBatch;",
     ]
       .join("\n")

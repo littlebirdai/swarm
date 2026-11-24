@@ -28,7 +28,7 @@ for (const scenario of [
             ? mutantCopy(
                 home.root,
                 path.join(import.meta.dir, "ingestJobs.ts"),
-                "result.receiptSignatures.push(ingestReceiptSignature(message,source));",
+                "result.receiptSignatures.push(ingestReceiptSignature(message, source));",
                 "result.receiptSignatures.push(createHash('sha256').update(JSON.stringify(message)).digest('hex'));",
                 "ingestJobs-generated-clock.ts",
               )

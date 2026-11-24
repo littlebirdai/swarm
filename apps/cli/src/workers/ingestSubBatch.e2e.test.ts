@@ -27,7 +27,12 @@ for (const scenario of [
             ? mutantCopy(
                 home.root,
                 path.resolve(import.meta.dir, "../syncService.ts"),
-                "if (onBatchAccepted) onBatchAccepted(batch.map(message => preparedIndexes!.get(message)!));",
+                [
+                  "if (onBatchAccepted)",
+                  "            onBatchAccepted(",
+                  "              batch.map((message) => preparedIndexes!.get(message)!),",
+                  "            );",
+                ].join("\n"),
                 "",
                 "syncService-no-sub-batch-receipt.ts",
               )

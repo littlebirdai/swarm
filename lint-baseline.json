@@ -2332,7 +2332,7 @@
     "swarm/no-comments": 57
   },
   "apps/cli/src/daemon.machine-prompt-safety.test.ts": {
-    "swarm/no-comments": 113
+    "swarm/no-comments": 112
   },
   "apps/cli/src/daemon.mark-injected-best-effort.test.ts": {
     "swarm/no-comments": 30

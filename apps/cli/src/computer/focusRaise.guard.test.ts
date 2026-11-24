@@ -45,18 +45,18 @@ const SRC = path.resolve(COMPUTER, "..");
  * to teach it, so a bare string match would fail on its own guidance.
  */
 const RAISES: { what: string; re: RegExp }[] = [
-  { what: "sets restoreWindow on a helper request", re: /\brestoreWindow\b/ },
+  { what: "sets restoreWindow on a helper request", re: /\brestoreWindow\b/g },
   {
     what: "declares the --restore-window flag",
-    re: /\.option\(\s*"--restore-window/,
+    re: /\.option\(\s*"--restore-window/g,
   },
   {
     what: "launches the helper's System Settings window",
-    re: /\bopenPermissionSettings\b/,
+    re: /\bopenPermissionSettings\b/g,
   },
   {
     what: "declares the --open-settings flag",
-    re: /\.option\(\s*"--open-settings/,
+    re: /\.option\(\s*"--open-settings/g,
   },
 ];
 
@@ -103,14 +103,17 @@ describe("no cast computer verb raises a window over the human", () => {
     const rel = path.relative(SRC, file);
     // codeLines drops comments and strings-only lines, so a mention in prose
     // (this feature is full of it) never counts as a raise.
-    for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {
-      const hit = RAISES.find((raise) => raise.re.test(line));
-      if (!hit) continue;
-      if (rel in ALLOWED) {
-        seenAllowed.add(rel);
-        continue;
+    const lines = codeLines(fs.readFileSync(file, "utf8"));
+    const code = lines.map(({ line }) => line).join("\n");
+    for (const { what, re } of RAISES) {
+      for (const match of code.matchAll(re)) {
+        if (rel in ALLOWED) {
+          seenAllowed.add(rel);
+          break;
+        }
+        const lineIndex = code.slice(0, match.index).split("\n").length - 1;
+        offenders.push(`${rel}:${lines[lineIndex].n} ${what}`);
       }
-      offenders.push(`${rel}:${n} ${hit.what}`);
     }
   }
 
