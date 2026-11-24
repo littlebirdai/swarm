@@ -18,7 +18,7 @@
 import type {
   AgentChainSpec,
   AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import type { WorkflowEdge, WorkflowGraph, WorkflowNode } from "./types.js";
 import { keepEnds } from "./keepEnds.js";

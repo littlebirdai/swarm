@@ -23,7 +23,7 @@ import { enqueueStartSession } from "./devices";
 import { enqueuePendingMessage, formatSessionMessage } from "./pendingMessages";
 import { NEEDS_INPUT_IDLE_CHECK_DELAY_MS } from "./inboxFilters";
 import { type AgentClientId } from "@codecast/agent-clients/agentClients";
-import { type AgentDefinitionSpec } from "@codecast/shared/contracts";
+import { type AgentDefinitionSpec } from "@codecast/agents/agentDefinitions";
 import {
   drainQueue,
   mergeBackNote,

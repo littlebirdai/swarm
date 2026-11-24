@@ -5,7 +5,7 @@ import * as path from "node:path";
 import {
   resolveAgentLaunch,
   type AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import {
   SAFE_MODE_DENY_RULES,
   SAFE_MODE_MANDATE,

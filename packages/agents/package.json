@@ -9,12 +9,12 @@
     "typecheck": "tsc --noEmit"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./agentDefinitions": "./src/agentDefinitions.ts"
   },
   "dependencies": {
     "@codecast/agent-clients": "workspace:*",
     "@codecast/docs": "workspace:*",
-    "@codecast/shared": "workspace:*",
     "@codecast/vault": "workspace:*"
   },
   "devDependencies": {

@@ -585,7 +585,7 @@ import { activeWorkspaceKey } from "../lib/workspaceScope";
 import type {
   AgentChainSpec,
   AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import type { PendingComment } from "../lib/quoteFormat";
 import {
   isRecordedQuote,

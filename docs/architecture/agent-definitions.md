@@ -40,7 +40,7 @@ the sync log; the web feeds from a snapshot query per table.
 ## D2. Resolution
 
 `resolveAgentLaunch(def, overrides, fallbackAgent)` in
-`@codecast/shared/contracts/agentDefinitions.ts` is the one rule every surface
+`@codecast/agents/agentDefinitions` is the one rule every surface
 uses: an explicit flag wins over the definition, the definition wins over the
 surface default. A model the forced client cannot run is dropped and named in
 `dropped`; so is an effort the client has no flag for. The result is the

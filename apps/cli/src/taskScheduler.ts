@@ -23,7 +23,7 @@ import {
 import {
   resolveAgentLaunch,
   type AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import { precheckFingerprint, runTriggerPrecheck } from "./precheckRunner.js";
 import { buildTriggerFrame } from "./triggerFrame.js";
 import {

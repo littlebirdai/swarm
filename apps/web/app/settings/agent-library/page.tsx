@@ -35,7 +35,7 @@ import {
   validateAgentDefinition,
   type AgentChainSpec,
   type AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import {
   isAgentChainFile,
   parseAgentChainFile,

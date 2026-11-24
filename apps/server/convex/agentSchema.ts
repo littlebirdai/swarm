@@ -1,4 +1,4 @@
-// Agent definitions and chains (docs: @codecast/shared/contracts/agentDefinitions).
+// Agent definitions and chains (docs: @codecast/agents/agentDefinitions).
 //
 // A definition is the one named object binding a client, model, effort, tool
 // policy and system prompt; `cast exec/spawn --as <name>`, triggers, workflow

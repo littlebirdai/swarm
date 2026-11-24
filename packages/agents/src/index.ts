@@ -35,7 +35,7 @@
 //
 // Both parsers are lenient the way the vault parser is: an unknown key is
 // ignored, a malformed value falls back to a string, and the validators in
-// @codecast/shared/contracts decide whether the result is usable.
+// ./agentDefinitions decide whether the result is usable.
 
 import {
   splitModelEffortSuffix,
@@ -44,7 +44,7 @@ import {
   type AgentDefinitionSpec,
   type AgentDefinitionMode,
   type AgentPromptMode,
-} from "@codecast/shared/contracts";
+} from "./agentDefinitions";
 import {
   type AgentClientId,
   parseExecutionAgentClientId,

@@ -1,9 +1,9 @@
 import { foreignTaskSource } from "@codecast/shared/tasks";
+import { CONTINUE_BANNER_KINDS } from "@codecast/shared/contracts";
 import {
-  CONTINUE_BANNER_KINDS,
   resolveAgentLaunch,
   type AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import {
   fromConvexAgentType,
   toConvexAgentType,
