@@ -57,7 +57,7 @@ export const ATTRIBUTION_EXTRA_PATHS = ['apps/evals/fixtures', 'apps/evals/freez
  */
 export function declaredPaths(surface: string, shas: string[], git: AttributionGit): string[] {
   const dir = `apps/evals/src/surfaces/${surfaceDir(surface)}`;
-  const then = shas.flatMap((sha) => [...(git.show(sha, `${dir}/meta.ts`) ?? '').matchAll(/['"`](packages\/[^'"`$]+)['"`]/g)].map((m) => m[1]!));
+  const then = shas.flatMap((sha) => [...(git.show(sha, `${dir}/meta.ts`) ?? '').matchAll(/['"`]((?:apps|packages)\/[^'"`$]+)['"`]/g)].map((m) => m[1]!));
   return [...new Set([...(surfaceMeta(surface)?.sources ?? []), ...then, dir, DRY_RUN_SCRIPT_REL, ...ATTRIBUTION_EXTRA_PATHS])].sort();
 }
 
