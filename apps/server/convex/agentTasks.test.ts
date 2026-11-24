@@ -187,12 +187,19 @@ describe("kill and restore read only the conversation's own tasks", () => {
         rowsRead += (await indexRange.collect()).length;
         return collect();
       };
+      const take = builder.take.bind(builder);
+      builder.take = async (count: number) => {
+        rowsRead += (await indexRange.take(count)).length;
+        return take(count);
+      };
       return builder;
     };
     const args = [{ db } as any, USER as any, CONV as any] as const;
-    expect(await cancelTasksBoundToConversation(...args)).toBe(1);
-    expect(await reactivateTasksCanceledOnKill(...args)).toBe(1);
-    expect(rowsRead).toBeLessThanOrEqual(8);
+    const canceled = await cancelTasksBoundToConversation(...args);
+    const restored = await reactivateTasksCanceledOnKill(...args);
+    expect(rowsRead).toBe(8);
+    expect(canceled).toBe(1);
+    expect(restored).toBe(1);
     expect(mine.status).toBe("scheduled");
     expect(teammates.status).toBe("scheduled");
     expect((teammates as any).canceled_on_kill_at).toBeUndefined();

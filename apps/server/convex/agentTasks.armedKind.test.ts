@@ -289,6 +289,42 @@ describe("every agent_tasks writer restamps the home (exhaustive)", () => {
       );
     expect(offenders).toEqual([]);
   });
+
+  test("every raw patch site has a reviewed target", () => {
+    const targets = patchCalls
+      .map((call) => call.slice("ctx.db.patch(".length).split(",")[0].trim())
+      .sort();
+    expect(targets).toEqual([
+      "args.task_id",
+      "args.task_id",
+      "conv._id",
+      "conv._id",
+      "conversationId",
+      "copy._id",
+      "existing._id",
+      "prev._id",
+      "runConv._id",
+      "t._id",
+      "task._id",
+      "task._id",
+      "task._id",
+      "task._id",
+      "thread._id",
+    ]);
+  });
+
+  test("insert and delete each have one site and restamp the home", () => {
+    expect(src.match(/\.insert\(\s*"agent_tasks"/g) ?? []).toHaveLength(1);
+    expect(src).toMatch(
+      /await refreshArmedTriggerKind\(\s*ctx,\s*args\.originating_conversation_id as Id<"conversations">,?\s*\);/,
+    );
+    expect(src.match(/ctx\.db\.delete\(\s*task\._id\s*\)/g) ?? []).toHaveLength(
+      1,
+    );
+    expect(src).toMatch(
+      /await ctx\.db\.delete\(task\._id\);\s*if \(task\.originating_conversation_id\)\s*await refreshArmedTriggerKind\(\s*ctx,\s*task\.originating_conversation_id,?\s*\);/,
+    );
+  });
 });
 
 /** The local names that hold an agent_tasks row in one file: the collection

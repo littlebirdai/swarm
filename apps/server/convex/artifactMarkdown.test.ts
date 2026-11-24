@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { PAGE_THEME_MESSAGE } from "@codecast/render/pageTheme";
 import {
   renderMarkdownDocument,
   restyleMarkdownDocument,
@@ -58,10 +59,12 @@ describe("artifactMarkdown", () => {
     expect(html).toContain("<th>arm</th>");
   });
 
-  test("the document shell escapes its title and wraps its content", async () => {
+  test("the document shell includes the title, content, color scheme, and copy buttons", async () => {
     const html = await renderMarkdownDocument("# T", "A <title>");
     expect(html).toContain("<title>A &lt;title&gt;</title>");
     expect(html).toContain('<main class="md">');
+    expect(html).toContain('<meta name="color-scheme" content="light dark">');
+    expect(html).toContain('querySelectorAll(".md pre")');
   });
 
   test("the theme is chosen in <head>, before the first paint, and the page carries its toggle", async () => {
@@ -70,6 +73,10 @@ describe("artifactMarkdown", () => {
     expect(initializer).toBeGreaterThan(html.indexOf("<head>"));
     expect(initializer).toBeLessThan(html.indexOf("</head>"));
     expect(html).toContain('class="md-theme"');
+    expect(html).toContain(JSON.stringify(PAGE_THEME_MESSAGE));
+    expect(html).toMatch(
+      /:root\[data-theme=dark\]\s*\{\s*color-scheme:\s*dark;\s*--md-page:/,
+    );
   });
 
   test("a stored page is served in the current shell, with its body untouched", () => {
