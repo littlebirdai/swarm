@@ -11,7 +11,7 @@ import {
   runEndsAt,
   runMinutesLeft,
 } from "@codecast/shared/contracts";
-import { formatDuration } from "@codecast/shared/time";
+import { formatDuration } from "@codecast/time";
 import {
   checkIdleMinutes,
   provisionArgv,

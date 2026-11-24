@@ -22,7 +22,7 @@ import {
   replayBackfillLine,
   replayBackfillState,
 } from "@codecast/shared/contracts/replay";
-import { relTimeShort } from "@codecast/shared/time";
+import { relTimeShort } from "@codecast/time";
 import {
   appWatchVerdict,
   failureLine,

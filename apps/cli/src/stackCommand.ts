@@ -49,9 +49,9 @@ export interface StackRow {
   updated_at: number;
 }
 
-// The one duration grammar lives in shared/time, so the stack policy, grants
+// The one duration grammar lives in @codecast/time, so the stack policy, grants
 // and app connector watches read "24h" the same way.
-import { parseDuration, formatDuration } from "@codecast/shared/time";
+import { parseDuration, formatDuration } from "@codecast/time";
 import {
   countOption,
   unknownVerbError,

@@ -1,7 +1,7 @@
 "use client";
 // /share/plan/<token>: a plan's goal, criteria, progress, body and tasks.
 import { api } from "@codecast/convex/convex/_generated/api";
-import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
+import { formatDateFull, formatDateSmart } from "@codecast/time";
 import {
   Bullets,
   Callout,

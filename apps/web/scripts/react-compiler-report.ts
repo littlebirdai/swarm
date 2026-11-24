@@ -129,6 +129,8 @@ function resolveImport(from: string, spec: string): string | null {
   let base: string;
   if (spec.startsWith("@/")) base = path.join(WEB, spec.slice(2));
   else if (spec.startsWith(".")) base = path.resolve(path.dirname(from), spec);
+  else if (spec === "@codecast/time")
+    base = path.join(REPO, "packages/time/src/index.ts");
   else if (spec === "@codecast/shared") base = path.join(SHARED, "index");
   else if (spec.startsWith("@codecast/shared/"))
     base = path.join(SHARED, spec.slice("@codecast/shared/".length));
@@ -684,7 +686,7 @@ const REVIEWED_PURE: Record<string, string> = {
     "memo of a pure string transform, keyed by the input string",
   "MD_RENDER_CACHE (apps/web/components/conversation/markdown.tsx)":
     "memo of rendered markdown, keyed by the source text and its options",
-  "formatters (packages/shared/time/index.ts)":
+  "formatters (packages/time/src/index.ts)":
     "Intl formatters by locale and options, each built once",
   "cardPatterns (packages/shared/contracts/cloudAgents.ts)":
     "regular expressions built once per card kind",

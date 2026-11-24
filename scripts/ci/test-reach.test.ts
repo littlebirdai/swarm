@@ -51,6 +51,9 @@ describe("resolveImport", () => {
     expect(resolveImport("@codecast/edge-contract", from)).toBe(
       join(ROOT, "packages/edge-contract/src/index.ts"),
     );
+    expect(resolveImport("@codecast/time", from)).toBe(
+      join(ROOT, "packages/time/src/index.ts"),
+    );
     expect(resolveImport("@codecast/electron", from)).toBe(
       join(ROOT, "apps/desktop/main.js"),
     );

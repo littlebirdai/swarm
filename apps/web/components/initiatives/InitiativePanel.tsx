@@ -35,7 +35,7 @@ import {
   type ProjectItem,
 } from "../../store/inboxStore";
 import { openPlansOf } from "@codecast/shared/contracts/openPlans";
-import { formatRelative } from "@codecast/shared/time";
+import { formatRelative } from "@codecast/time";
 import { EntityIdPill } from "../EntityIdPill";
 import { undoAsOne } from "../../store/undoActions";
 import { quoted } from "../../store/undo/labels";

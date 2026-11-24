@@ -29,7 +29,7 @@ import {
   sparkline,
 } from "./externalDataCli.js";
 import { stdinText } from "./sendBody.js";
-import { formatDuration, parseDuration } from "@codecast/shared/time";
+import { formatDuration, parseDuration } from "@codecast/time";
 import type {
   WatchDirection,
   WatchKind,

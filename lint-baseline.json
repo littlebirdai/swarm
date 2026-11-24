@@ -30217,12 +30217,6 @@
   "packages/shared/team/visibility.ts": {
     "swarm/no-comments": 6
   },
-  "packages/shared/time/index.ts": {
-    "swarm/no-comments": 58
-  },
-  "packages/shared/time/time.test.ts": {
-    "swarm/no-comments": 5
-  },
   "packages/shared/vault/entityRef.ts": {
     "swarm/no-comments": 79
   },
@@ -30243,6 +30237,12 @@
   },
   "packages/shared/vault/vaultIndex.ts": {
     "swarm/no-comments": 82
+  },
+  "packages/time/src/index.ts": {
+    "swarm/no-comments": 58
+  },
+  "packages/time/test/time.test.ts": {
+    "swarm/no-comments": 5
   },
   "patches/convex-auth-ios-oauth.mjs": {
     "swarm/no-comments": 21

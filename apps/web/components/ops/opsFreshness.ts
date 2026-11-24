@@ -1,6 +1,6 @@
 // How fresh the Ops area's numbers are, as one reading for the shell's
 // header. Pure: no React, no store.
-import { relTimeShort } from "@codecast/shared/time";
+import { relTimeShort } from "@codecast/time";
 import { POLL_LATE_MS, pollLateAfter } from "./sourceHealth";
 import type { OpsSource, OpsWatch } from "./opsTypes";
 

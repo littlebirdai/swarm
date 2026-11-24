@@ -17,7 +17,7 @@ import {
   wallClock,
   wallTimeIn,
   WEEKDAYS,
-} from "../time";
+} from "@codecast/time";
 import { isTerminalTaskStatus } from "./statuses";
 
 // ---------------------------------------------------------------------------

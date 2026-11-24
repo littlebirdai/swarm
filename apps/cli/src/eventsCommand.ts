@@ -38,7 +38,7 @@ import {
   bucketSeries,
 } from "@codecast/shared/contracts/ingest";
 import { fenceProductText } from "@codecast/shared/contracts";
-import { parseDuration } from "@codecast/shared/time";
+import { parseDuration } from "@codecast/time";
 
 export interface EventRow {
   _id: string;

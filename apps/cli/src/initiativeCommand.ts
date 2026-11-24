@@ -6,11 +6,7 @@
 // each record command sends. The network calls and the exits live in index.ts.
 
 import type { GoalPredictionRow } from "@codecast/shared/contracts/predictedEffect";
-import {
-  targetDayOf,
-  targetDayStamp,
-  targetDayPassed,
-} from "@codecast/shared/time";
+import { targetDayOf, targetDayStamp, targetDayPassed } from "@codecast/time";
 import {
   STANDING_WORD,
   doneWhenPredicate,
@@ -93,7 +89,7 @@ const healthColor = (c: Palette, health: InitiativeHealth) =>
         : c.dim;
 
 // A moment (an update's `at`) prints as the person's own day. A target day
-// prints through the shared pair that stored it (shared/time targetDayOf).
+// prints through the shared pair that stored it (@codecast/time targetDayOf).
 export function dayText(ms?: number): string | undefined {
   if (!ms) return undefined;
   const d = new Date(ms);

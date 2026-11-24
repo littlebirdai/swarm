@@ -13,7 +13,7 @@ import {
   performUndo,
   undoEntry,
 } from "@platform/engine";
-import { targetDayStamp } from "@codecast/shared/time";
+import { targetDayStamp } from "@codecast/time";
 import { useInboxStore } from "../inboxStore";
 
 // Each work spec with an inverse names its server half explicitly. These

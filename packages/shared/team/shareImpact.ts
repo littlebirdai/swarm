@@ -2,7 +2,7 @@
 // how many sessions, from when to when, what a share start keeps private, and
 // the words on the button. Pure, so the setup flows, the settings page and the
 // CLI agree on one wording.
-import { formatShortDate } from "../time";
+import { formatShortDate } from "@codecast/time";
 
 /** One directory's true counts and start span (users.shareImpactForPaths). */
 export type PathShareSummary = {

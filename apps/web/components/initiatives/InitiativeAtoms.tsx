@@ -56,7 +56,7 @@ import {
   formatShortDate,
   formatTargetDay,
   targetDayPassed,
-} from "@codecast/shared/time";
+} from "@codecast/time";
 import { intentSourceHref } from "../../lib/intentSources";
 import { SparkLine } from "../Spark";
 import { useTrackedStore } from "../../store/inboxStore";
@@ -275,7 +275,7 @@ export function OwnerChip({
 }
 
 /** A target day, red once it has passed. A goal's is a stored day
- *  (shared/time targetDayStamp), the same day for every viewer and late only
+ *  (@codecast/time targetDayStamp), the same day for every viewer and late only
  *  when their own calendar is past it. `local` is for a stamp that is the end
  *  of the viewer's own day instead (a project's deadline). */
 export function TargetDate({

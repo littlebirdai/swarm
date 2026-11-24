@@ -205,7 +205,7 @@ import {
 } from "./PaletteRows";
 import { RailIcon } from "./sidebar/RailIcon";
 import { useIsModernStyle } from "../hooks/useVisualStyle";
-import { formatDateSmart } from "@codecast/shared/time";
+import { formatDateSmart } from "@codecast/time";
 
 // Loaded only on the confirm step so the search palette does not pull the
 // composer module (and the HMR cycle that comes with an eager import).

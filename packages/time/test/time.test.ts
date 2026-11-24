@@ -10,7 +10,7 @@ import {
   parseClockTime,
   relTimeShort,
   wasEdited,
-} from "./index";
+} from "../src/index";
 
 // A fixed clock so every expectation is deterministic: 2026-09-05 12:00 local.
 const now = new Date(2026, 8, 5, 12, 0, 0).getTime();
@@ -78,14 +78,14 @@ describe("wasEdited / describeDates", () => {
 
 describe("a target day is a calendar day everywhere", () => {
   test("stores and reads back the same day, whatever the local timezone", async () => {
-    const { targetDayStamp, targetDayOf } = await import("./index");
+    const { targetDayStamp, targetDayOf } = await import("../src/index");
     const ts = targetDayStamp("2026-12-31")!;
     expect(targetDayOf(ts)).toBe("2026-12-31");
     expect(new Date(ts).toISOString()).toBe("2026-12-31T23:59:59.999Z");
     expect(targetDayOf(undefined)).toBeUndefined();
   });
   test("a malformed or rolled day is refused", async () => {
-    const { targetDayStamp } = await import("./index");
+    const { targetDayStamp } = await import("../src/index");
     expect(targetDayStamp("2026-02-30")).toBeNull();
     expect(targetDayStamp("31/12/2026")).toBeNull();
   });
@@ -95,7 +95,7 @@ describe("a target day is a calendar day everywhere", () => {
       formatTargetDay,
       targetDayPassed,
       formatShortDate,
-    } = await import("./index");
+    } = await import("../src/index");
     const ts = targetDayStamp("2026-10-30")!;
     const was = process.env.TZ;
     try {

@@ -475,7 +475,7 @@ describe("command groups stay off the boot graph", () => {
       // 4635 after rebasing both passes onto main's 4525. The second pass of that work: index.ts grew by 30 KB
       // more (help, examples and refusals across the trigger, task, workflow,
       // session and read declarations), commandSuggestion.ts (+2), formatter.ts
-      // (+6, the read and search footers), usageCommand.ts (+3), shared/time
+      // (+6, the read and search footers), usageCommand.ts (+3), @codecast/time
       // (+3), castApi.ts (+2, isOlderBackendRefusal) and under 2 KB each across
       // workState, sessionAsk, resolveWorkspace and the send and parking modules.
       // 4637 on 2026-11-10: contracts/inboxProjection.ts (+0.4, commandsSession,

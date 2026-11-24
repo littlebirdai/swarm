@@ -4,7 +4,7 @@
 // the owner previews it in the app and may publish it at /share/card/<token>,
 // whose page and social image draw the same stats. Pure, so the week math is
 // tested without a database.
-import { wallClock, wallTimeIn } from "../time";
+import { wallClock, wallTimeIn } from "@codecast/time";
 import { agentDisplayName } from "./agentClients";
 
 const HOUR = 3_600_000;

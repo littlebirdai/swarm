@@ -10,6 +10,7 @@ web = "apps/web/tsconfig.json"
 convex = "apps/server/convex/tsconfig.json"
 # The edge contract is checked before the daemon and server import it.
 edge-contract = "packages/edge-contract/tsconfig.json"
+time = "packages/time/tsconfig.json"
 mobile = "apps/mobile/tsconfig.json"
 # The multiplayer sim harness plus the legacy store sims, with bun types
 # (docs/architecture/multiplayer-sim-harness.md section 3.10).

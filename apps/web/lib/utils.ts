@@ -45,7 +45,7 @@ export function cn(...inputs: ClassValue[]) {
 // "New Session" affordance opens directly through store.openCompose().
 export const NEW_SESSION_EVENT = "codecast-new-session";
 
-// Relative/calendar stamp formatting lives in @codecast/shared/time so web,
+// Relative/calendar stamp formatting lives in @codecast/time so web,
 // mobile and the CLI age a timestamp by the same rules. Re-exported here for
 // the many existing web callers.
 export {
@@ -54,7 +54,7 @@ export {
   formatShortDate,
   formatDateFull,
   formatDateSmart,
-} from "@codecast/shared/time";
+} from "@codecast/time";
 
 export function shareOrigin(): string {
   return CODECAST_BASE_URL;

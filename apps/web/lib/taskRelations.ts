@@ -22,7 +22,7 @@ import {
   type TaskWait,
   type WaitTarget,
 } from "@codecast/shared/tasks";
-import { localTimeZone } from "@codecast/shared/time";
+import { localTimeZone } from "@codecast/time";
 import { toast } from "sonner";
 import { useInboxStore, type TaskItem } from "../store/inboxStore";
 import { isRefusedDispatchError } from "../store/mutativeMiddleware";

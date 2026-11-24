@@ -28,7 +28,7 @@ import {
   waitTargetOf,
   type TaskWait,
 } from "@codecast/shared/tasks";
-import { targetDayOf } from "@codecast/shared/time";
+import { targetDayOf } from "@codecast/time";
 import {
   INITIATIVE_RECORD_NOUN,
   type InitiativeRecordOp,

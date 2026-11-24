@@ -30,7 +30,7 @@ import {
   type MemoryAtlas,
   type MemoryFields,
 } from "@codecast/shared/memory";
-import { formatRelative } from "@codecast/shared/time";
+import { formatRelative } from "@codecast/time";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { KeyCap } from "../KeyboardShortcutsHelp";

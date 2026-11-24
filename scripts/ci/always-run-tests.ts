@@ -40,6 +40,7 @@ export const SUITES: Array<{
     roots: ["."],
     flags: [],
   },
+  { job: "test-shared", dir: "packages/time", roots: ["."], flags: [] },
   {
     job: "test-convex",
     dir: "apps/server",

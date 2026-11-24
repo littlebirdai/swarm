@@ -6,7 +6,7 @@ import {
   FILE_SESSION_EXAMPLE,
   FILE_SESSION_SHAPE,
 } from "@codecast/shared/contracts/orgSessionFiling";
-import { formatRelative } from "@codecast/shared/time";
+import { formatRelative } from "@codecast/time";
 import { fmt } from "./colors.js";
 import type { OrgInitDeps } from "./orgInit.js";
 

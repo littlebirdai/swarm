@@ -21,7 +21,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { workspaceKey } from "./lib/accessKeys";
 import { dayStartUtc } from "./lib/userSend";
-import { isKnownTimeZone } from "@codecast/shared/time";
+import { isKnownTimeZone } from "@codecast/time";
 import { emitNotification } from "./notificationRouter";
 import {
   buildWeekCard,

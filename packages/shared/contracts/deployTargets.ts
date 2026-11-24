@@ -8,7 +8,7 @@
 // desktop), and a line profile's `[line.deploy]` (Union) as one more. Both normalize here, so the CLI that
 // runs a target, the server that records it and the Deploys page that shows
 // it read the same shape.
-import { parseDuration } from "../time";
+import { parseDuration } from "@codecast/time";
 
 /** Where a target's command runs. */
 export const DEPLOY_TARGET_RUNS = ["here", "push"] as const;
