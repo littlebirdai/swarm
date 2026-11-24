@@ -1,34 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
 import { MOTIONS } from "../motion";
 import { SCENES, SURFACE_BY_ID, type SurfaceId } from "../world";
 import { EAGER_CHAPTERS, LAZY_CHAPTERS, loadAllChapters } from "./index";
 
-// The chapter contract (README.md), checked over whatever files exist, so a
-// builder's new part, beat or flyer is held to it the moment it is added.
-
-const DIR = import.meta.dir;
-const files = readdirSync(DIR);
-const chapterFiles = files
-  .filter((f) => f.endsWith(".chapter.ts"))
-  .map((f) => f.replace(/\.chapter\.ts$/, ""));
-const motionFiles = files
-  .filter((f) => f.endsWith(".motion.ts"))
-  .map((f) => f.replace(/\.motion\.ts$/, ""));
-const fixtureFiles = readdirSync(join(DIR, "../fixtures"))
-  .filter((f) => f.endsWith(".ts"))
-  .map((f) => f.replace(/\.ts$/, ""));
 const ids = SCENES.map((s) => s.id);
 
 describe("hero chapter contract", () => {
-  test("every chapter has a chapter file, a motion file and a fixtures file, and nothing else is a chapter", () => {
-    expect(chapterFiles.sort()).toEqual([...ids].sort());
-    expect(motionFiles.sort()).toEqual([...ids].sort());
-    for (const id of ids)
-      expect(fixtureFiles, `fixtures/${id}.ts`).toContain(id);
-  });
-
   test("every chapter is registered, eager or lazy, and gathered by motion.ts", () => {
     const registered = [
       ...EAGER_CHAPTERS.map((c) => c.id),

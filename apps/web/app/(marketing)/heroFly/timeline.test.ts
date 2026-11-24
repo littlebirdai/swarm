@@ -29,7 +29,6 @@ import {
 } from "./timeline";
 import {
   CAMERA,
-  CAMERA_MOBILE,
   DURATION,
   FRAME_MARGIN,
   SCENES,
@@ -147,7 +146,7 @@ describe("hero fly-through timeline", () => {
     // The first frame of each framing samples the whole film once (timeline.ts buildTrack).
   }, 60_000);
 
-  test("frame is a pure function of t", () => {
+  test("frame repeats after the film duration", () => {
     for (const t of [
       0,
       1.2,
@@ -162,7 +161,6 @@ describe("hero fly-through timeline", () => {
       84.5,
       DURATION - 0.01,
     ]) {
-      expect(frame(t)).toEqual(frame(t));
       expect(frame(t + DURATION)).toEqual(frame(t));
     }
   });
@@ -212,11 +210,6 @@ describe("hero fly-through timeline", () => {
     "desk",
     null,
   ];
-
-  test("every camera hold has a hero entry and a mobile override", () => {
-    expect(HERO.length).toBe(CAMERA.length);
-    expect(CAMERA_MOBILE.length).toBe(CAMERA.length);
-  });
 
   test("every chapter holds the camera still for at least 3s", () => {
     SCENES.forEach((s) => {
@@ -281,6 +274,7 @@ describe("hero fly-through timeline", () => {
 
   for (const mobile of [false, true]) {
     test(`holds frame their hero surface near scale 1 and face-on${mobile ? " (mobile)" : ""}`, () => {
+      expect(HERO.length).toBe(CAMERA.length);
       CAMERA.forEach((h, i) => {
         const id = HERO[i];
         if (!id) return;

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { JSDOM } from "jsdom";
+import { OAUTH_STARTED_KEY } from "../../../lib/oauthReturn";
 import * as React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -75,12 +76,15 @@ mock.module("@platform/auth/web", () => ({
   useProviderSignIn: (options: any) => {
     providerOptions = options;
     return {
-      buttons: ["github", "apple"].map((id) => ({
+      buttons: ["github", "apple", "google"].map((id) => ({
         id,
         label: id,
         iconPath: "",
       })),
       start: async (id: string) => {
+        expect(
+          Number(sessionStorage.getItem(OAUTH_STARTED_KEY)),
+        ).toBeGreaterThan(0);
         providerStarts.push(id);
       },
       loading: false,
@@ -221,7 +225,7 @@ describe("Slack callback and sign-in", () => {
     ).toBe("/settings/integrations?scope=team&slack=connected#slack");
   });
 
-  test.each(["github", "apple"])(
+  test.each(["github", "apple", "google"])(
     "%s sign-in returns through login so its code cannot replace Slack's",
     async (provider) => {
       await render();
@@ -229,6 +233,7 @@ describe("Slack callback and sign-in", () => {
       const button = [...document.querySelectorAll("button")].find((b) =>
         b.textContent?.includes(`with ${provider}`),
       )!;
+      expect(button.type).toBe("button");
       await act(async () => button.click());
       expect(providerStarts).toEqual([provider]);
       expect(providerOptions.redirectTo).toBe(SLACK_SIGN_IN_URL);
@@ -264,28 +269,32 @@ describe("Slack callback and sign-in", () => {
   );
 
   test.each([
-    "bad_state",
-    "wrong_user",
-    "not_admin",
-    "workspace_taken",
-    "invalid_code",
-    "code_already_used",
-    "wrong_workspace",
-    "no_user_token",
-  ])("shows server refusal %s without claiming success", async (error) => {
-    auth = { isAuthenticated: true, isLoading: false };
-    answer = async () => ({
-      ok: false,
-      error,
-      return_to: "/settings/integrations",
-    });
-    await render();
-    await flush();
-    expect(document.body.textContent).toContain("Slack was not connected");
-    expect(actionCalls).toHaveLength(1);
-    expect(window.location.pathname).toBe("/slack/connect");
-    expect(sessionStorage.getItem(SLACK_RETURN_KEY)).toBeNull();
-  });
+    ["bad_state", "expired or was altered"],
+    ["wrong_user", "started by a different codecast account"],
+    ["not_admin", "Only a team admin"],
+    ["workspace_taken", "connected to a different codecast team"],
+    ["invalid_code", "has expired or was already used"],
+    ["code_already_used", "This Slack link was already used"],
+    ["wrong_workspace", "from the one this team uses"],
+    ["no_user_token", "did not grant your account's permissions"],
+  ])(
+    "shows server refusal %s without claiming success",
+    async (error, message) => {
+      auth = { isAuthenticated: true, isLoading: false };
+      answer = async () => ({
+        ok: false,
+        error,
+        return_to: "/settings/integrations",
+      });
+      await render();
+      await flush();
+      expect(document.body.textContent).toContain("Slack was not connected");
+      expect(document.body.textContent).toContain(message);
+      expect(actionCalls).toHaveLength(1);
+      expect(window.location.pathname).toBe("/slack/connect");
+      expect(sessionStorage.getItem(SLACK_RETURN_KEY)).toBeNull();
+    },
+  );
 
   test("shows a transport failure with a path to restart", async () => {
     auth = { isAuthenticated: true, isLoading: false };

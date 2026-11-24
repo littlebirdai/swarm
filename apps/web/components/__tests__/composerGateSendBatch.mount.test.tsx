@@ -1,11 +1,13 @@
 import { dom, w, restoreGlobals } from "./fixtures/composeDom";
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 
+const toastError = mock((_message: string) => 1);
+
 mock.module("sonner", () => {
   const noop = () => 1;
   return {
     toast: Object.assign(noop, {
-      error: noop,
+      error: toastError,
       info: noop,
       success: noop,
       warning: noop,
@@ -61,6 +63,7 @@ function fakeConvex() {
 }
 
 beforeEach(() => {
+  toastError.mockClear();
   (useInboxStore.getState() as any)._setDispatch(async () => undefined);
   useInboxStore.setState({
     sessions: {},
@@ -167,6 +170,9 @@ test("a hosted main-path send with a restored image adds no message and keeps th
     drafts: { [CONV_ID]: { draft_image_storage_ids: [image] } },
   } as any);
   await submitGated("codecast", false);
+  expect(toastError).toHaveBeenCalledWith(expect.any(String), {
+    id: "hosted-image-refusal",
+  });
   expect(useInboxStore.getState().pendingMessages[CONV_ID] ?? []).toEqual([]);
   expect(
     (useInboxStore.getState().drafts[CONV_ID] as any)

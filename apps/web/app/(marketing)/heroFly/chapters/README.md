@@ -133,7 +133,7 @@ Every split is a pure move: the app's markup must stay byte-identical (prove it 
 ## Checking your chapter
 
 - Seek in the browser: `window.__heroFly.seek(t)`, or load `/?hero-t=<seconds>` to freeze a frame. Background tabs stall requestAnimationFrame, so always verify by seeking, never by watching. `window.__heroFly.scenes` lists each chapter's start, end and hold.
-- `bun test app/(marketing)/heroFly/chapters/contract.test.ts` (files, registry, regions, id prefixes, flyer renderers)
+- `bun test app/(marketing)/heroFly/chapters/contract.test.ts` (registry, regions, id prefixes, flyer renderers)
 - `bun test app/(marketing)/heroFly/sandbox.guard.test.tsx` (isolation, across the whole film, with every `data-hero-live` element fired)
-- `bun test app/(marketing)/heroFly/timeline.test.ts` (seam, purity, framing)
+- `bun test app/(marketing)/heroFly/timeline.test.ts` (seams, loop, framing)
 - `cast check web`

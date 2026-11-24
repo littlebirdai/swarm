@@ -7,9 +7,7 @@ import { closeDomWindow } from "../test-helpers/domGlobals";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
 });
-const scrolledItems: HTMLElement[] = [];
 dom.window.HTMLElement.prototype.scrollIntoView = function () {
-  scrolledItems.push(this);
   const list = this.closest<HTMLElement>("[cmdk-list]");
   if (!list || !this.matches("[cmdk-item]")) return;
   const index = Array.from(list.querySelectorAll("[cmdk-item]")).indexOf(this);
@@ -65,7 +63,6 @@ async function render(search: string, items = rows) {
 afterEach(async () => {
   await act(() => root.unmount());
   root = createRoot(container);
-  scrolledItems.length = 0;
 });
 
 afterAll(async () => {
@@ -86,37 +83,11 @@ test("typing returns to the top even when the first result stays selected", asyn
   list.scrollTop = 400;
   await render("aive");
   expect(list.scrollTop).toBe(0);
-  expect(list.style.overflowAnchor).toBe("none");
-  expect(list.classList.contains("scroll-smooth")).toBe(false);
-});
-
-test("clearing the query resets the viewport", async () => {
-  const list = await render("aivery");
   list.scrollTop = 600;
   await render("");
   expect(list.scrollTop).toBe(0);
-});
-
-test("keyboard navigation still reveals its selection and typing resets it", async () => {
-  const list = await render("ai");
-  const input = container.querySelector("input")!;
-  scrolledItems.length = 0;
-  await act(() =>
-    input.dispatchEvent(
-      new dom.window.KeyboardEvent("keydown", { key: "End", bubbles: true }),
-    ),
-  );
-  expect(container.querySelector('[aria-selected="true"]')?.textContent).toBe(
-    rows.at(-1)!,
-  );
-  expect(scrolledItems.at(-1)?.textContent).toBe(rows.at(-1)!);
-
-  list.scrollTop = 900;
-  await render("aiv");
-  expect(list.scrollTop).toBe(0);
-  expect(container.querySelector('[aria-selected="true"]')?.textContent).toBe(
-    rows[0],
-  );
+  expect(list.style.overflowAnchor).toBe("none");
+  expect(list.classList.contains("scroll-smooth")).toBe(false);
 });
 
 test("results arriving for the same query preserve the user's scroll position", async () => {

@@ -113,8 +113,18 @@ describe("the queue lights the rail card it is showing", () => {
   });
 
   test("an emptied queue leaves the last answered question lit, not a stale one", async () => {
+    queue = [item("previous", CONV_B), item("last", CONV_A)];
+    await act(async () =>
+      root.render(
+        <DecisionQueue key="empty-queue" initialConversationId={CONV_B} />,
+      ),
+    );
+    expect(railFocus()).toBe(CONV_B);
+    queue = [item("last", CONV_A)];
+    await act(async () => root.render(<DecisionQueue key="empty-queue" />));
+    expect(railFocus()).toBe(CONV_A);
     queue = [];
-    await act(async () => root.render(<DecisionQueue />));
+    await act(async () => root.render(<DecisionQueue key="empty-queue" />));
     expect(railFocus()).toBe(CONV_A);
   });
 });

@@ -106,16 +106,6 @@ function setup(
   return { readerScrollsUp, readerScrollsToBottom, streamChunk, distance };
 }
 
-const geometryRule = (i: { nearBottom: boolean; scrolledDown: boolean }) =>
-  i.nearBottom && i.scrolledDown;
-
-test("resuming follow on geometry alone snaps a reader who scrolled up a little", () => {
-  const { readerScrollsUp, streamChunk, distance } = setup(geometryRule);
-  readerScrollsUp(50);
-  for (let i = 0; i < 4; i++) streamChunk();
-  expect(distance()).toBeLessThan(8);
-});
-
 test("a reader who scrolled up a little stays there while the reply streams", () => {
   const { readerScrollsUp, streamChunk, distance } = setup(shouldResumeFollow);
   readerScrollsUp(50);

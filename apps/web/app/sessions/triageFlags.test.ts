@@ -19,12 +19,17 @@ const row = (extra: Partial<Row> = {}): Row => ({
 });
 
 describe("deriveTriageFlags", () => {
-  it("reports a killed+pinned row (the only killed shape the inbox join delivers) as killed", () => {
-    expect(deriveTriageFlags(row({ inbox_killed_at: 1_000 }))).toEqual({
-      killed: true,
-      dismissed: true,
-    });
-  });
+  it.each([null, 2_000])(
+    "reports a killed row as killed and dismissed with stash time %s",
+    (inbox_stashed_at) => {
+      expect(
+        deriveTriageFlags(row({ inbox_killed_at: 1_000, inbox_stashed_at })),
+      ).toEqual({
+        killed: true,
+        dismissed: true,
+      });
+    },
+  );
 
   it("reports killed from the managed-session row flag, with no inbox join at all", () => {
     // The unpinned killed case: shouldShowInInbox drops it from the inbox
@@ -71,18 +76,5 @@ describe("deriveTriageFlags", () => {
       killed: false,
       dismissed: false,
     });
-  });
-
-  it("keeps dismissed true whenever killed is true, so the badge always renders", () => {
-    // The badge is gated on `dismissed` and only then picks its killed/stashed
-    // label — a killed row with dismissed:false would render NO badge at all.
-    for (const input of [
-      deriveTriageFlags(row({ inbox_killed_at: 1 })),
-      deriveTriageFlags(undefined, true),
-      deriveTriageFlags(row({ inbox_killed_at: 1, inbox_stashed_at: 2 })),
-    ]) {
-      expect(input.killed).toBe(true);
-      expect(input.dismissed).toBe(true);
-    }
   });
 });

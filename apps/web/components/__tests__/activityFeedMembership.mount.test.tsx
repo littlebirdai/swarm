@@ -222,6 +222,10 @@ test("a role seat the viewer hosts gets its bot's pill, never a second one of th
   const el = document.createElement("div");
   document.body.appendChild(el);
   const root = createRoot(el);
+  Object.defineProperty(dom.window.HTMLElement.prototype, "clientWidth", {
+    configurable: true,
+    value: 800,
+  });
   try {
     await act(async () =>
       root.render(
@@ -231,11 +235,14 @@ test("a role seat the viewer hosts gets its bot's pill, never a second one of th
       ),
     );
     const pills = [...el.querySelectorAll("button")]
-      .filter((b) => b.querySelector(".ring-2"))
-      .map((b) => b.querySelector(".font-medium")?.textContent);
+      .filter((button) => !button.closest('[aria-hidden="true"]'))
+      .flatMap((button) => [...button.children])
+      .map((label) => label.textContent)
+      .filter((label) => label === "Alexander" || label === "Deals lead");
     expect(pills).toEqual(["Alexander", "Deals lead"]);
   } finally {
     await act(async () => root.unmount());
+    Reflect.deleteProperty(dom.window.HTMLElement.prototype, "clientWidth");
     el.remove();
   }
 }, 30_000);

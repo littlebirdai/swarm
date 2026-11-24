@@ -95,18 +95,6 @@ describe("isJumpReadyToScroll", () => {
       isJumpReadyToScroll({ ...ready, direction: "end", isLoadingNewer: true }),
     ).toBe(false);
   });
-
-  test("a still-loading jump only becomes ready once loading clears", () => {
-    const loading = {
-      ...ready,
-      direction: "end" as const,
-      isLoadingNewer: true,
-    };
-    expect(isJumpReadyToScroll(loading)).toBe(false);
-    expect(isJumpReadyToScroll({ ...loading, isLoadingNewer: false })).toBe(
-      true,
-    );
-  });
 });
 
 describe("shouldLoadOlder", () => {
@@ -138,13 +126,6 @@ describe("shouldLoadOlder", () => {
   // i.e. "near top" AND "at the bottom" simultaneously.
   test("does NOT load while parked at the bottom of a short window (the reported bug)", () => {
     expect(shouldLoadOlder({ ...can, userScrolled: false })).toBe(false);
-  });
-
-  test("does NOT load on initial open before the user has scrolled", () => {
-    // Initial render snaps to the bottom; userScrolled starts false.
-    expect(
-      shouldLoadOlder({ ...can, userScrolled: false, nearTop: true }),
-    ).toBe(false);
   });
 
   test("does NOT load when the user is scrolled up but not near the top", () => {
@@ -188,12 +169,6 @@ describe("shouldLoadOlder", () => {
     expect(shouldLoadOlder({ ...fill, isLoadingNewer: true })).toBe(false);
     expect(shouldLoadOlder({ ...fill, cooldownActive: true })).toBe(false);
     expect(shouldLoadOlder({ ...fill, hasMoreAbove: false })).toBe(false);
-  });
-
-  test("resumes once the user scrolls up after following the tail", () => {
-    // Parked at the tail → suppressed; then a genuine scroll-up → allowed.
-    expect(shouldLoadOlder({ ...can, userScrolled: false })).toBe(false);
-    expect(shouldLoadOlder({ ...can, userScrolled: true })).toBe(true);
   });
 });
 

@@ -112,14 +112,6 @@ export function extractSendBody(args: string): SendBody {
   return { body: body || t, kind: dynamic ? "dynamic" : "literal" };
 }
 
-// Pull the value of an inline message flag (`-m "…"` / `--message '…'`) out of a
-// cast command's arg string, e.g. `cast task done ct-1 -m "verified in prod"`.
-// Only literal quoted/bare values are returned — an expanded value ($VAR, $(…))
-// is a recipe, not the delivered text, so it yields null.
-export function extractMessageFlag(args: string): string | null {
-  return extractFlagValue(args, ["-m", "--message"]);
-}
-
 // The body argument of `cast task comment <id> "…"` / `cast plan comment <id> -`:
 // everything after the leading entity id (short id, or a bare Convex id for
 // docs), decoded like a send body (quoted word or heredoc). Returns null when

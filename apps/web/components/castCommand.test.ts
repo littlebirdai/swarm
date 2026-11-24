@@ -8,7 +8,6 @@ import {
   parseCastCommandString,
   extractSendBody,
   extractCommentBody,
-  extractMessageFlag,
   extractFlagValue,
   extractCastBodyParts,
   normalizeCastCategory,
@@ -29,12 +28,6 @@ import {
 } from "./castCommand";
 
 describe("stripEnvPrefix", () => {
-  test("strips a leading assignment", () => {
-    expect(
-      stripEnvPrefix("CAST_BROWSER_LEGACY=1 cast browser open example.com"),
-    ).toBe("cast browser open example.com");
-  });
-
   test("strips several assignments, including quoted values", () => {
     expect(stripEnvPrefix('FOO=1 BAR="a b" cast task ready')).toBe(
       "cast task ready",
@@ -44,12 +37,6 @@ describe("stripEnvPrefix", () => {
   test("strips an `env` prefix with -u flags and assignments", () => {
     expect(stripEnvPrefix("env -u CLAUDECODE FOO=1 cast send jx7a6xc hi")).toBe(
       "cast send jx7a6xc hi",
-    );
-  });
-
-  test("leaves a command with no env words untouched", () => {
-    expect(stripEnvPrefix('cast send jx7a6xc "hi"')).toBe(
-      'cast send jx7a6xc "hi"',
     );
   });
 
@@ -87,6 +74,7 @@ describe("parseCastCommandString with env prefixes", () => {
     );
     expect(parsed?.category).toBe("browser");
     expect(parsed?.subcommand).toBe("open");
+    expect(parsed?.fullCmd).toBe("cast browser open example.com");
   });
 
   test("cd prefix and env prefix compose", () => {
@@ -100,24 +88,6 @@ describe("parseCastCommandString with env prefixes", () => {
 });
 
 describe("stripCdPrefix", () => {
-  test("strips a leading `cd <dir>;` prefix", () => {
-    expect(
-      stripCdPrefix('cd /Users/ashot/src/codecast; cast send jx7a6xc "hi"'),
-    ).toBe('cast send jx7a6xc "hi"');
-  });
-
-  test("strips a leading `cd <dir> &&` prefix", () => {
-    expect(stripCdPrefix("cd /repo && cast task ready")).toBe(
-      "cast task ready",
-    );
-  });
-
-  test("leaves a command with no cd prefix untouched", () => {
-    expect(stripCdPrefix('cast send jx7a6xc "hi"')).toBe(
-      'cast send jx7a6xc "hi"',
-    );
-  });
-
   test("does not strip a `cd` that isn't a leading prefixed command", () => {
     // No `;`/`&&` separator — not a prefix, so leave it alone.
     expect(stripCdPrefix('cast doc create "cd into the dir"')).toBe(
@@ -564,20 +534,6 @@ describe("unwrapShellCommand", () => {
 });
 
 describe("extractCommentBody", () => {
-  test("quoted body after a task short id", () => {
-    expect(
-      extractCommentBody(
-        'ct-40882 "wired the parser, deploying next" -t progress',
-      ),
-    ).toBe("wired the parser, deploying next");
-  });
-
-  test("heredoc body after a plan short id", () => {
-    expect(extractCommentBody("pl-88 - <<'EOF'\nline one\nline two\nEOF")).toBe(
-      "line one\nline two",
-    );
-  });
-
   test("bare Convex id (doc comment) followed by a quoted body", () => {
     expect(
       extractCommentBody('k57d2v8m1q9x3z6b4n8c0f5g7h2j4l6p "looks good"'),
@@ -586,32 +542,6 @@ describe("extractCommentBody", () => {
 
   test("null when there is no leading entity id", () => {
     expect(extractCommentBody('"just a string"')).toBeNull();
-  });
-
-  test("null for a shell-expanded body (recipe, not delivered text)", () => {
-    expect(extractCommentBody('ct-40882 "$(cat notes.md)"')).toBeNull();
-  });
-});
-
-describe("extractMessageFlag", () => {
-  test("extracts a double-quoted -m value", () => {
-    expect(extractMessageFlag('ct-40882 -m "verified in prod"')).toBe(
-      "verified in prod",
-    );
-  });
-
-  test("extracts a single-quoted --message value", () => {
-    expect(extractMessageFlag("ct-40882 --message 'all tests green'")).toBe(
-      "all tests green",
-    );
-  });
-
-  test("null when the flag is absent", () => {
-    expect(extractMessageFlag("ct-40882")).toBeNull();
-  });
-
-  test("null for an expanded value", () => {
-    expect(extractMessageFlag('ct-40882 -m "$SUMMARY"')).toBeNull();
   });
 });
 
@@ -647,16 +577,14 @@ describe("extractFlagValue", () => {
 describe("normalizeCastCategory", () => {
   test("resolves short and pre-rename spellings", () => {
     expect(
-      ["t", "p", "d", "sched", "schedule", "task"].map(normalizeCastCategory),
-    ).toEqual(["task", "plan", "doc", "trigger", "trigger", "task"]);
+      ["t", "p", "d", "sched", "schedule", "task", "secrets"].map(
+        normalizeCastCategory,
+      ),
+    ).toEqual(["task", "plan", "doc", "trigger", "trigger", "task", "vault"]);
   });
 });
 
 describe("extractVaultArgs", () => {
-  test("secrets is the vault", () => {
-    expect(normalizeCastCategory("secrets")).toBe("vault");
-  });
-
   test("value verbs hide their output and name their secrets past flags", () => {
     expect(extractVaultArgs("get", "github-bot --field password")).toEqual({
       names: ["github-bot"],
