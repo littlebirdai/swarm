@@ -142,13 +142,15 @@ import {
   toConvexAgentType,
   LOCAL_AGENT_CLIENTS,
   type VaultInfo,
-  inlineForeignText,
-  fenceForeignText,
-  FOREIGN_TEXT_CAPS,
   callLinkHow,
   callAnchorHref,
   callPathRef,
 } from "@codecast/shared/contracts";
+import {
+  inlineForeignText,
+  fenceForeignText,
+  FOREIGN_TEXT_CAPS,
+} from "@codecast/fence/fence";
 import { callDisplayTitle, callLength } from "@codecast/calls/callRoomKeys";
 import { segmentAt } from "@codecast/calls/callRecordings";
 import { normalizeGuestName } from "@codecast/calls/callGuests";

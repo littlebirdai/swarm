@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FOREIGN_TEXT_CAPS } from "../contracts/fence";
+import { FOREIGN_TEXT_CAPS } from "@codecast/fence/fence";
 import {
   buildTaskSpawnPrompt,
   foreignTaskSource,

@@ -15,7 +15,7 @@ import {
   fenceForeignText,
   FOREIGN_TEXT_CAPS,
   inlineForeignText,
-} from "@codecast/shared/contracts";
+} from "@codecast/fence/fence";
 import type { ReplayEvent } from "@codecast/shared/contracts/replay";
 import type { OpsEvent, OpsGroup, OpsReplay } from "./opsTypes";
 import { formatCallTime } from "@codecast/shared/entities";
@@ -383,7 +383,7 @@ export type FixFacts = {
  * The fix session's opening prompt: the refs to read, the recorded facts
  * fenced as untrusted data (an error message or a url is the product's
  * payload, and anyone who can make the product fail can write it), and the
- * ask. The fence is the shared one (contracts/fence), whose nonce no recorded
+ * ask. The fence is the shared one (@codecast/fence/fence), whose nonce no recorded
  * text can close early.
  */
 export function fixPrompt(f: FixFacts): string {

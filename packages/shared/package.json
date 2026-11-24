@@ -129,7 +129,6 @@
     "./contracts/teamHosts": "./contracts/teamHosts.ts",
     "./contracts/secretRules": "./contracts/secretRules.ts",
     "./contracts/secretShapes": "./contracts/secretShapes.ts",
-    "./contracts/fence": "./contracts/fence.ts",
     "./contracts/theme": "./contracts/theme.ts"
   },
   "dependencies": {
@@ -143,6 +142,7 @@
     "@codecast/daemon": "workspace:*",
     "@codecast/decisions": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/fence": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/network": "workspace:*",
@@ -156,7 +156,6 @@
     "@codecast/triggers": "workspace:*",
     "@platform/agent": "file:../../platform/packages/agent",
     "@platform/assistant": "file:../../platform/packages/assistant",
-    "@platform/evals": "file:../../platform/packages/evals",
-    "@platform/fence": "file:../../platform/packages/fence"
+    "@platform/evals": "file:../../platform/packages/evals"
   }
 }

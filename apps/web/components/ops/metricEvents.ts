@@ -5,7 +5,7 @@ import {
   escapeForeignControlChars,
   fenceForeignText,
   FOREIGN_TEXT_CAPS,
-} from "@codecast/shared/contracts";
+} from "@codecast/fence/fence";
 import {
   alertSince,
   crosses,

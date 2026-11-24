@@ -36,6 +36,7 @@
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/evals-api": "workspace:*",
+    "@codecast/fence": "workspace:*",
     "@codecast/files": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/keyboard": "workspace:*",

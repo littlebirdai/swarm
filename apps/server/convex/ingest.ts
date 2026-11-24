@@ -40,7 +40,7 @@ import { sha256Hex } from "./lib/hash";
 import { nextShortId } from "./counters";
 import { resolveWorkspaceProject } from "./lib/projectRef";
 import { withCiRun } from "@codecast/shared/contracts/volumeWatch";
-import { capForeignText, inlineForeignText } from "@codecast/shared/contracts";
+import { capForeignText, inlineForeignText } from "@codecast/fence/fence";
 import { recordExternalEventOnce } from "./externalEvents";
 import { recordDeployMarker } from "./deploys";
 import { appSourceIn, refreshAppManifestSoon } from "./lib/appSource";

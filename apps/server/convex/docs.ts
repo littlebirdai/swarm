@@ -2,7 +2,7 @@ import {
   FOREIGN_TEXT_CAPS,
   fenceForeignText,
   inlineForeignText,
-} from "@codecast/shared/contracts";
+} from "@codecast/fence/fence";
 import {
   refuseArtifactBodyWrite,
   requireArtifactEditor,

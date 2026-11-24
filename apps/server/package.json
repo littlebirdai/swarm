@@ -27,6 +27,7 @@
     "@codecast/decisions": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/fence": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/keyboard": "workspace:*",

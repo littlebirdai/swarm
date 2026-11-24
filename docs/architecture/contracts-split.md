@@ -688,7 +688,7 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
 **Imports in older packages that wait for a move.**
 
 - `packages/agents/src/index.ts` imports from the `contracts` barrel. The moves of `agent-clients` and `agents` rewrite it.
-- `packages/comments/src/reviewBatch.ts` imports `@codecast/shared/contracts/fence`. The `fence` move rewrites it.
+- `packages/comments/src/reviewBatch.ts` imports `@codecast/fence/fence`.
 - `packages/artifacts`, `packages/blame` and `packages/vault` import `@codecast/shared/entities`. The `entities` move rewrites them.
 - `packages/vault` also imports `@codecast/shared/contracts/vaultProtocol` and `@codecast/shared/search/tokenize`. The `vault` and `search` moves rewrite them.
 - `packages/mods` imports `@codecast/shared/contracts/mods` in `src/inspect.ts`, `src/sdk.ts` and two tests. The `mods` move rewrites them.

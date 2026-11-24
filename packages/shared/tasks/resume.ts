@@ -11,7 +11,7 @@ import {
   fenceNonce,
   inlineForeignText,
   FOREIGN_TEXT_TRUNCATION_MARKER,
-} from "../contracts/fence";
+} from "@codecast/fence/fence";
 import { formatRelative } from "@codecast/time";
 import {
   blockerLabel,
