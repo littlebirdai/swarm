@@ -6,7 +6,7 @@
  * the question arrives, the field takes focus, the answer is typed and sent,
  * and the worker turns back to Working and streams its reply. The screen is
  * the app's own (components/PhoneSession.tsx, drawn from the session screen's
- * spec in @codecast/shared/render/mobileSessionStyle) inside the iOS status
+ * spec in @codecast/render/mobileSessionStyle) inside the iOS status
  * bar and keyboard.
  */
 
@@ -31,7 +31,7 @@ import {
   MOBILE_PULSE,
   MOBILE_SESSION_STYLE,
   mobileRelativeTime,
-} from "@codecast/shared/render/mobileSessionStyle";
+} from "@codecast/render/mobileSessionStyle";
 import {
   ASK,
   EARLIER,

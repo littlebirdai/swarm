@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { splitCodeRuns } from "./codeRuns";
+import { splitCodeRuns } from "../src/codeRuns";
 
 const code = (text: string) =>
   splitCodeRuns(text)

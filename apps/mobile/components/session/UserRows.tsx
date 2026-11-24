@@ -13,7 +13,7 @@ import { AnsiText } from "@/components/CodeText";
 import { codeFont } from "@/constants/fonts";
 import { EntityPill } from "@/components/EntityPill";
 import { CollapsibleBody } from "@/components/CollapsibleBody";
-import { mobileRelativeTime } from "@codecast/shared/render/mobileSessionStyle";
+import { mobileRelativeTime } from "@codecast/render/mobileSessionStyle";
 import type { SessionHandoffPrompt } from "@codecast/web/lib/sessionHandoff";
 
 type FeatherName = React.ComponentProps<typeof Feather>["name"];

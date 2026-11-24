@@ -29050,6 +29050,57 @@
   "packages/ratchet/test/ratchet.test.ts": {
     "swarm/no-comments": 9
   },
+  "packages/render/src/codeRuns.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/render/src/codecastMark.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/render/src/format.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/render/src/index.ts": {
+    "swarm/no-comments": 9
+  },
+  "packages/render/src/mobileSessionStyle.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/render/src/mobileTabsStyle.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/render/src/pageTheme.ts": {
+    "swarm/no-comments": 37
+  },
+  "packages/render/src/permissionCardStyle.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/render/src/structuredResult.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/render/src/toolCall.ts": {
+    "swarm/no-comments": 119
+  },
+  "packages/render/src/toolKinds.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/render/src/toolNames.ts": {
+    "swarm/no-comments": 34
+  },
+  "packages/render/src/toolVisual.ts": {
+    "swarm/no-comments": 30
+  },
+  "packages/render/src/typeScale.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/render/test/pageTheme.test.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/render/test/render.test.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/render/test/typeScale.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/sessions/src/agentStatus.ts": {
     "swarm/no-comments": 231
   },
@@ -29982,57 +30033,6 @@
   },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9
-  },
-  "packages/shared/render/codeRuns.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/render/codecastMark.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/render/format.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/render/index.ts": {
-    "swarm/no-comments": 9
-  },
-  "packages/shared/render/mobileSessionStyle.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/render/mobileTabsStyle.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/render/pageTheme.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/render/pageTheme.ts": {
-    "swarm/no-comments": 37
-  },
-  "packages/shared/render/permissionCardStyle.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/render/render.test.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/render/structuredResult.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/render/toolCall.ts": {
-    "swarm/no-comments": 119
-  },
-  "packages/shared/render/toolKinds.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/render/toolNames.ts": {
-    "swarm/no-comments": 34
-  },
-  "packages/shared/render/toolVisual.ts": {
-    "swarm/no-comments": 30
-  },
-  "packages/shared/render/typeScale.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/render/typeScale.ts": {
-    "swarm/no-comments": 10
   },
   "packages/shared/replay/capture.test.ts": {
     "swarm/no-comments": 10

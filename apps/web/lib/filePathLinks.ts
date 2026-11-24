@@ -69,7 +69,7 @@ function looksLikePath(path: string): boolean {
   const explicit = path.startsWith("./") || path.startsWith("../");
   const segs = path.replace(/\/$/, "").split("/");
   const first = segs[0];
-  // Scoped packages (@codecast/shared/render) and dotted hosts (github.com/x/y)
+  // Scoped packages (@codecast/render/toolNames) and dotted hosts (github.com/x/y)
   // read like paths and are not. A leading dot (.claude/settings.json) is fine.
   if (first.startsWith("@")) return false;
   if (!first.startsWith(".") && first.includes(".")) return false;

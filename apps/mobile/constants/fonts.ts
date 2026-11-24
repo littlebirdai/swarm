@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { StyleProp, StyleSheet, TextStyle } from "react-native";
 import { getActiveLook, useActiveLook, type Look } from "@/constants/Theme";
-import { floorTextSize } from "@codecast/shared/render/typeScale";
+import { floorTextSize } from "@codecast/render/typeScale";
 
 // JetBrains Mono is the app face, same as web (web aliases font-sans to it —
 // the entire product renders in mono). Each face is named by its PostScript
@@ -185,7 +185,7 @@ function faceFor(
  * in (`inherited`, as CSS inherits a font), else Instrument Sans, by weight
  * and slant. A style naming a face of a known group (Mono, Sans) keeps that
  * group, so code that names Mono stays mono. Any other family is untouched.
- * Modern also holds sizes to the type scale's floor (@codecast/shared/render
+ * Modern also holds sizes to the type scale's floor (@codecast/render/typeScale
  * /typeScale): under 12 rises to 12, except capitals (`textTransform:
  * 'uppercase'`, or `caps` for a run whose words are capitals), which may sit
  * at 11.

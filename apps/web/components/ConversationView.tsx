@@ -127,7 +127,7 @@ import {
 } from "../lib/hostedApproval";
 import { GROUP_WINDOW_MS } from "@codecast/chat";
 import { useNowWhen } from "../hooks/useCoarseNow";
-import { isAskTool } from "@codecast/shared/render";
+import { isAskTool } from "@codecast/render/toolKinds";
 import { resolveSessionSkills } from "../lib/sessionSkills";
 import { GOAL_COMMAND } from "../lib/builtinCommands";
 import { latestUsageOf } from "../lib/messageReducer";

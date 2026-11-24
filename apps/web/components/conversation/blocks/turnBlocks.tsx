@@ -26,13 +26,15 @@ import { DecisionAnswerQuote } from "../../DecisionAnswerQuote";
 import {
   countToolGroup,
   extractNestedActions,
+  isPlanWriteToolCall,
+  summarizeToolGroup,
+} from "@codecast/render/toolCall";
+import {
   isAgentTool,
   isAskTool,
   isPlanModeTool,
-  isPlanWriteToolCall,
   isTodoTool,
-  summarizeToolGroup,
-} from "@codecast/shared/render";
+} from "@codecast/render/toolKinds";
 import { hostedReceipt } from "../../../lib/hostedReceipt";
 import {
   HostedMadeLine,
@@ -223,9 +225,7 @@ import type {
 import { COMPACT_TAIL_HEIGHT } from "../../../lib/conversationTurnDefaults";
 
 export { StoryTimelineView, ThreadSummaryView } from "./narrativeViews";
-
 const USER_CONTENT_MAX_HEIGHT = 1800;
-
 // A message clipped to a max height fades its own text out at the bottom: a
 // mask rather than a painted overlay, so it reads the same on any background.
 const CLIP_FADE =

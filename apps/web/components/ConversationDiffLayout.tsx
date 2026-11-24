@@ -53,7 +53,7 @@ import {
   toggleSeenFile,
 } from "../lib/diffSeenMarks";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { getRelativePath } from "@codecast/shared/render";
+import { getRelativePath } from "@codecast/render/format";
 import { shareTokenArg } from "../lib/shareTokenScope";
 import { devRenderCount } from "../lib/devRenderCount";
 import { requestFilePathMenu } from "../lib/filePathMenu";

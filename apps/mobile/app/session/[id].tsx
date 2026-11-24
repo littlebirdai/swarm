@@ -369,14 +369,17 @@ import {
   MOBILE_SESSION_HEADER_HEIGHT,
   MOBILE_SESSION_STYLE as S,
   mobileRelativeTime,
-} from "@codecast/shared/render/mobileSessionStyle";
+} from "@codecast/render/mobileSessionStyle";
 import {
   extractNestedActions,
   toolSummary,
-  formatToolName,
-  mcpToolNames,
-  stripLineNumbers,
   isPlanWriteToolCall,
+  toolPathFromInput,
+  toolResultHint,
+} from "@codecast/render/toolCall";
+import { formatToolName, mcpToolNames } from "@codecast/render/toolNames";
+import { stripLineNumbers } from "@codecast/render/format";
+import {
   isReadTool,
   isShellTool,
   isEditTool,
@@ -387,11 +390,8 @@ import {
   isAgentTool,
   isAskTool,
   isPlanModeTool,
-  toolPathFromInput,
-  toolIcon,
-  toolResultHint,
-  type ToolColorToken,
-} from "@codecast/shared/render";
+} from "@codecast/render/toolKinds";
+import { toolIcon, type ToolColorToken } from "@codecast/render/toolVisual";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   CollapsibleBody,

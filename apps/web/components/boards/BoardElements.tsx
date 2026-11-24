@@ -25,7 +25,7 @@ import { KeyCap } from "../KeyCap";
 import { usePageInfoRow } from "../../hooks/usePageInfo";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { pageShareUrl } from "../../lib/publishedPageUrls";
-import { PAGE_ESCAPE_MESSAGE } from "../../../../packages/shared/render/pageTheme";
+import { PAGE_ESCAPE_MESSAGE } from "@codecast/render/pageTheme";
 import { colorToken, shapeFill, stickyFill, tint } from "./boardColors";
 import type { BoardEl } from "./boardTypes";
 

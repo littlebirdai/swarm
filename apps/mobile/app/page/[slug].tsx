@@ -24,7 +24,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { pageShareUrl } from "@codecast/shared/entities";
 import { pageEmbedUrl, pageServingOrigin } from "@codecast/pages/pageEdge";
-import { mobileRelativeTime } from "@codecast/shared/render/mobileSessionStyle";
+import { mobileRelativeTime } from "@codecast/render/mobileSessionStyle";
 import { useInboxStore, useTrackedStore } from "@codecast/web/store/inboxStore";
 import {
   newPageCommentClientId,

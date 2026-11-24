@@ -51,6 +51,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
+        "@codecast/render": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -130,6 +131,7 @@
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
+        "@codecast/render": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
@@ -255,6 +257,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
+        "@codecast/render": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -327,6 +330,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
+        "@codecast/render": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -703,6 +707,17 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/render": {
+      "name": "@codecast/render",
+      "version": "0.0.1",
+      "dependencies": {
+        "css-tree": "3.2.1",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+        "@types/css-tree": "^2.3.11",
+      },
+    },
     "packages/sessions": {
       "name": "@codecast/sessions",
       "version": "0.0.1",
@@ -734,10 +749,6 @@
         "@platform/assistant": "file:../../platform/packages/assistant",
         "@platform/evals": "file:../../platform/packages/evals",
         "@platform/fence": "file:../../platform/packages/fence",
-        "css-tree": "3.2.1",
-      },
-      "devDependencies": {
-        "@types/css-tree": "^2.3.11",
       },
     },
     "packages/ship": {
@@ -1194,6 +1205,8 @@
     "@codecast/pull-requests": ["@codecast/pull-requests@workspace:packages/pull-requests"],
 
     "@codecast/ratchet": ["@codecast/ratchet@workspace:packages/ratchet"],
+
+    "@codecast/render": ["@codecast/render@workspace:packages/render"],
 
     "@codecast/sessions": ["@codecast/sessions@workspace:packages/sessions"],
 

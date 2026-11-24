@@ -13,7 +13,7 @@
 import kitCss from "../kit/decision-kit.css" with { type: "text" };
 import kitJs from "../kit/decision-kit.js" with { type: "text" };
 import kitGuide from "../../../docs/line/decision-kit/README.md" with { type: "text" };
-import { injectPageTheme } from "@codecast/shared/render";
+import { injectPageTheme } from "@codecast/render/pageTheme";
 
 export const DECISION_KIT_LINE =
   '<link rel="stylesheet" href="cast:decision-kit">';

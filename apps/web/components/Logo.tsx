@@ -3,7 +3,7 @@ import {
   CODECAST_MARK_C_PATH as C_PATH,
   CODECAST_MARK_VIEWBOX,
   CODECAST_MONO_MARK,
-} from "@codecast/shared/render/codecastMark";
+} from "@codecast/render/codecastMark";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg" | "xl";

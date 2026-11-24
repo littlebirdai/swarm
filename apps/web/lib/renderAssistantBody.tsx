@@ -3,7 +3,7 @@ import {
   MessageMarkdown,
   InsightCard,
 } from "../components/conversation/markdown";
-import { structuredMessageInput } from "@codecast/shared/render";
+import { structuredMessageInput } from "@codecast/render/structuredMessage";
 import { StructuredResultBlock } from "../components/conversation/blocks/toolBlocks";
 
 // Renders an assistant message body as a flat run of block elements: ★ Insight

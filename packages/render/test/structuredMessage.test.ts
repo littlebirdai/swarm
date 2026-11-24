@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { structuredMessageInput } from "./structuredMessage";
+import { structuredMessageInput } from "../src/structuredMessage";
 
 describe("structured assistant result messages", () => {
   const input = JSON.stringify({

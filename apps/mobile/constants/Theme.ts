@@ -1,10 +1,10 @@
 import { StyleSheet } from "react-native";
 import { useSyncExternalStore } from "react";
-import { MOBILE_TAB_BAR_STYLE } from "@codecast/shared/render/mobileTabsStyle";
+import { MOBILE_TAB_BAR_STYLE } from "@codecast/render/mobileTabsStyle";
 import {
   MOBILE_CHIP_HEIGHT,
   MOBILE_CHIP_STYLE,
-} from "@codecast/shared/render/mobileSessionStyle";
+} from "@codecast/render/mobileSessionStyle";
 import { ModernPalettes } from "./modernPalette";
 
 export const SolarizedLight = {

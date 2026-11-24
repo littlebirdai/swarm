@@ -45,7 +45,7 @@ import {
 } from "@codecast/pages/castMotion";
 import { pageServingOrigin } from "@codecast/pages/pageEdge";
 import { pageUsesPlayer } from "@codecast/pages/castPlayer";
-import { injectPageTheme } from "@codecast/shared/render";
+import { injectPageTheme } from "@codecast/render/pageTheme";
 import {
   sha256Hex,
   passwordHash,

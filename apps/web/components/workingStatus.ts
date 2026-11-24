@@ -8,7 +8,8 @@
 // clock (and the tool in flight) turns that silent stretch into something that
 // visibly reads as progressing.
 
-import { activityLine, formatToolName } from "@codecast/shared/render";
+import { activityLine } from "@codecast/render/toolCall";
+import { formatToolName } from "@codecast/render/toolNames";
 import { stepOngoing, stepText } from "@platform/assistant/steps";
 
 // Below this much elapsed silence we show a plain "Working"; past it the live clock

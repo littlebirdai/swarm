@@ -3,7 +3,7 @@ import {
   BROWSER_BATCH_TOOL,
   extractNestedActions,
   summarizeNestedActions,
-} from "./toolCall";
+} from "../src/toolCall";
 test("unchanged wrappers do not reparse when another transcript row changes", () => {
   const call = {
     name: "exec",

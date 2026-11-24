@@ -1,4 +1,4 @@
-import { isShellTool } from "@codecast/shared/render";
+import { isShellTool } from "@codecast/render/toolKinds";
 import { parseCastCommandString } from "../components/castCommand";
 import {
   backgroundStartedTaskId,

@@ -28,7 +28,7 @@ import {
   PAGE_AGENT_LABELS,
   PAGE_AGENT_PICKUP_MS,
 } from "@codecast/pages/pageAgent";
-import { PAGE_GATE_SIGNAL } from "@codecast/shared/render";
+import { PAGE_GATE_SIGNAL } from "@codecast/render/pageTheme";
 export { escAttr, escHtml };
 
 // Every icon we inject is built here, and its size rides in an INLINE STYLE,

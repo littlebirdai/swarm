@@ -16,7 +16,7 @@
 import {
   PAGE_HEIGHT_MESSAGE,
   PAGE_PARK_MESSAGE,
-} from "../../../packages/shared/render/pageTheme";
+} from "@codecast/render/pageTheme";
 
 export type PageHeight = { height: number; preferred: number | null };
 

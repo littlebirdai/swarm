@@ -9,7 +9,7 @@ import {
   MOBILE_TAB_BADGE_STYLE,
   MOBILE_TAB_BADGE_TEXT_STYLE,
   MOBILE_TAB_ICON_SIZE,
-} from "@codecast/shared/render/mobileTabsStyle";
+} from "@codecast/render/mobileTabsStyle";
 
 /** What the app's areas have waiting, as the tab bar and a conversation's
  *  slide-out show it: unread alerts, chat mentions and a live huddle. */

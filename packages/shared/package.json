@@ -123,14 +123,7 @@
     "./contracts/roleLevel": "./contracts/roleLevel.ts",
     "./contracts/rolePlaybook": "./contracts/rolePlaybook.ts",
     "./entities": "./entities/index.ts",
-    "./render": "./render/index.ts",
-    "./render/permissionCardStyle": "./render/permissionCardStyle.ts",
     "./render/changeCardHtml": "./render/changeCardHtml.ts",
-    "./render/mobileTabsStyle": "./render/mobileTabsStyle.ts",
-    "./render/mobileSessionStyle": "./render/mobileSessionStyle.ts",
-    "./render/codecastMark": "./render/codecastMark.ts",
-    "./render/typeScale": "./render/typeScale.ts",
-    "./render/codeRuns": "./render/codeRuns.ts",
     "./tasks": "./tasks/index.ts",
     "./tasks/resumeSources": "./tasks/resumeSources.ts",
     "./replay": "./replay/index.ts",
@@ -167,10 +160,6 @@
     "@platform/agent": "file:../../platform/packages/agent",
     "@platform/assistant": "file:../../platform/packages/assistant",
     "@platform/evals": "file:../../platform/packages/evals",
-    "@platform/fence": "file:../../platform/packages/fence",
-    "css-tree": "3.2.1"
-  },
-  "devDependencies": {
-    "@types/css-tree": "^2.3.11"
+    "@platform/fence": "file:../../platform/packages/fence"
   }
 }

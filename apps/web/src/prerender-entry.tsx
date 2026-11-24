@@ -70,7 +70,7 @@ export {
   cardImagePath,
 } from "@/lib/seoRoutes";
 export { buildBlogFeed, BLOG_FEED_PATH } from "@/lib/blogFeed";
-export { CODECAST_MONO_MARK } from "@codecast/shared/render/codecastMark";
+export { CODECAST_MONO_MARK } from "@codecast/render/codecastMark";
 
 // One client for all renders; nothing subscribes during renderToString, so no
 // WebSocket is ever opened.

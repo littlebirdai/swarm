@@ -44,7 +44,7 @@ import { linkPreviewStale } from "@codecast/convex/convex/lib/linkPreviewMeta";
 import {
   PAGE_GATE_MESSAGE,
   PAGE_HEIGHT_MESSAGE,
-} from "../../../packages/shared/render/pageTheme";
+} from "@codecast/render/pageTheme";
 import { useEventListener } from "../hooks/useEventListener";
 import { useFrameTheme } from "../hooks/useFrameTheme";
 import { usePageNotes } from "../hooks/usePageNotes";

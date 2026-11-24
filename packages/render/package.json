@@ -1,0 +1,36 @@
+{
+  "name": "@codecast/render",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./canvasCss": "./src/canvasCss.ts",
+    "./codecastMark": "./src/codecastMark.ts",
+    "./codeRuns": "./src/codeRuns.ts",
+    "./format": "./src/format.ts",
+    "./mobileSessionStyle": "./src/mobileSessionStyle.ts",
+    "./mobileTabsStyle": "./src/mobileTabsStyle.ts",
+    "./pageTheme": "./src/pageTheme.ts",
+    "./permissionCardStyle": "./src/permissionCardStyle.ts",
+    "./structuredMessage": "./src/structuredMessage.ts",
+    "./structuredResult": "./src/structuredResult.ts",
+    "./toolCall": "./src/toolCall.ts",
+    "./toolKinds": "./src/toolKinds.ts",
+    "./toolNames": "./src/toolNames.ts",
+    "./toolVisual": "./src/toolVisual.ts",
+    "./typeScale": "./src/typeScale.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3",
+    "@types/css-tree": "^2.3.11"
+  },
+  "dependencies": {
+    "css-tree": "3.2.1"
+  }
+}

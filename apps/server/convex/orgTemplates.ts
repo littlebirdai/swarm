@@ -74,7 +74,7 @@ import type {
   OrgTemplateBindResult,
   OrgTemplateBindSecret,
 } from "@codecast/shared/contracts/orgTemplateBind";
-import { truncateStr } from "@codecast/shared/render";
+import { truncateStr } from "@codecast/render/format";
 import { roleCharterOf } from "./lib/roleCharter";
 
 /** The one value beside a workspace key that grants visibility: a template every workspace may hire. */

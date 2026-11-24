@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CODECAST_MONO_MARK } from "@codecast/shared/render/codecastMark";
+import { CODECAST_MONO_MARK } from "@codecast/render/codecastMark";
 import { SEO_ROUTES, cardHeading, cardImagePath } from "../lib/seoRoutes";
 import { CARD_HEIGHT, CARD_WIDTH, renderCards } from "./og-cards.mjs";
 

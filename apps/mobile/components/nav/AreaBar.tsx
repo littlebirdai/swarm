@@ -10,7 +10,7 @@ import {
   MOBILE_TABS,
   MOBILE_TAB_BAR_STYLE,
   MOBILE_TAB_LABEL_STYLE,
-} from "@codecast/shared/render/mobileTabsStyle";
+} from "@codecast/render/mobileTabsStyle";
 
 /** The app's areas at the foot of a conversation's slide-out, drawn as the
  *  tab bar draws them (same icons, labels and badges), so the panel is the

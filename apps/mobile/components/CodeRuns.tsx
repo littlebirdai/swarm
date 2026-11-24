@@ -1,12 +1,12 @@
 // A line the app composes ("4a6e413b2c landed on web dp-12") as the children
 // of a Text: under Modern its code-like runs (ids, hashes, paths, files,
-// flags; @codecast/shared/render/codeRuns) are set in mono inside the sans
+// flags; @codecast/render/codeRuns) are set in mono inside the sans
 // sentence. Classic gets the plain string, exactly as before.
 import { useMemo } from "react";
 import { Text as RNText } from "@/components/Themed";
 import { useActiveLook } from "@/constants/Theme";
 import { codeFont } from "@/constants/fonts";
-import { splitCodeRuns } from "@codecast/shared/render/codeRuns";
+import { splitCodeRuns } from "@codecast/render/codeRuns";
 
 // A nested run keeps its line's colour: the Text wrapper sets the default
 // text colour on every Text unless the style says otherwise.

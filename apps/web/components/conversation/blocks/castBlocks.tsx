@@ -9,7 +9,7 @@ import {
 } from "../../../hooks/useChatSync";
 import { BrowserTabPill } from "../../browser/BrowserTabPill";
 import { parseThreadStateStatus } from "@codecast/shared/contracts";
-import { truncateStr } from "@codecast/shared/render";
+import { truncateStr } from "@codecast/render/format";
 import { entityRoute } from "../../../lib/entityLinks";
 import { parseTriggerCadence } from "../../triggerCadence";
 import { CollapsibleBody } from "../../CollapsibleBody";

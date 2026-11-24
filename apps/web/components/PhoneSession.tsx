@@ -13,15 +13,14 @@ import {
   MOBILE_COMPOSER_STATUS,
   MOBILE_SESSION_HEADER_HEIGHT,
   MOBILE_SESSION_STYLE as S,
-} from "@codecast/shared/render/mobileSessionStyle";
+} from "@codecast/render/mobileSessionStyle";
+import { formatToolName } from "@codecast/render/toolNames";
+import { toolIcon, type ToolColorToken } from "@codecast/render/toolVisual";
 import {
-  formatToolName,
-  toolIcon,
   toolResultHint,
   toolSummary,
   type ToolCallLike,
-  type ToolColorToken,
-} from "@codecast/shared/render";
+} from "@codecast/render/toolCall";
 import {
   ClaudeIcon,
   CursorIcon,
@@ -43,7 +42,7 @@ import {
 /**
  * The mobile app's session screen (apps/mobile/app/session/[id].tsx)
  * drawn with DOM elements from the screen's own spec
- * (@codecast/shared/render/mobileSessionStyle), for the marketing hero's
+ * (@codecast/render/mobileSessionStyle), for the marketing hero's
  * phone, in the app's default light theme. Colours are the theme's tokens;
  * RN's column flex is spelled out where it lays out.
  * A hairline is half a pixel.

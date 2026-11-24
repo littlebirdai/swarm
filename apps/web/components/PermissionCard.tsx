@@ -8,12 +8,12 @@ import { matchesAction } from "../shortcuts";
 import { SwitchReview } from "./consequential/ConsequentialSwitch";
 import { allowAllLedger } from "./consequential/ledgers";
 import { useInboxStore } from "../store/inboxStore";
-import { formatToolName } from "@codecast/shared/render";
+import { formatToolName } from "@codecast/render/toolNames";
 import {
   permissionSourceTags,
   removalCountLabel,
   type PermissionRemoval,
-} from "@codecast/shared/render/permissionCardStyle";
+} from "@codecast/render/permissionCardStyle";
 import {
   keptPatterns,
   permissionRuleLabel,

@@ -35,11 +35,8 @@ import {
   isModelSwitchStdout,
   modelSwitchStdoutLabel,
 } from "@codecast/shared/contracts";
-import {
-  isAskTool,
-  isPlanWriteToolCall,
-  isShellTool,
-} from "@codecast/shared/render";
+import { isAskTool, isShellTool } from "@codecast/render/toolKinds";
+import { isPlanWriteToolCall } from "@codecast/render/toolCall";
 import {
   isBackgroundBashToolCall,
   parseTaskNotificationBlock,

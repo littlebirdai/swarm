@@ -4,7 +4,7 @@ import {
   structuredPayloadSummary,
   structuredPayloadKeysFromRaw,
   toolSummary,
-} from "@codecast/shared/render";
+} from "@codecast/render/toolCall";
 import {
   agentDisplayName,
   threadStateHeadline,

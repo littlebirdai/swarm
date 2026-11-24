@@ -6,7 +6,7 @@ import {
   agentDisplayName,
   isHostedAgentType,
 } from "@codecast/shared/contracts";
-import { MOBILE_AGENT_TINT } from "@codecast/shared/render/mobileSessionStyle";
+import { MOBILE_AGENT_TINT } from "@codecast/render/mobileSessionStyle";
 import { conversationTitle } from "@codecast/web/components/simple/lane";
 import type { SessionData } from "@/components/SessionItem";
 

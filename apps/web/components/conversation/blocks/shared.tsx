@@ -1,7 +1,7 @@
 import { isHostedAgentType } from "@codecast/shared/contracts";
 import { useState } from "react";
 import { AvatarImg } from "../../../lib/avatarCache";
-import { type NestedStepOutcome } from "@codecast/shared/render";
+import { type NestedStepOutcome } from "@codecast/render/toolCall";
 import { toast } from "sonner";
 import { AgentTypeIcon } from "../../AgentTypeIcon";
 import { CodexIcon as CodexMark, GrokIcon as GrokMark } from "../../BrandIcons";

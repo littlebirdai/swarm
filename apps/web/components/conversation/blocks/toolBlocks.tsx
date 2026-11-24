@@ -14,7 +14,14 @@ import { BROWSER_ROW_PILL } from "../../../hooks/useBrowserTabActions";
 import { formatModel } from "../../../lib/conversationProcessor";
 import {
   extractNestedActions,
-  formatToolName,
+  splitBrowserBatchResult,
+  summarizeNestedActions,
+  toolPathFromInput,
+  toolSummary as sharedToolSummary,
+  BROWSER_BATCH_TOOL,
+} from "@codecast/render/toolCall";
+import { formatToolName } from "@codecast/render/toolNames";
+import {
   isAskTool,
   isEditTool,
   isGlobTool,
@@ -23,16 +30,13 @@ import {
   isShellTool,
   isTodoTool,
   isWriteTool,
+} from "@codecast/render/toolKinds";
+import {
   shortenUrl,
-  splitBrowserBatchResult,
   stripLineNumbers,
-  summarizeNestedActions,
-  toolPathFromInput,
-  toolSummary as sharedToolSummary,
-  BROWSER_BATCH_TOOL,
   truncateStr,
   getRelativePath,
-} from "@codecast/shared/render";
+} from "@codecast/render/format";
 import { useFullWidthExpand } from "../../../hooks/useFullWidthExpand";
 import { useDiffViewerStore } from "../../../store/diffViewerStore";
 import { editStringsFromInput } from "../../../lib/fileChangeExtractor";

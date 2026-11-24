@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   MOBILE_COMPOSER_STATUS,
   mobileRelativeTime,
-} from "./mobileSessionStyle";
-import { toolResultHint } from "./toolCall";
+} from "../src/mobileSessionStyle";
+import { toolResultHint } from "../src/toolCall";
 
 const call = (name: string) => ({ name, input: "{}" });
 
