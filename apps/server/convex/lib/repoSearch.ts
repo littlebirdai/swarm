@@ -1,4 +1,4 @@
-import { normalizeRepository } from "@codecast/shared/contracts";
+import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 
 export function scopedRepoSearch(repository: string, query: string): string {
   const terms = query.match(/"(?:\\.|[^"\\])*"|\S+/g) ?? [];

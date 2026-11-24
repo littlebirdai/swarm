@@ -33,6 +33,7 @@
     "@codecast/mods": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/policy": "workspace:*",
+    "@codecast/pull-requests": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",

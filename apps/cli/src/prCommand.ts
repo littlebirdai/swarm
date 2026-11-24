@@ -31,7 +31,7 @@ import {
   extractRepoFromRemoteUrl,
   codecastPrUrl,
   checkLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 import { commandGroup } from "./commandGroups.js";
 import {
   placementLabel,

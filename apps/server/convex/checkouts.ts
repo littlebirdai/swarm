@@ -12,7 +12,7 @@ import { workspaceGrantsAccess } from "./lib/accessKeys";
 import { normalizeRepository } from "./lib/gitRefs";
 import { findDeployTeam } from "./changesDeploy";
 import { teamKey } from "./deployTargetsCi";
-import { parseOwnerRepo } from "@codecast/shared/contracts";
+import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import {
   checkoutHash,
   withPageAsks,

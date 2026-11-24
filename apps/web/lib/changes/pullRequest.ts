@@ -3,7 +3,7 @@
 // it. The Branches grid, the web pill and the phone pill read a pull request
 // through this, so one pull request says the same thing everywhere. Pure, with
 // relative imports only.
-import { checkLabel, checkOutcome } from "@codecast/shared/contracts";
+import { checkLabel, checkOutcome } from "@codecast/pull-requests/prRefs";
 import type { ChangeFacts } from "./lifecycle";
 
 /** A pull request as the `pullRequests` collection holds it, with its checks when a detail row was laid on. */

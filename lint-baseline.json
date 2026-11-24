@@ -28864,6 +28864,15 @@
   "packages/policy/test/vendorCoverage.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/pull-requests/src/commitDiffs.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/pull-requests/src/prRefs.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/pull-requests/test/prRefs.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/shared/changes/__fixtures__/commit.ts": {
     "swarm/no-comments": 2
   },
@@ -29142,9 +29151,6 @@
   },
   "packages/shared/contracts/commandsSession.test.ts": {
     "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/commitDiffs.ts": {
-    "swarm/no-comments": 1
   },
   "packages/shared/contracts/connectorReasons.ts": {
     "swarm/no-comments": 22
@@ -29664,12 +29670,6 @@
   },
   "packages/shared/contracts/plainText.ts": {
     "swarm/no-comments": 9
-  },
-  "packages/shared/contracts/prRefs.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/prRefs.ts": {
-    "swarm/no-comments": 29
   },
   "packages/shared/contracts/predictedEffect.test.ts": {
     "swarm/no-comments": 2

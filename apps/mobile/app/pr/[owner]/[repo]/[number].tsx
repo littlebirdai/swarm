@@ -16,7 +16,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { repoObjectGitHubUrl } from "@codecast/shared/entities";
-import { checkLabel } from "@codecast/shared/contracts";
+import { checkLabel } from "@codecast/pull-requests/prRefs";
 import {
   useSyncPullRequest,
   usePullRequest,

@@ -18,11 +18,11 @@ import {
   WORKING_SET_RECENCY_MS,
   addressesAgent,
   inboxEpoch,
-  extractRepoFromRemoteUrl,
   parseThreadStateStatus,
   threadStateHeadline,
   type ThreadStateStatus,
 } from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import { accessJudgeFor, canAccessDoc, workspaceKey } from "./lib/access";
 import { userCanAccessRole } from "./lib/orgAccess";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";

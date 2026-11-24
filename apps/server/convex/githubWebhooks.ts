@@ -48,7 +48,7 @@ import {
 } from "./deployTargetsCi";
 import { markCommitDirty } from "./lib/changesDirty";
 import { claimDrain, releaseDrain, renewDrain } from "./lib/drainMarker";
-import { checkLabel, repositoryOwner } from "@codecast/shared/contracts";
+import { checkLabel, repositoryOwner } from "@codecast/pull-requests/prRefs";
 import { parseReleaseTag } from "@codecast/shared/changes";
 import {
   patchPullRequest,

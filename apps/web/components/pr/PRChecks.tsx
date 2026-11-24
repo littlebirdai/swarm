@@ -18,7 +18,7 @@ import {
   checkLabel,
   checkOutcome,
   type CheckOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 import type { PRDetailsRead } from "../../hooks/usePRDetails";
 import { PRDetailsFrame } from "./PRDetailsFrame";
 import {

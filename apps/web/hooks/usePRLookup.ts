@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useAction } from "convex/react";
 import * as Sentry from "@sentry/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { normalizeRepository } from "@codecast/shared/contracts";
+import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 import { useWatchEffect } from "./useWatchEffect";
 
 export function usePRLookup(

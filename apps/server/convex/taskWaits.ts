@@ -76,11 +76,9 @@ import {
   type WaitLabelOptions,
   type WaitTarget,
 } from "@codecast/shared/tasks";
-import {
-  inlineForeignText,
-  normalizeRepository,
-} from "@codecast/shared/contracts";
+import { inlineForeignText } from "@codecast/shared/contracts";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
+import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 
 type Ctx = MutationCtx;
 type Task = Doc<"tasks">;

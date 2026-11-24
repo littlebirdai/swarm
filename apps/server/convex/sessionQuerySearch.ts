@@ -16,7 +16,7 @@
 
 import type { QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import type { SessionQuery } from "@codecast/shared/search";
 import {
   newResolveCaches,

@@ -23,7 +23,7 @@ import {
 import {
   parsePrRef,
   extractRepoFromRemoteUrl,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 
 const LOCAL = {
   session: "jx7c6zk",

@@ -59,7 +59,7 @@ import {
 } from "../../../../../hooks/useLineComments";
 import { useCoarseNow } from "../../../../../hooks/useCoarseNow";
 import { useQueryNoThrow } from "../../../../../hooks/useQueryNoThrow";
-import { commitCarriesDiffs } from "@codecast/shared/contracts/commitDiffs";
+import { commitCarriesDiffs } from "@codecast/pull-requests/commitDiffs";
 import { useEnsureCommitFiles } from "../../../../../hooks/useEnsureCommitFiles";
 import { useWatchEffect } from "../../../../../hooks/useWatchEffect";
 import {

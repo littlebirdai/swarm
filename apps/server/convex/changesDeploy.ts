@@ -19,7 +19,7 @@ import { isTeamMember, requireTeamMembership } from "./lib/access";
 import { commitUrl, normalizeRepository, shortSha } from "./lib/gitRefs";
 import { recordExternalEvent } from "./externalEvents";
 import { resolveTeamForRepository } from "./githubWebhooks";
-import { parseOwnerRepo } from "@codecast/shared/contracts";
+import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import { recordDeployMarker } from "./deploys";
 import { latestLiveDeploy } from "./lib/deployRows";
 import { recordDevPush } from "./lib/devPushes";

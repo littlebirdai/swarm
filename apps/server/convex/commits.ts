@@ -15,8 +15,8 @@ import { markCommitDirty } from "./lib/changesDirty";
 import {
   extractRepoFromRemoteUrl,
   normalizeRepository,
-} from "@codecast/shared/contracts";
-import { commitCarriesDiffs } from "@codecast/shared/contracts/commitDiffs";
+} from "@codecast/pull-requests/prRefs";
+import { commitCarriesDiffs } from "@codecast/pull-requests/commitDiffs";
 
 export const addCommit = mutation({
   args: {

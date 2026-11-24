@@ -8,7 +8,10 @@
  * from wherever it holds them and passes `now` for anything time-shaped.
  */
 
-import { normalizeRepository, parsePrRef } from "../contracts/prRefs";
+import {
+  normalizeRepository,
+  parsePrRef,
+} from "@codecast/pull-requests/prRefs";
 import {
   isKnownTimeZone,
   MONTHS,

@@ -20,7 +20,7 @@ import {
   type AnsweredGate,
   type LineRunEnd,
 } from "./lineRunEnd";
-import { parsePrRef } from "./prRefs";
+import { parsePrRef } from "@codecast/pull-requests/prRefs";
 
 /** What a step is handed when its problem has no earlier attempt (runner and line try alike). */
 export const NO_CAUSE_HISTORY = "No earlier attempt on this problem.";

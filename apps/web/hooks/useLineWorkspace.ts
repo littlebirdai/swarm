@@ -18,7 +18,7 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useWatchEffect } from "./useWatchEffect";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { parsePrRef } from "@codecast/shared/contracts";
+import { parsePrRef } from "@codecast/pull-requests/prRefs";
 import {
   LINE_SIGNAL_CAP,
   LINE_SIGNAL_WINDOW_MS,

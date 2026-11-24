@@ -32,7 +32,10 @@ import {
   sessionProjectCache,
 } from "./sessionProjects";
 import { sessionImages } from "./lib/sessionMedia";
-import { codecastPrPath, foldShepherdState } from "@codecast/shared/contracts";
+import {
+  codecastPrPath,
+  foldShepherdState,
+} from "@codecast/pull-requests/prRefs";
 import {
   joinProjectOutputs,
   outputItemArgs,

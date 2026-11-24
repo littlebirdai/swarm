@@ -13,7 +13,7 @@ import * as Accordion from "@radix-ui/react-accordion";
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isoWeekOf, weekDates, weekMonday } from "@codecast/shared/changes";
-import { normalizeRepository } from "@codecast/shared/contracts";
+import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 import {
   localDate,
   normalizeTimezone,

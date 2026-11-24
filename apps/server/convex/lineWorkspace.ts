@@ -24,7 +24,7 @@ import {
   normalizeRepository,
   parseOwnerRepo,
   parsePrRef,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 import {
   CARD_GATE_NODE_ID,
   isLineRun,

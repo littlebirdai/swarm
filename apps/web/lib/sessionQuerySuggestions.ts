@@ -5,7 +5,7 @@
 // holds: the viewer's labels, teammates, the repositories and pull requests in
 // the store, and the files the viewer's recent sessions edited.
 
-import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import {
   matchingSessionOperators,
   sessionFilter,

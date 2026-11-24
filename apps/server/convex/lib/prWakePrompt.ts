@@ -6,11 +6,11 @@ import type { Doc } from "../_generated/dataModel";
 import { foldShepherdState, prUrl, shortSha } from "./gitRefs";
 import {
   capForeignText,
-  checkLabel,
   escapeForeignControlChars,
   fenceForeignText,
   inlineForeignText,
 } from "@codecast/shared/contracts";
+import { checkLabel } from "@codecast/pull-requests/prRefs";
 
 type PR = Doc<"pull_requests">;
 

@@ -22,7 +22,7 @@ import { execFile } from "./proc.js";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import * as path from "node:path";
-import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { extractSessionTrailer } from "@codecast/blame";
 
