@@ -1,6 +1,6 @@
 // The MCP registry's wire format — parsing only, no network.
 //
-// Moved here from packages/cli/src/capabilities/registries.ts as that file's
+// Moved here from apps/cli/src/capabilities/registries.ts as that file's
 // own header promised: Convex ingests the same bytes (the catalog refresh
 // action) and cannot import the CLI package. The CLI keeps the fetch loop and
 // re-exports these types, so both sides parse the registry with ONE function.

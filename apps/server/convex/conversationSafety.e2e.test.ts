@@ -6,7 +6,7 @@ import {
   claimPendingMessageForDaemon, collectDeliverableForOwner, enqueuePendingMessage,
   getConversationPendingMessage, applyStuckMessages, DEAD_SESSION_REVIVES_PER_PASS, retryMessage,
 } from "./pendingMessages";
-import { PendingDeliveryHeldError, requirePendingDeliveryAdmission } from "../../../packages/cli/src/pendingDeliveryAdmission";
+import { PendingDeliveryHeldError, requirePendingDeliveryAdmission } from "../../../apps/cli/src/pendingDeliveryAdmission";
 
 const USER = "users_owner" as any;
 const CONVERSATION = "conversations_safety" as any;

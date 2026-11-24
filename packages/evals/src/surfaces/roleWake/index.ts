@@ -5,8 +5,8 @@ import { formatSessionMessage, parseScheduledTask, triggerRunFrame, type RoleCar
 import { parseStandingSection, standingLineStale } from '@codecast/shared/contracts/briefStanding';
 import { UsageError } from '@platform/evals/cli';
 
-import { cliFetchRead } from '../../../../cli/src/cliHttp';
-import { defaultConfigDir, readAuthConfig } from '../../../../cli/src/config/readAuthConfig';
+import { cliFetchRead } from '../../../../../apps/cli/src/cliHttp';
+import { defaultConfigDir, readAuthConfig } from '../../../../../apps/cli/src/config/readAuthConfig';
 import { HEAD_INBOX_PROMPT, HEAD_INBOX_TITLE, ROLE_NEEDS_INPUT_SPEC, roleRoutineFor } from '../../../../../apps/server/convex/lib/orgRoutine';
 import { apiConfig } from '../../adapters/convo';
 import { fakeWorldOf } from '../../fakes/seed';

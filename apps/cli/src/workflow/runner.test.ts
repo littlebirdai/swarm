@@ -1,0 +1,1579 @@
+import { describe, test, expect, beforeEach, afterEach, setSystemTime } from "bun:test";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+import { parseWorkflowSource, parseWorkflowFile, validateWorkflow } from "./parser.js";
+import { runWorkflow, reportRunStopped, refreshedOnResume, graphToPushPayload, parseGateEdgeLabel, gatePayload, stationTitle, runRegistrationIsFatal, buildNodePrompt, PRESENTER_BASE, type RunOptions } from "./runner.js";
+import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates.js";
+import { handTimeouts } from "./handWatch.js";
+import { isolateCodecastDirEachTest } from "../test-helpers/codecastDir.js";
+isolateCodecastDirEachTest("cast-wf-state-");
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function makeTmpDir(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "cast-wf-test-"));
+}
+
+function captureConsole(): { logs: string[]; restore: () => void } {
+  const logs: string[] = [];
+  const orig = { log: console.log, error: console.error };
+  console.log = (...args: any[]) => logs.push(args.join(" "));
+  console.error = (...args: any[]) => logs.push(args.join(" "));
+  return {
+    logs,
+    restore() {
+      console.log = orig.log;
+      console.error = orig.error;
+    },
+  };
+}
+
+// ── Runner (dry-run) tests ────────────────────────────────────────────────────
+
+describe("workflow/runner (dry-run)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+  });
+
+  afterEach(() => {
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  const dryRun: RunOptions = { dryRun: true };
+
+  test("start→exit workflow completes", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      exit  [shape=Msquare]
+      start -> exit
+    }`);
+    await runWorkflow(g, { ...dryRun, cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("complete"))).toBe(true);
+  });
+
+  test("multi-node linear workflow completes", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      plan  [label="Plan"]
+      impl  [label="Implement"]
+      exit  [shape=Msquare]
+      start -> plan -> impl -> exit
+    }`);
+    await runWorkflow(g, { ...dryRun, cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("complete"))).toBe(true);
+  });
+
+  test("dry-run routes success condition correctly", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      verify [shape=parallelogram, script="exit 0"]
+      good   [label="Good"]
+      bad    [label="Bad"]
+      exit   [shape=Msquare]
+      start  -> verify
+      verify -> good [condition="outcome = success"]
+      verify -> bad  [condition="outcome = failure"]
+      good   -> exit
+      bad    -> exit
+    }`);
+    await runWorkflow(g, { ...dryRun, cwd: tmpDir });
+    const goodVisited = cap.logs.some(l => l.includes("Good"));
+    const badVisited = cap.logs.some(l => l.includes("Bad"));
+    // In dry-run all outcomes are success, so Good should be visited
+    expect(goodVisited).toBe(true);
+    expect(badVisited).toBe(false);
+  });
+
+  test("goal override replaces workflow goal", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      graph [goal="original goal"]
+      start [shape=Mdiamond]
+      exit  [shape=Msquare]
+      start -> exit
+    }`);
+    await runWorkflow(g, { ...dryRun, cwd: tmpDir, goalOverride: "overridden goal" });
+    expect(cap.logs.some(l => l.includes("overridden goal"))).toBe(true);
+    expect(cap.logs.some(l => l.includes("original goal"))).toBe(false);
+  });
+
+  test("injects task_id into context via RunOptions", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      graph [goal="$task_title"]
+      start [shape=Mdiamond]
+      exit  [shape=Msquare]
+      start -> exit
+    }`);
+    // No convexSiteUrl so task fetch is skipped; task_id still injected
+    await runWorkflow(g, { ...dryRun, cwd: tmpDir, taskId: "ct-test123" });
+    // Workflow should complete without error
+    expect(cap.logs.some(l => l.includes("complete"))).toBe(true);
+  });
+
+  test("max_visits exceeded aborts workflow", async () => {
+    // A loop: impl → verify → impl with max_visits=2 on impl
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      impl   [label="Impl", max_visits=2]
+      verify [label="Verify"]
+      exit   [shape=Msquare]
+      start  -> impl -> verify
+      verify -> impl
+    }`);
+    await runWorkflow(g, { ...dryRun, cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("max_visits"))).toBe(true);
+  });
+
+  test("an edge can route on a station's visit count before max_visits aborts", async () => {
+    // The loop leaves for `out` once impl has run twice, so its max_visits=2 never trips.
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      impl   [label="Impl", max_visits=2]
+      verify [label="Verify"]
+      out    [label="Out"]
+      exit   [shape=Msquare]
+      start  -> impl -> verify
+      verify -> out  [condition="impl.visits >= 2"]
+      verify -> impl [condition="outcome = success"]
+      out -> exit
+    }`);
+    const outcome = await runWorkflow(g, { ...dryRun, cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("max_visits"))).toBe(false);
+    expect(cap.logs.some(l => l.includes("Out"))).toBe(true);
+    expect(outcome).not.toBe("failure");
+  });
+
+  test("workflow reports invalid when validation errors exist", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      exit [shape=Msquare]
+    }`);
+    // runWorkflow returns its outcome instead of touching process exit state —
+    // the CLI wrappers translate to an exit code at the process boundary.
+    const outcome = await runWorkflow(g, { ...dryRun, cwd: tmpDir });
+    expect(outcome).toBe("invalid");
+  });
+});
+
+// ── Runner (real command) tests ───────────────────────────────────────────────
+
+describe("workflow/runner (command nodes)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+  });
+
+  afterEach(() => {
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  test("command node with exit 0 produces success outcome", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      verify [shape=parallelogram, script="exit 0"]
+      done   [shape=Msquare]
+      start -> verify -> done
+    }`);
+    await runWorkflow(g, { cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("success"))).toBe(true);
+  });
+
+  test("command node with exit 1 routes to failure edge", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      check  [shape=parallelogram, script="exit 1"]
+      ok     [shape=parallelogram, script="echo routed-ok"]
+      fail   [shape=parallelogram, script="echo routed-fail"]
+      exit   [shape=Msquare]
+      start -> check
+      check -> ok   [condition="outcome = success"]
+      check -> fail [condition="outcome = failure"]
+      ok   -> exit
+      fail -> exit
+    }`);
+    await runWorkflow(g, { cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("routed-fail"))).toBe(true);
+    expect(cap.logs.some(l => l.includes("routed-ok"))).toBe(false);
+  });
+
+  test("command node captures script output in context", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      run    [shape=parallelogram, script="echo hello-world"]
+      exit   [shape=Msquare]
+      start -> run -> exit
+    }`);
+    await runWorkflow(g, { cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("hello-world"))).toBe(true);
+  });
+
+  // ct-58757: Verify sent Implement back twice, and both later hands, told
+  // nothing of why, checked their own work again and handed it in unchanged.
+  test("a station the run comes back to is told which station sent it back and what it found", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      impl   [label="Implement", shape=parallelogram, max_visits=3, script="echo impl-sees-[$sent_back]"]
+      verify [label="Verify", shape=parallelogram, script="if [ -f ${tmpDir}/twice ]; then exit 0; fi; touch ${tmpDir}/twice; echo tests-failed-in-a.test.ts; exit 1"]
+      exit   [shape=Msquare]
+      start -> impl -> verify
+      verify -> impl [condition="outcome = failure"]
+      verify -> exit [condition="outcome = success"]
+    }`);
+    expect(await runWorkflow(g, { cwd: tmpDir })).not.toBe("failed");
+    const seen = cap.logs.filter(l => l.includes("impl-sees-") && !l.includes("$ echo"));
+    expect(seen[0]).toContain("impl-sees-[]");
+    expect(seen[1]).toContain("impl-sees-[Verify: tests-failed-in-a.test.ts]");
+  });
+
+  // ct-61678 (Oct 30): a Revise note went to a hold in front of Build that the run had not passed before, the hold
+  // was told nothing, and Build would have rebuilt without the note.
+  test("a station that parks is told what sent the run there even on its first visit, and passes it on", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      build  [label="Build", shape=parallelogram, max_visits=2, script="echo build-sees-[$sent_back]"]
+      revise [label="Revise, settled", shape=parallelogram, script="printf %s fix-the-read"]
+      hold   [label="Proof hold", shape=parallelogram, parks=true, script="printf %s \\"$sent_back\\""]
+      exit   [shape=Msquare]
+      start -> build
+      build -> revise [condition="build.visits < 2"]
+      build -> exit
+      revise -> hold -> build
+    }`);
+    expect(await runWorkflow(g, { cwd: tmpDir })).not.toBe("failed");
+    const seen = cap.logs.filter(l => l.includes("build-sees-") && !l.includes("$ echo"));
+    expect(seen[0]).toContain("build-sees-[]");
+    expect(seen[1]).toContain("build-sees-[Proof hold: Revise, settled: fix-the-read]");
+  });
+
+  test("command node honors a per-node timeout attribute (seconds)", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      slow  [shape=parallelogram, script="sleep 2; echo done", timeout=1]
+      exit  [shape=Msquare]
+      start -> slow
+      slow -> exit [condition="outcome = success"]
+    }`);
+    expect(g.nodes.get("slow")?.timeout).toBe(1);
+    const outcome = await runWorkflow(g, { cwd: tmpDir });
+    expect(outcome).toBe("failed");
+  }, 15000);
+
+  test("command node times out and returns failure for hanging script", async () => {
+    const g2 = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      check [shape=parallelogram, script="exit 42"]
+      exit  [shape=Msquare]
+      start -> check -> exit
+    }`);
+    await runWorkflow(g2, { cwd: tmpDir });
+    expect(cap.logs.some(l => l.includes("failed") || l.includes("✗"))).toBe(true);
+  });
+});
+
+// ── Runner (goal-gate retry) tests ───────────────────────────────────────────
+
+describe("workflow/runner (goal-gate retry)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+  let origFetch: typeof fetch;
+  let fetched: string[];
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+    origFetch = globalThis.fetch;
+    fetched = [];
+    globalThis.fetch = (async (url: any) => {
+      const u = String(url);
+      fetched.push(u);
+      const body = u.includes("/cli/workflow-runs/poll-gate")
+        ? { status: "paused", gate_response: "ok" }
+        : {};
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = origFetch;
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  test("retry path routes human nodes through the remote gate when runId is set", async () => {
+    // check fails on first visit (goal gate), retry_target sends the run
+    // through a human node. With runId set the human node must use the
+    // remote gate (fetch) — never the stdin prompt, which would hang headless.
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      check  [shape=parallelogram, script="test -f marker && exit 0; touch marker; exit 1", goal_gate=true, retry_target="review"]
+      review [shape=hexagon, label="Review"]
+      exit   [shape=Msquare]
+      start  -> check -> exit
+      review -> check
+    }`);
+    const outcome = await runWorkflow(g, {
+      cwd: tmpDir,
+      runId: "run-1",
+      apiToken: "tok",
+      convexSiteUrl: "https://convex.test",
+    });
+    expect(outcome).toBe("completed");
+    expect(fetched.some(u => u.includes("/cli/workflow-runs/gate"))).toBe(true);
+  }, 20000);
+});
+
+// ── Gates are decisions (the-line.md L4) ─────────────────────────────────────
+
+describe("workflow/runner (gate payload)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+  let origFetch: typeof fetch;
+  let calls: Array<{ route: string; body: any }>;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+    origFetch = globalThis.fetch;
+    calls = [];
+    globalThis.fetch = (async (url: any, init: any) => {
+      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+      calls.push({ route, body: JSON.parse(init?.body || "{}") });
+      const body = route === "/cli/workflow-runs/poll-gate" ? { status: "running", gate_response: "A: fine" } : { ok: true };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = origFetch;
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  test("a hand may stay quiet for the run's agent timeout, else 30 minutes, and runs at most its node's timeout, else 4 hours", () => {
+    expect(handTimeouts({ timeout: 5400 }, { agentTimeout: 60_000 })).toEqual({ idleMs: 60_000, capMs: 5_400_000 });
+    expect(handTimeouts({}, { agentTimeout: 60_000 })).toEqual({ idleMs: 60_000, capMs: 14_400_000 });
+    expect(handTimeouts({}, {})).toEqual({ idleMs: 1_800_000, capMs: 14_400_000 });
+  });
+
+  test("a failing dry run on a bound task never moves or comments on the task", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      prove [label="Prove"]
+      exit  [shape=Msquare]
+      start -> prove
+      prove -> exit [condition="prove.json.reproduced = true"]
+    }`);
+    const outcome = await runWorkflow(g, { dryRun: true, cwd: tmpDir, taskId: "ct-1", planId: "pl-1", apiToken: "tok", convexSiteUrl: "https://convex.test" });
+    expect(outcome).toBe("failed");
+    // Reading the task, the plan and the problem's history is fine; nothing may write to any of them.
+    expect(calls.map((c) => c.route).filter((r) => !r.endsWith("/get") && r !== "/cli/work/history")).toEqual([]);
+  });
+
+  test("an edge label parses into key, label and description", () => {
+    expect(parseGateEdgeLabel("[A] Approve :: ships now")).toEqual({ key: "A", label: "[A] Approve", description: "ships now" });
+    expect(parseGateEdgeLabel("[R] Revise")).toEqual({ key: "R", label: "[R] Revise" });
+  });
+
+  test("the gate route receives the choice descriptions, the expanded doc, the category and the graph stack", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      graph [stack="Launch checklist"]
+      start  [shape=Mdiamond]
+      plan   [shape=parallelogram, script="echo the plan"]
+      review [shape=hexagon, label="Review", prompt="Ship it?\nPlan: $plan.output", doc="# Plan\n\n$plan.output", category="review"]
+      fix    [shape=parallelogram, script="true"]
+      exit   [shape=Msquare]
+      start  -> plan -> review
+      review -> exit [label="[A] Approve :: ships now"]
+      review -> fix  [label="[R] Revise :: another round"]
+      fix    -> exit
+    }`);
+    const outcome = await runWorkflow(g, { cwd: tmpDir, runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test" });
+    expect(outcome).toBe("completed");
+    const gate = calls.find((c) => c.route === "/cli/workflow-runs/gate")!;
+    expect(gate.body).toMatchObject({
+      run_id: "run-1",
+      node_id: "review",
+      prompt: "Ship it?\nPlan: the plan",
+      doc_md: "# Plan\n\nthe plan",
+      category: "review",
+      stack: "Launch checklist",
+      choices: [
+        { key: "A", label: "[A] Approve", description: "ships now", target: "exit" },
+        { key: "R", label: "[R] Revise", description: "another round", target: "fix" },
+      ],
+    });
+    // The answer routed on the key and left the note for the next node.
+    expect(calls.some((c) => c.route === "/cli/workflow-runs/progress" && c.body.node_id === "fix")).toBe(false);
+  });
+});
+
+// ── Node fidelity (the-line.md L8) ───────────────────────────────────────────
+
+describe("workflow/graphToPushPayload", () => {
+  test("the push payload carries definition, reviewer, timeout, temperature, doc and category", () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      impl   [label="Implement", prompt="do it", definition="coder", timeout=30, temperature=0.2, max_visits=2]
+      review [label="Review", prompt="check it", reviewer=true]
+      gate   [shape=hexagon, prompt="Ship?", doc="$review.output", category="review"]
+      exit   [shape=Msquare]
+      start -> impl -> review -> gate
+      gate -> exit [label="[A] Approve :: ships"]
+    }`);
+    const { nodes, edges } = graphToPushPayload(g);
+    const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+    expect(byId.impl).toMatchObject({ definition: "coder", timeout: 30, temperature: 0.2, max_visits: 2, prompt: "do it" });
+    expect(byId.review).toMatchObject({ reviewer: true });
+    expect(byId.gate).toMatchObject({ doc: "$review.output", category: "review" });
+    expect(byId.start.definition).toBeUndefined();
+    expect(edges.find((e) => e.from === "gate")).toEqual({ from: "gate", to: "exit", label: "[A] Approve :: ships" });
+  });
+
+  test("a station that parks says so in the push payload, and no other station does", () => {
+    const g = parseWorkflowSource(`digraph g {
+      start  [shape=Mdiamond]
+      wallet [label="Wallet", shape=parallelogram, script="true", parks=true]
+      exit   [shape=Msquare]
+      start -> wallet -> exit
+    }`);
+    const byId = Object.fromEntries(graphToPushPayload(g).nodes.map((n) => [n.id, n]));
+    expect(byId.wallet).toMatchObject({ parks: true });
+    expect("parks" in byId.start).toBe(false);
+  });
+
+  test("the push payload carries the graph stack, and omits it when the graph has none", () => {
+    const withStack = parseWorkflowSource(`digraph g {
+      graph [stack="Release gates"]
+      start [shape=Mdiamond]
+      exit  [shape=Msquare]
+      start -> exit
+    }`);
+    expect(graphToPushPayload(withStack).stack).toBe("Release gates");
+    const without = parseWorkflowSource(`digraph g { start [shape=Mdiamond]; exit [shape=Msquare]; start -> exit }`);
+    expect("stack" in graphToPushPayload(without)).toBe(false);
+  });
+
+  test("every workflow push in the CLI goes through graphToPushPayload", () => {
+    // A push serializes its graph itself, or through filePushBody, which does.
+    const count = (src: string, s: string) => src.split(s).length - 1;
+    expect(count(fs.readFileSync(path.resolve(__dirname, "filePush.ts"), "utf-8"), "graphToPushPayload(graph)")).toBe(1);
+    let total = 0;
+    for (const file of ["../index.ts", "../flowVersionsCommand.ts"]) {
+      const src = fs.readFileSync(path.resolve(__dirname, file), "utf-8");
+      const pushes = count(src, "/cli/workflows/upsert");
+      total += pushes;
+      expect(count(src, "graphToPushPayload(graph)") + count(src, "filePushBody(")).toBe(pushes);
+      expect(src).not.toContain("...(n.goal_gate !== undefined ? { goal_gate: n.goal_gate } : {})");
+    }
+    expect(total).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// ── plan-to-polish workflow file ──────────────────────────────────────────────
+
+describe("plan-to-polish workflow (file parse + dry-run)", () => {
+  const WORKFLOW_FILE = path.resolve(
+    __dirname,
+    "../../../../workflows/plan-to-polish/workflow.cast"
+  );
+
+  test("workflow file exists and parses without error", () => {
+    expect(fs.existsSync(WORKFLOW_FILE)).toBe(true);
+    const g = parseWorkflowFile(WORKFLOW_FILE);
+    expect(g.name).toBeTruthy();
+    expect(g.nodes.size).toBeGreaterThan(0);
+    expect(g.edges.length).toBeGreaterThan(0);
+  });
+
+  test("workflow passes validation", () => {
+    const g = parseWorkflowFile(WORKFLOW_FILE);
+    const errs = validateWorkflow(g);
+    expect(errs).toHaveLength(0);
+  });
+
+  test("workflow has expected node types", () => {
+    const g = parseWorkflowFile(WORKFLOW_FILE);
+    const types = [...g.nodes.values()].map(n => n.type);
+    expect(types).toContain("start");
+    expect(types).toContain("exit");
+    expect(types).toContain("human");
+    expect(types).toContain("command");
+    expect(types).toContain("agent");
+  });
+
+  test("workflow has goal_gate on final_validate", () => {
+    const g = parseWorkflowFile(WORKFLOW_FILE);
+    const finalValidate = g.nodes.get("final_validate");
+    expect(finalValidate).toBeTruthy();
+    expect(finalValidate!.goal_gate).toBe(true);
+    expect(finalValidate!.retry_target).toBe("polish2");
+  });
+
+  test("workflow has implement with max_visits guard", () => {
+    const g = parseWorkflowFile(WORKFLOW_FILE);
+    const impl = g.nodes.get("implement");
+    expect(impl).toBeTruthy();
+    expect(typeof impl!.max_visits).toBe("number");
+    expect(impl!.max_visits!).toBeGreaterThan(0);
+  });
+
+  test("model_stylesheet assigns opus to plan and review", () => {
+    const g = parseWorkflowFile(WORKFLOW_FILE);
+    expect(g.model_stylesheet).toContain("claude-opus-4-6");
+  });
+
+  test("dry-run executes from start to exit (skipping human gate)", async () => {
+    const tmpDir = makeTmpDir();
+    const cap = captureConsole();
+    try {
+      const g = parseWorkflowFile(WORKFLOW_FILE);
+      await runWorkflow(g, { dryRun: true, cwd: tmpDir });
+      expect(cap.logs.some(l => l.includes("complete"))).toBe(true);
+    } finally {
+      cap.restore();
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+});
+
+// ── Engine upgrades (the-line-end-to-end.md LE14) ────────────────────────────
+
+describe("workflow/runner (LE14: json vars, graph hash, plan ready_tasks)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+  let origFetch: typeof fetch;
+  let calls: Array<{ route: string; body: any }>;
+  let planTasks: any[][];
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+    origFetch = globalThis.fetch;
+    calls = [];
+    planTasks = [];
+    globalThis.fetch = (async (url: any, init: any) => {
+      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+      calls.push({ route, body: JSON.parse(init?.body || "{}") });
+      if (route === "/cli/plans/get") {
+        const tasks = planTasks.length > 1 ? planTasks.shift()! : planTasks[0] ?? [];
+        return new Response(JSON.stringify({ title: "P", goal: "g", tasks }), { status: 200 });
+      }
+      const body = route === "/cli/workflow-runs/poll-gate" ? { status: "running", gate_response: "A" } : { ok: true };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = origFetch;
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  test("a command's JSON stdout routes an edge and expands into the next script", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      scan  [shape=parallelogram, script="echo '{\\"failing\\": 3, \\"name\\": \\"suite\\"}'; echo noise >&2"]
+      many  [shape=parallelogram, script="echo routed-many $scan.json.name"]
+      few   [shape=parallelogram, script="echo routed-few"]
+      exit  [shape=Msquare]
+      start -> scan
+      scan -> many [condition="scan.json.failing >= 2 and outcome = success"]
+      scan -> few  [condition="scan.json.failing < 2"]
+      many -> exit
+      few -> exit
+    }`);
+    expect(await runWorkflow(g, { cwd: tmpDir })).toBe("completed");
+    expect(cap.logs.some(l => l.includes("routed-many suite"))).toBe(true);
+    expect(cap.logs.some(l => l.includes("routed-few"))).toBe(false);
+  });
+
+  // eval_wallet logged "line Evals are paused, so the run stays parked" to stderr while it waited; after the pause
+  // lifted its output still carried that line, and the card written next said the tests were paused (sd-2511).
+  test("a station that succeeds records what it printed to stdout, not what it logged to stderr while it waited", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      hold  [shape=parallelogram, script="echo 'wallet-wait: line Evals are paused, so the run stays parked' >&2; echo '{\\"room_usd\\": 12}'"]
+      quiet [shape=parallelogram, script="echo 'only a log line' >&2"]
+      fail  [shape=parallelogram, script="echo 'why it failed' >&2; exit 1"]
+      exit  [shape=Msquare]
+      start -> hold -> quiet -> fail -> exit
+    }`);
+    const ctx: Record<string, string> = {};
+    const { executeCommand } = await import("./commandStation.js");
+    for (const id of ["hold", "quiet", "fail"]) await executeCommand(g.nodes.get(id)!, ctx, tmpDir);
+    expect(ctx["hold.output"]).toBe('{"room_usd": 12}');
+    expect(ctx["hold.json"]).toBe('{"room_usd":12}');
+    expect(ctx["quiet.output"]).toBe("only a log line");
+    expect(ctx["fail.output"]).toBe("why it failed");
+  });
+
+  test("a station gone quiet is noted on the run's task while it runs, and its node keeps the note after it succeeds", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      quiet [shape=parallelogram, script="sleep 3; echo ok", silent=1]
+      exit  [shape=Msquare]
+      start -> quiet -> exit
+    }`);
+    expect(await runWorkflow(g, { cwd: tmpDir, runId: "run-1", taskId: "ct-9", apiToken: "tok", convexSiteUrl: "https://convex.test" })).toBe("completed");
+    const note = calls.findIndex(c => c.route === "/cli/work/comment" && /quiet has printed nothing for \d+s; still running/.test(c.body.text));
+    const settled = calls.findIndex(c => c.route === "/cli/workflow-runs/progress" && c.body.node_id === "quiet" && c.body.node_status === "completed");
+    expect(note).toBeGreaterThanOrEqual(0);
+    expect(calls[note].body).toMatchObject({ short_id: "ct-9", comment_type: "note" });
+    expect(calls[note].body.text).toContain("/workflows/runs/run-1");
+    expect(note).toBeLessThan(settled);
+    expect(calls[settled].body.result_preview).toMatch(/^ok\nprinted nothing for \d+s$/);
+  }, 30_000);
+
+  test("a fanout with a failed branch stops the run: no branch reruns and nothing past the fanin runs", async () => {
+    const log = path.join(tmpDir, "fanout.log");
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      split [shape=component]
+      one   [shape=parallelogram, script="echo one >> ${log}"]
+      two   [shape=parallelogram, script="echo two >> ${log}; exit 1"]
+      join  [shape=tripleoctagon]
+      after [shape=parallelogram, script="echo after >> ${log}"]
+      exit  [shape=Msquare]
+      start -> split
+      split -> one
+      split -> two
+      one -> join
+      two -> join
+      join -> after -> exit
+    }`);
+    expect(await runWorkflow(g, { cwd: tmpDir })).toBe("failed");
+    expect(fs.readFileSync(log, "utf-8").trim().split("\n").sort()).toEqual(["one", "two"]);
+  });
+
+  test("a fanout whose branches all pass continues past the fanin", async () => {
+    const log = path.join(tmpDir, "fanout-ok.log");
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      split [shape=component]
+      one   [shape=parallelogram, script="echo one >> ${log}"]
+      two   [shape=parallelogram, script="echo two >> ${log}"]
+      join  [shape=tripleoctagon]
+      after [shape=parallelogram, script="echo after >> ${log}"]
+      exit  [shape=Msquare]
+      start -> split
+      split -> one
+      split -> two
+      one -> join
+      two -> join
+      join -> after -> exit
+    }`);
+    expect(await runWorkflow(g, { cwd: tmpDir })).toBe("completed");
+    expect(fs.readFileSync(log, "utf-8").trim().split("\n").sort()).toEqual(["after", "one", "two"]);
+  });
+
+  test("a station the timeout killed records exit code 124, never 0", async () => {
+    const g = parseWorkflowSource(`digraph g {
+      start [shape=Mdiamond]
+      slow  [shape=parallelogram, script="sleep 5", timeout=1]
+      died  [shape=parallelogram, script="kill -TERM $$"]
+      exit  [shape=Msquare]
+      start -> slow -> died -> exit
+    }`);
+    const ctx: Record<string, string> = {};
+    const { executeCommand } = await import("./commandStation.js");
+    expect(await executeCommand(g.nodes.get("slow")!, ctx, tmpDir)).toBe("failure");
+    expect(ctx["slow.exit_code"]).toBe("124");
+    expect(await executeCommand(g.nodes.get("died")!, ctx, tmpDir)).toBe("failure");
+    expect(ctx["died.exit_code"]).toBe("143");
+  }, 15000);
+
+  // A daemon restart stopped the runners on Union's line-1 and left their Queue station's poller (onefix-nodes.ts
+  // queue) running under init for hours, beside the one each resumed run started (Nov 15). A resumed run runs its
+  // station again, so a script still running when its runner is stopped ends with the runner.
+  test("a station's script still running when its runner is stopped ends with the runner", async () => {
+    const pids = path.join(tmpDir, "pids");
+    const runnerScript = path.join(tmpDir, "stopped-runner.ts");
+    const station = { id: "poll", type: "command", script: `echo $$ > ${pids}; sleep 60 & echo $! >> ${pids}; wait`, timeout: 120 };
+    fs.writeFileSync(runnerScript, [
+      `import { stopRunOnSignals } from ${JSON.stringify(path.join(import.meta.dir, "runner.ts"))};`,
+      `import { executeCommand } from ${JSON.stringify(path.join(import.meta.dir, "commandStation.ts"))};`,
+      `stopRunOnSignals({} as any);`,
+      `await executeCommand(${JSON.stringify(station)} as any, {}, ${JSON.stringify(tmpDir)});`,
+    ].join("\n"));
+    const runner = Bun.spawn([process.execPath, runnerScript], { cwd: tmpDir, stdout: "ignore", stderr: "ignore" });
+    const { pollUntil } = await import("../test-helpers/pollUntil.js");
+    const started = () => (fs.existsSync(pids) ? fs.readFileSync(pids, "utf-8").trim().split("\n").filter(Boolean).map(Number) : []);
+    await pollUntil(() => started().length === 2, "the station's script and its child", { ms: 15000 });
+    const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+    try {
+      runner.kill("SIGTERM");
+      expect(await runner.exited).toBe(143);
+      await pollUntil(() => !started().some(alive), "the station's processes ending");
+    } finally {
+      for (const pid of started()) { try { process.kill(pid, "SIGKILL"); } catch {} }
+    }
+  }, 30000);
+
+  test("the run reports a graph hash that ignores formatting but not content", async () => {
+    const { graphHash } = await import("./parser.js");
+    const a = parseWorkflowSource(`digraph g { start [shape=Mdiamond]\n exit [shape=Msquare]\n start -> exit }`);
+    const b = parseWorkflowSource(`digraph g {\n  // same graph\n  start [shape=Mdiamond]\n\n  exit [shape=Msquare]\n  start -> exit\n}`);
+    const c2 = parseWorkflowSource(`digraph g { start [shape=Mdiamond]\n exit [shape=Msquare]\n start -> exit [condition="outcome = success"] }`);
+    expect(graphHash(a)).toBe(graphHash(b));
+    expect(graphHash(a)).not.toBe(graphHash(c2));
+    await runWorkflow(a, { cwd: tmpDir, runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test" });
+    const report = calls.find(c => c.route === "/cli/workflow-runs/progress" && c.body.graph_hash);
+    expect(report?.body.graph_hash).toBe(graphHash(a));
+    // Each station's own hash rides with it, so a version can say which stations changed.
+    const { graphNodeHashes } = await import("./parser.js");
+    expect(report?.body.graph_nodes).toEqual(graphNodeHashes(a));
+    const byId = (g: typeof a) => Object.fromEntries(graphNodeHashes(g).map((n) => [n.id, n.h]));
+    expect(byId(a)).toEqual(byId(b));
+    // An edge leaving start changes start, and only start.
+    expect(byId(c2).start).not.toBe(byId(a).start);
+    expect(byId(c2).exit).toBe(byId(a).exit);
+  });
+
+  test("a run whose line profile cannot be read fails with the profile's own error", async () => {
+    fs.mkdirSync(path.join(tmpDir, ".codecast"));
+    fs.writeFileSync(path.join(tmpDir, ".codecast", "line.toml"), `[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\nnewer_key = true\n`);
+    const g = parseWorkflowSource(`digraph g { start [shape=Mdiamond]\n exit [shape=Msquare]\n start -> exit }`);
+    expect(await runWorkflow(g, { cwd: tmpDir, runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test" })).toBe("invalid");
+    const failed = calls.find(c => c.route === "/cli/workflow-runs/progress" && c.body.run_status === "failed");
+    expect(failed?.body.fail_reason).toContain('unknown key "newer_key"');
+  });
+
+  test("validateWorkflow reports a malformed condition", () => {
+    const g = parseWorkflowSource(`digraph g { start [shape=Mdiamond]\n exit [shape=Msquare]\n start -> exit [condition="outcome = (success"] }`);
+    expect(validateWorkflow(g).some(e => e.includes("condition"))).toBe(true);
+  });
+
+  test("plan-autopilot loops while ready_tasks > 0 and exits at 0", async () => {
+    const g = parseWorkflowFile(path.resolve(import.meta.dir, "../../workflows/plan-autopilot/workflow.cast"));
+    // Stub the scripts: the routing under test is the check node's.
+    g.nodes.get("dispatch")!.script = "echo dispatched";
+    g.nodes.get("monitor")!.script = "true";
+    const open = { status: "open", short_id: "ct-1" };
+    const done = { status: "done", short_id: "ct-1" };
+    // Initial load, then one refresh per node: the first wave still has a
+    // ready task when check runs, the second does not.
+    planTasks = [[open], [open], [open], [open], [open], [done]];
+    const outcome = await runWorkflow(g, { cwd: tmpDir, planId: "pl-1", runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test" });
+    expect(outcome).toBe("completed");
+    const dispatched = calls.filter(c => c.route === "/cli/workflow-runs/progress" && c.body.node_id === "dispatch" && c.body.node_status === "running");
+    expect(dispatched.length).toBe(2);
+  }, 20000);
+});
+
+// ── Stations as the run's workers ────────────────────────────────────────────
+
+describe("workflow/runner (stations nest under the run, gates complete)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+  let origFetch: typeof fetch;
+  let calls: Array<{ route: string; body: any }>;
+  let pinned: { state: string; status: string; result?: string | null };
+  let pinnedReads: Array<typeof pinned>;
+  let workState: string;
+  let inboxReads: Array<{ id: string; work_state: string; is_live: boolean }>;
+  let gateReply: { status: string; gate_response: string | null };
+
+  beforeEach(() => {
+    gateReply = { status: "running", gate_response: "S" };
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+    origFetch = globalThis.fetch;
+    calls = [];
+    pinned = { state: "Grounded ct-9", status: "done" };
+    workState = "needs_input";
+    inboxReads = [];
+    pinnedReads = [];
+    globalThis.fetch = (async (url: any, init: any) => {
+      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+      const body = JSON.parse(init?.body || "{}");
+      calls.push({ route, body });
+      const reply = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
+      if (route === "/cli/spawn") return reply({ conversation_id: "conv_hand", short_id: "jx7hand" });
+      if (route === "/cli/inbox") {
+        const next = inboxReads.shift();
+        return reply({ sessions: [next ?? { id: "conv_hand", work_state: workState, is_live: false }] });
+      }
+      if (route === "/cli/sessions/state/get") return reply(pinnedReads.shift() ?? pinned);
+      if (route === "/cli/workflow-runs/poll-gate") return reply(gateReply);
+      return reply({ ok: true });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = origFetch;
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  const graph = () => parseWorkflowSource(`digraph line {
+    start [shape=Mdiamond]
+    ground [label="Ground", backend=session, agent=claude, prompt="ground it"]
+    decide [label="Decide", shape=hexagon]
+    ship [shape=parallelogram, script="true"]
+    exit [shape=Msquare]
+    start -> ground -> decide
+    decide -> ship [label="[S] Ship"]
+    ship -> exit
+  }`);
+  const run = () => runWorkflow(graph(), { cwd: tmpDir, runId: "run-1", runSession: "conv_run", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions);
+
+  test("a spawn that lost a write race on every server retry is sent again, and the station runs", async () => {
+    const inner = globalThis.fetch;
+    let spawns = 0;
+    globalThis.fetch = (async (url: any, init: any) => {
+      if (String(url).endsWith("/cli/spawn") && ++spawns === 1) {
+        calls.push({ route: "/cli/spawn", body: JSON.parse(init?.body || "{}") });
+        return new Response(JSON.stringify({ error: 'Documents read from or written to the "org_roles" table changed while this mutation was being run and on every subsequent retry.' }), { status: 500 });
+      }
+      return inner(url, init);
+    }) as typeof fetch;
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/spawn")).toHaveLength(2);
+  }, 20000);
+
+  test("a station spawns nested under the run's session, named for its node and task", async () => {
+    expect(await run()).toBe("completed");
+    const spawn = calls.find(c => c.route === "/cli/spawn")!;
+    expect(spawn.body.parent_session).toBe("conv_run");
+    expect(spawn.body.title).toBe("Ground");
+    expect(stationTitle({ id: "prove", label: "Prove" }, { task_id: "ct-9" })).toBe("Prove · ct-9");
+    expect(stationTitle({ id: "prove", label: "" }, {})).toBe("prove");
+    // The presenting station is named by its problem: its title is what a person meets in the decision's chat and page.
+    expect(stationTitle({ id: "present", label: "Present" }, { task_id: "ct-9", task_title: "Graded sims hidden\nby world runs" }, true)).toBe("Graded sims hidden by world runs");
+    expect(stationTitle({ id: "present", label: "Present" }, { task_id: "ct-9" }, true)).toBe("Present · ct-9");
+  }, 30000);
+
+  test("a live hand that reads needs input once, then works on, is not taken as settled", async () => {
+    const live = (work_state: string) => ({ id: "conv_hand", work_state, is_live: true });
+    inboxReads = [live("working"), live("needs_input"), live("working"), live("working")];
+    workState = "done";
+    await run();
+    const reads = calls.filter(c => c.route === "/cli/inbox").length;
+    // Settled only on the final done read, after the flicker and the work that followed it.
+    expect(reads).toBe(5);
+  }, 30000);
+
+  test("a live hand that stays on needs input settles on the second read", async () => {
+    const live = (work_state: string) => ({ id: "conv_hand", work_state, is_live: true });
+    inboxReads = [live("needs_input"), live("needs_input")];
+    workState = "working";
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(2);
+  }, 30000);
+
+  // Oct 26: restarted outside the daemon, a hand's statuses were refused and its row read needs input while it worked.
+  test("a hand whose transcript is still growing is at work, whatever its status reads", async () => {
+    const asking = (message_count: number) => ({ id: "conv_hand", work_state: "needs_input", is_live: true, message_count });
+    inboxReads = [asking(4), asking(6), asking(9), asking(9)];
+    workState = "working";
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(4);
+  }, 30000);
+
+  test("a hand parked on its own background work is not taken as settled", async () => {
+    // ct-59925, 2026-10-14: the Prove hand ended turns on an open replay and
+    // Monitor. A settle that reads "waiting" (or a declared dormant) files the
+    // row dormant; the run waits for the wake instead of reading the park as
+    // the hand's answer.
+    const parked = { id: "conv_hand", work_state: "dormant", is_live: true, agent_status: "waiting", message_count: 40 };
+    inboxReads = [parked, parked, parked];
+    workState = "done";
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(4);
+  }, 30000);
+
+  test("a hand that pinned dormant is not taken as settled until it pins its answer", async () => {
+    // ct-59998, 2026-10-16: the Implement hand committed its fix, started a
+    // check and an eval replay in the background and pinned dormant. Its row
+    // read needs_input, then not live, and the run routed on an empty handoff
+    // ("no outgoing edge from implement"). A dormant pin names a wake the hand
+    // waits on: the station waits for it within the node's timeout.
+    const dormant = { state: "Re-verifying on main; woken by the check and eval finishing", status: "dormant" };
+    const row = (work_state: string, is_live: boolean, agent_status: string) => ({ id: "conv_hand", work_state, is_live, agent_status, message_count: 57 });
+    inboxReads = [row("working", true, "working"), row("needs_input", true, "idle"), row("needs_input", true, "idle"), row("needs_input", false, "hibernated"), row("needs_input", false, "stopped")];
+    pinnedReads = [dormant, dormant];
+    pinned = { state: "Fixed and verified", status: "done", result: '{"handoff":"prove"}' };
+    workState = "done";
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(6);
+    // Read only when the row would settle: the two dormant reads and the answer.
+    expect(calls.filter(c => c.route === "/cli/sessions/state/get").length).toBe(3);
+    expect(cap.logs.some(l => l.includes("jx7hand: pinned dormant"))).toBe(true);
+  }, 30000);
+
+  test("a hand that pinned done after arming a check into its own session settles", async () => {
+    // ct-74310 and ct-86290, 2026-11-07: each onefix Build armed its seven-day check (a once trigger into its own
+    // session) and pinned done with outcome watching. The inbox files a done rest with such a trigger as dormant,
+    // so the run waited on a hand that had answered.
+    const resting = { id: "conv_hand", work_state: "dormant", is_live: true, agent_status: "idle", message_count: 297 };
+    inboxReads = [{ ...resting, work_state: "working", agent_status: "working" }, resting];
+    pinned = { state: "Merged; watching from the deploy that carries it", status: "done", result: '{"outcome":"watching"}' };
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(2);
+    // The pin read that settled it is the answer; it is not read a second time.
+    expect(calls.filter(c => c.route === "/cli/sessions/state/get").length).toBe(1);
+  }, 30000);
+
+  test("a dormant hand whose pin names a wake keeps the run waiting", async () => {
+    const resting = { id: "conv_hand", work_state: "dormant", is_live: true, agent_status: "idle", message_count: 40 };
+    const dormant = { state: "Waiting on the replay to finish", status: "dormant" };
+    inboxReads = [resting, resting];
+    pinnedReads = [dormant, dormant];
+    workState = "done";
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(3);
+  }, 30000);
+
+  test("a dormant hand that is killed, or asks a person, settles", async () => {
+    const dormant = { state: "waiting on the replay", status: "dormant" };
+    pinned = dormant;
+    inboxReads = [{ id: "conv_hand", work_state: "idle", is_live: false, is_killed: true, message_count: 9 } as any];
+    await run();
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(1);
+    calls = [];
+    const asking = { id: "conv_hand", work_state: "needs_input", is_live: true, awaiting_input: true, message_count: 9 } as any;
+    inboxReads = [asking, asking];
+    await run();
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(2);
+  }, 30000);
+
+  test("a working hand whose daemon goes quiet is not taken as settled", async () => {
+    // The agentwatch Build station, 2026-10-14: the hand sat in one long tool
+    // call while its daemon's loop froze for 199s. With no heartbeat and no
+    // sync for two minutes the row read stopped, so needs_input and not live,
+    // and the run routed a working hand to failure. It pinned done at 06:12.
+    const live = (work_state: string) => ({ id: "conv_hand", work_state, is_live: true, agent_status: "working", message_count: 40 });
+    const dark = { id: "conv_hand", work_state: "needs_input", is_live: false, agent_status: "stopped", message_count: 40 };
+    inboxReads = [live("working"), dark, dark, dark, live("working")];
+    workState = "done";
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(6);
+  }, 30000);
+
+  test("a hand that declared done settles even while its daemon is quiet", async () => {
+    inboxReads = [{ id: "conv_hand", work_state: "working", is_live: true, message_count: 40 } as any];
+    workState = "done";
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/inbox").length).toBe(2);
+  }, 30000);
+
+  test("a hand whose session holds no message and no result fails the station, and its report ends the hand", async () => {
+    // The agentwatch Propose step, 2026-10-12: the hand's transcript went to
+    // another conversation, the watched one stayed empty, and the run moved on.
+    pinned = { state: "", status: "" };
+    inboxReads = [{ id: "conv_hand", work_state: "needs_input", is_live: false, message_count: 0 } as any];
+    expect(await run()).toBe("failed");
+    expect(handEnded("failed")).toBe(true);
+    expect(calls.some(c => c.route === "/cli/workflow-runs/poll-gate")).toBe(false);
+  }, 30000);
+
+  test("a hand whose start failed fails the station with the error, not at the node's timeout", async () => {
+    // Union's Prove, 2026-10-14: the isolated hand's cloud preparation failed
+    // in six minutes and the row read idle, never live, until prove's
+    // three-hour timeout killed it.
+    const failed = { id: "conv_hand", work_state: "idle", is_live: false, message_count: 0, session_error: "cloud host preparation failed (exit 1): setup 'install' failed" };
+    let reads = 0;
+    const inner = globalThis.fetch;
+    globalThis.fetch = (async (url: any, init: any) => {
+      if (String(url).endsWith("/cli/inbox") && ++reads === 2) setSystemTime(new Date(Date.now() + 3 * 60_000));
+      return inner(url, init);
+    }) as typeof fetch;
+    inboxReads = [failed, failed, failed];
+    try {
+      expect(await run()).toBe("failed");
+    } finally {
+      setSystemTime();
+    }
+    expect(reads).toBe(2);
+    expect(handEnded("failed")).toBe(true);
+    expect(cap.logs.some(l => l.includes("jx7hand could not start") && l.includes("cloud host preparation failed"))).toBe(true);
+  }, 30000);
+
+  test("a hand that stopped on a login error and pinned nothing fails the station", async () => {
+    // The Mac mini's line runs, 2026-10-14: every station answered "Not logged
+    // in", settled as a pass, and the run routed on the task's old fields.
+    pinned = { state: "", status: "" };
+    inboxReads = [{ id: "conv_hand", work_state: "needs_input", is_live: false, message_count: 2, blocked_on: "auth" } as any];
+    expect(await run()).toBe("failed");
+    expect(calls.some(c => c.route === "/cli/workflow-runs/poll-gate")).toBe(false);
+    expect(cap.logs.some(l => l.includes("jx7hand stopped on an auth error"))).toBe(true);
+  }, 30000);
+
+  test("a station routed on its outcome whose hand died fails its run with the hand's reason", async () => {
+    // ct-60973's Refine, 2026-10-22: the hand stopped on "API Error: 401 OAuth
+    // access token has expired" and the run failed as "no outgoing edge from
+    // refine (outcome failure)", which names no cause.
+    pinned = { state: "", status: "" };
+    inboxReads = [{ id: "conv_hand", work_state: "needs_input", is_live: false, message_count: 4, blocked_on: "auth", session_error: "API Error: 401 OAuth access token has expired" } as any];
+    const routed = parseWorkflowSource(`digraph line {
+      start [shape=Mdiamond]
+      refine [label="Refine", backend=session, agent=claude, prompt="refine it"]
+      exit [shape=Msquare]
+      start -> refine
+      refine -> exit [condition="outcome = success"]
+    }`);
+    expect(await runWorkflow(routed, { cwd: tmpDir, runId: "run-1", runSession: "conv_run", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions)).toBe("failed");
+    const failed = calls.find(c => c.route === "/cli/workflow-runs/progress" && c.body.run_status === "failed");
+    expect(String(failed?.body.fail_reason)).toContain("hand jx7hand at refine stopped on an auth error before doing the work: API Error: 401");
+  }, 30000);
+
+  test("a hand that pinned its result passes even before its transcript has synced", async () => {
+    inboxReads = [{ id: "conv_hand", work_state: "done", is_live: false, message_count: 0 } as any];
+    expect(await run()).toBe("completed");
+  }, 30000);
+
+  const stopOpts = { runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test" } as RunOptions;
+
+  test("a runner stopped by a signal records its run as failed at the node it last reported", async () => {
+    // Stop the runner while it waits on the gate, the way Ctrl-C lands mid-run.
+    const inner = globalThis.fetch;
+    let stopped: Promise<void> | null = null;
+    globalThis.fetch = (async (url: any, init: any) => {
+      if (!stopped && String(url).endsWith("/cli/workflow-runs/poll-gate")) stopped = reportRunStopped(stopOpts, "SIGINT");
+      return inner(url, init);
+    }) as typeof fetch;
+    await run();
+    await stopped;
+    const stop = calls.find(c => c.route === "/cli/workflow-runs/progress" && c.body.fail_reason)!;
+    expect(stop.body).toMatchObject({ run_id: "run-1", node_id: "decide", run_status: "failed", node_status: "failed", fail_reason: expect.stringContaining("SIGINT") });
+  }, 30000);
+
+  test("a signal after the run reported its end leaves the finished run alone", async () => {
+    expect(await run()).toBe("completed");
+    calls.length = 0;
+    await reportRunStopped(stopOpts, "SIGTERM");
+    expect(calls.filter(c => c.route === "/cli/workflow-runs/progress")).toEqual([]);
+  }, 30000);
+
+  // The server stops a station's hand when the runner reports its node over
+  // (workflow_runs.stopStationHands): one owner, and a card that stays. The
+  // runner's own kill dismissed the hand from the inbox and never reached a
+  // hand that settled on a question, which held its worktree for hours.
+  const handEnded = (status: string) => calls.some(c => c.route === "/cli/workflow-runs/progress" && c.body.node_id === "ground" && c.body.node_status === status && c.body.session_id === "jx7hand");
+
+  test("a station that declared done ends with its node's report, and the runner kills nothing itself", async () => {
+    await run();
+    expect(handEnded("completed")).toBe(true);
+    expect(calls.some(c => c.route === "/cli/sessions/kill")).toBe(false);
+  }, 30000);
+
+  test("a gate waits past any clock: thousands of unanswered polls, then the person's answer routes it", async () => {
+    let polls = 0;
+    const inner = globalThis.fetch;
+    globalThis.fetch = (async (url: any, init: any) => {
+      if (String(url).endsWith("/cli/workflow-runs/poll-gate")) {
+        polls++;
+        return new Response(JSON.stringify(polls < 4000 ? { status: "paused", gate_response: null } : { status: "paused", gate_response: "S" }), { status: 200 });
+      }
+      return inner(url, init);
+    }) as typeof fetch;
+    expect(await run()).toBe("completed");
+    expect(polls).toBe(4000);
+    expect(calls.some(c => c.route === "/cli/workflow-runs/progress" && c.body.node_id === "ship")).toBe(true);
+  }, 60000);
+
+  test("a poll the backend refuses is a failed poll, not a withdrawn gate: the gate waits on", async () => {
+    let polls = 0;
+    const inner = globalThis.fetch;
+    globalThis.fetch = (async (url: any, init: any) => {
+      if (String(url).endsWith("/cli/workflow-runs/poll-gate")) {
+        polls++;
+        if (polls === 1) return new Response(JSON.stringify({ error: "Overloaded", code: "Overloaded" }), { status: 503 });
+        if (polls === 2) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 200 });
+        return new Response(JSON.stringify(polls < 4 ? { status: "paused", gate_response: null } : { status: "paused", gate_response: "S" }), { status: 200 });
+      }
+      return inner(url, init);
+    }) as typeof fetch;
+    expect(await run()).toBe("completed");
+    expect(polls).toBe(4);
+  }, 30000);
+
+  test("a run that left paused without an answer still ends the wait", async () => {
+    gateReply = { status: "cancelled", gate_response: null };
+    expect(await run()).toBe("failed");
+  }, 30000);
+
+  test("a station that pinned blocked stops the run there, even when its json names an edge", async () => {
+    const g = parseWorkflowSource(`digraph line {
+      start [shape=Mdiamond]
+      investigate [label="Investigate", backend=session, agent=claude, prompt="look", max_visits=2]
+      refine [label="Refine", backend=session, agent=claude, prompt="refine"]
+      exit [shape=Msquare]
+      start -> investigate -> refine
+      refine -> investigate [condition="refine.json.outcome = wrong_cause"]
+      refine -> exit [condition="refine.json.outcome = refined"]
+    }`);
+    pinned = { state: "Investigated", status: "done" };
+    let spawns = 0;
+    const inner = globalThis.fetch;
+    globalThis.fetch = (async (url: any, init: any) => {
+      if (String(url).endsWith("/cli/spawn") && ++spawns === 2) {
+        pinned = { state: "Waiting on sd-486", status: "blocked", result: JSON.stringify({ outcome: "wrong_cause" }) };
+      }
+      return inner(url, init);
+    }) as typeof fetch;
+    const outcome = await runWorkflow(g, { cwd: tmpDir, runId: "run-1", runSession: "conv_run", taskId: "ct-9", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions);
+    expect(outcome).toBe("failed");
+    expect(spawns).toBe(2);
+    const park = calls.find(c => c.route === "/cli/work/update")!;
+    expect(park.body).toMatchObject({ short_id: "ct-9", status: "in_review", execution_status: "blocked" });
+  }, 30000);
+
+  test("a builder that pinned blocked routes to the line's ask gate with its own words, and the answer goes back to it", async () => {
+    const g = parseWorkflowSource(`digraph line {
+      start [shape=Mdiamond]
+      implement [label="Implement", backend=session, agent=claude, prompt="build it", max_visits=2]
+      ask [label="Builder asks", shape=hexagon, prompt="The builder stopped ($handoff).", doc="$handoff_note"]
+      reopen [shape=parallelogram, script="true"]
+      exit [shape=Msquare]
+      start -> implement
+      implement -> exit [condition="outcome = success"]
+      implement -> ask [condition="handoff = blocked"]
+      ask -> reopen [label="[A] Answer :: back to the builder"]
+      reopen -> implement
+    }`);
+    let spawns = 0;
+    const inner = globalThis.fetch;
+    globalThis.fetch = (async (url: any, init: any) => {
+      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+      if (route === "/cli/spawn") pinned = ++spawns === 1 ? { state: "Which schema version should the migration target?", status: "blocked" } : { state: "Built", status: "done" };
+      if (route === "/cli/workflow-runs/poll-gate") return new Response(JSON.stringify({ status: "running", gate_response: "A: version 3" }), { status: 200 });
+      return inner(url, init);
+    }) as typeof fetch;
+    const outcome = await runWorkflow(g, { cwd: tmpDir, runId: "run-1", runSession: "conv_run", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions);
+    expect(outcome).toBe("completed");
+    expect(spawns).toBe(2);
+    const gate = calls.find(c => c.route === "/cli/workflow-runs/gate")!.body;
+    expect(gate).toMatchObject({ node_id: "ask", prompt: "The builder stopped (blocked).", doc_md: "Which schema version should the migration target?" });
+    const second = calls.filter(c => c.route === "/cli/spawn")[1].body;
+    expect(second.prompt).toContain("# Human Instructions\nversion 3");
+  }, 30000);
+
+  test("a station that settled on a question ends with its node's report too", async () => {
+    pinned = { state: "Which base should prove run on?", status: "working" };
+    workState = "needs_input";
+    await run();
+    expect(handEnded("completed")).toBe(true);
+  }, 30000);
+
+  test("a resumed run does not wait again on a hand that was stopped", async () => {
+    // A Ctrl-C ends the run and the server stops its hands; a later resume
+    // that reattached to the stopped hand read it as settled, with half a turn.
+    inboxReads = [{ id: "conv_left", work_state: "needs_input", is_live: true, is_killed: true, message_count: 9 } as any];
+    const outcome = await runWorkflow(graph(), { cwd: tmpDir, runId: "run-1", runSession: "conv_run", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1, resumed: { node_id: "ground", hands: { ground: "conv_left" } } } as any);
+    expect(outcome).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/spawn")).toHaveLength(1);
+  }, 30000);
+
+  // A reboot takes the runner and its hand together. The sweep restarts the
+  // runner minutes later, before the watchdog revives the hand, and that
+  // runner never saw the hand live: it spawned a second hand beside the one
+  // about to come back, or read the dead one as settled.
+  test("a resumed run waits for the hand it left to come back, without spawning another", async () => {
+    const dead = (work_state: string) => ({ id: "conv_left", work_state, is_live: false, agent_status: "stopped", message_count: 40 });
+    inboxReads = [dead("working"), dead("needs_input"), dead("needs_input"), { ...dead("working"), is_live: true, agent_status: "working" }, dead("done")] as any;
+    pinned = { state: "Halfway through the check", status: "working" };
+    pinnedReads = [{ state: "Grounded ct-9", status: "done" }];
+    const outcome = await runWorkflow(graph(), { cwd: tmpDir, runId: "run-1", runSession: "conv_run", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1, resumed: { node_id: "ground", hands: { ground: "conv_left" } } } as any);
+    expect(outcome).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/spawn" && /ground/i.test(JSON.stringify(c.body)))).toHaveLength(0);
+    expect(inboxReads).toHaveLength(0);
+  }, 30000);
+
+  test("a station routes on its result even when the pinned text was cut short", async () => {
+    // Union's prove station (2026-10-07): its pin ran past the 1200-character
+    // display cap, the cut fell inside the JSON block, and the run failed with
+    // no outgoing edge although the hand had proven its cause.
+    pinned = { state: `Proven.\n\n\`\`\`json\n{ "outcome": "red", "evidence": "${"x".repeat(1200)}…`, status: "done", result: '{ "outcome": "red", "evidence": "long" }' };
+    const routed = parseWorkflowSource(`digraph line {
+      start [shape=Mdiamond]
+      prove [label="Prove", backend=session, agent=claude, prompt="prove it"]
+      ship [shape=parallelogram, script="true"]
+      exit [shape=Msquare]
+      start -> prove
+      prove -> ship [condition="prove.json.outcome = red"]
+      ship -> exit
+    }`);
+    expect(await runWorkflow(routed, { cwd: tmpDir, runId: "run-2", runSession: "conv_run", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions)).toBe("completed");
+  }, 30000);
+
+  test("a gate taken back without an answer follows none of its choices", async () => {
+    // Union 2026-10-08: a card withdrawn (sd-512) left the gate with no answer,
+    // and the run went down its first choice, Ship, recording an approval no
+    // person gave.
+    gateReply = { status: "running", gate_response: null };
+    expect(await run()).toBe("failed");
+    const reached = calls.filter((c) => c.route === "/cli/workflow-runs/progress").map((c) => c.body.node_id);
+    expect(reached).not.toContain("ship");
+  }, 30000);
+
+  test("a gate answered with its key reports the node completed, not failed", async () => {
+    await run();
+    const decide = calls.filter(c => c.route === "/cli/workflow-runs/progress" && c.body.node_id === "decide" && c.body.node_status !== "running");
+    expect(decide.map(c => c.body.node_status)).toEqual(["completed"]);
+    expect(decide[0].body.outcome).toBe("s");
+  }, 30000);
+});
+
+// ── A station answered by its handoff ────────────────────────────────────────
+
+describe("workflow/runner (a station whose edges route on the handoff)", () => {
+  const handedOff = { status: "in_review", execution_status: "done" };
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+  let origFetch: typeof fetch;
+  let calls: Array<{ route: string; body: any }>;
+  let inboxReads: Array<Record<string, unknown>>;
+  // The task as the server holds it; the hand hands off on its Nth inbox read.
+  let task: { status: string; execution_status?: string };
+  let handsOffAtRead: number;
+  let pinned: { state: string; status: string };
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+    origFetch = globalThis.fetch;
+    calls = [];
+    inboxReads = [];
+    task = { status: "in_progress" };
+    handsOffAtRead = Infinity;
+    pinned = { state: "", status: "" };
+    globalThis.fetch = (async (url: any, init: any) => {
+      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+      const body = JSON.parse(init?.body || "{}");
+      calls.push({ route, body });
+      const reply = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
+      if (route === "/cli/spawn") return reply({ conversation_id: "conv_hand", short_id: "jx7hand" });
+      if (route === "/cli/inbox") {
+        if (calls.filter(c => c.route === "/cli/inbox").length >= handsOffAtRead) task = handedOff;
+        return reply({ sessions: [inboxReads.length > 1 ? inboxReads.shift() : inboxReads[0]] });
+      }
+      if (route === "/cli/sessions/state/get") return reply(pinned);
+      if (route === "/cli/work/get") return reply(task);
+      if (route === "/cli/work/update") task = { status: body.status ?? task.status };
+      return reply({ ok: true });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = origFetch;
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  const graph = () => parseWorkflowSource(`digraph line {
+    start [shape=Mdiamond]
+    implement [label="Implement", backend=session, agent=claude, prompt="build it"]
+    verify [shape=parallelogram, script="true"]
+    exit [shape=Msquare]
+    start -> implement
+    implement -> verify [condition="handoff = done"]
+    verify -> exit
+  }`);
+  const run = () => runWorkflow(graph(), { cwd: tmpDir, runId: "run-1", runSession: "conv_run", taskId: "ct-9", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1, handoffAskGraceMs: 50 } as RunOptions);
+
+  test("a hand that handed off is done, though a dormant pin and its background work keep it parked", async () => {
+    // ct-58311, ct-61013, ct-58686 (2026-10-22): each Implement hand handed
+    // off and ended its turn; a dormant pin from an earlier wait, or a check
+    // it left running, kept its session parked until the 180 minute timeout.
+    inboxReads = [{ id: "conv_hand", work_state: "dormant", is_live: true, agent_status: "waiting", message_count: 140 }];
+    pinned = { state: "Waiting on the project check", status: "dormant" };
+    handsOffAtRead = 3;
+    expect(await run()).toBe("completed");
+    expect(cap.logs.some(l => l.includes("handed off"))).toBe(true);
+    expect(calls.some(c => c.route === "/cli/messages/send")).toBe(false);
+  }, 30000);
+
+  test("a hand read as finished without a handoff is asked once, and its handoff then routes the run", async () => {
+    // ct-60376, ct-57854, ct-61269, ct-58286: the hand read idle in the middle
+    // of a tool call and the run routed on an empty handoff.
+    inboxReads = [{ id: "conv_hand", work_state: "needs_input", is_live: false, message_count: 22 }];
+    handsOffAtRead = 4;
+    expect(await run()).toBe("completed");
+    const asks = calls.filter(c => c.route === "/cli/messages/send");
+    expect(asks.length).toBe(1);
+    expect(asks[0]!.body.to).toBe("conv_hand");
+    expect(asks[0]!.body.body).toContain("cast task handoff ct-9");
+  }, 30000);
+
+  test("a hand that settles again without a handoff fails the station instead of routing", async () => {
+    inboxReads = [{ id: "conv_hand", work_state: "needs_input", is_live: false, message_count: 22 }];
+    expect(await run()).toBe("failed");
+    expect(calls.filter(c => c.route === "/cli/messages/send").length).toBe(1);
+    const failed = calls.find(c => c.route === "/cli/workflow-runs/progress" && c.body.run_status === "failed");
+    expect(String(failed?.body.fail_reason)).toContain("ended its turn without a handoff, also after being asked for one");
+  }, 30000);
+
+  test("a task still in review from the last round goes back in progress when the station starts", async () => {
+    inboxReads = [{ id: "conv_hand", work_state: "working", is_live: true, message_count: 3 }];
+    task = handedOff;
+    handsOffAtRead = 3;
+    expect(await run()).toBe("completed");
+    const reopen = calls.find(c => c.route === "/cli/work/update" && c.body.status === "in_progress");
+    expect(reopen?.body.short_id).toBe("ct-9");
+  }, 30000);
+});
+
+// ── A gate's change card (LE11) ──────────────────────────────────────────────
+
+describe("gatePayload card", () => {
+  const fixture = path.join(__dirname, "../../../../packages/shared/contracts/__fixtures__/changeCard/card.json");
+  const gate = (attr: string) => {
+    const g = parseWorkflowSource(`digraph g { start [shape=Mdiamond] decide [shape=hexagon, prompt="Ship it?", card="${attr}"] exit [shape=Msquare] start -> decide decide -> exit [label="[S] Ship"] }`);
+    return { g, node: g.nodes.get("decide")! };
+  };
+
+  test("the card attribute expands its $vars and carries the parsed card", () => {
+    const { g, node } = gate("$card_dir/card.json");
+    const payload = gatePayload(node, g, { card_dir: path.dirname(fixture) });
+    expect(payload.card?.cause.task).toBe("ct-56301");
+    expect(graphToPushPayload(g).nodes.find((n: any) => n.id === "decide")?.card).toBe("$card_dir/card.json");
+  });
+
+  test("a missing card leaves the gate asking without one", () => {
+    const { g, node } = gate("/nowhere/card.json");
+    expect("card" in gatePayload(node, g, {})).toBe(false);
+  });
+});
+
+
+describe("workflow/runner (LE1.4: a refused or failed registration stops a cause-bound run)", () => {
+  test("a run bound to a task or plan stops, detached or not", () => {
+    expect(runRegistrationIsFatal({ taskId: "ct-7" })).toBe(true);
+    expect(runRegistrationIsFatal({ planId: "pl-3" })).toBe(true);
+    expect(runRegistrationIsFatal({ detach: true })).toBe(true);
+  });
+  test("an unbound local run carries on unregistered", () => {
+    expect(runRegistrationIsFatal({})).toBe(false);
+  });
+});
+
+describe("gatePayload asker", () => {
+  const src = `digraph g { start [shape=Mdiamond]; card_write [label="Card words", backend=session, prompt="write"]; decide [shape=hexagon, prompt="Ship?", asker=card_write]; exit [shape=Msquare]; start -> card_write -> decide; decide -> exit [label="[S] Ship"]; }`;
+  test("names the session of the station the gate asks from, once that station ran", () => {
+    const g = parseWorkflowSource(src);
+    const node = g.nodes.get("decide")!;
+    expect(node.asker).toBe("card_write");
+    expect(graphToPushPayload(g).nodes.find((n) => n.id === "decide")).toMatchObject({ asker: "card_write" });
+    expect(gatePayload(node, g, { "card_write.session_id": "sess-card" })).toMatchObject({ asker_session_id: "sess-card" });
+    expect(gatePayload(node, g, {})).not.toHaveProperty("asker_session_id");
+  });
+  test("names the session the change came from, so a run nobody's session started asks from it", () => {
+    const g = parseWorkflowSource(src);
+    const node = g.nodes.get("decide")!;
+    expect(gatePayload(node, g, { change_conversation: "jx7maker" })).toMatchObject({ subject_conversation_id: "jx7maker" });
+    expect(gatePayload(node, g, {})).not.toHaveProperty("subject_conversation_id");
+  });
+});
+
+describe("refreshedOnResume (line-versions.md LV4)", () => {
+  const g = parseWorkflowSource(`digraph t {
+    start [shape=Mdiamond]
+    exit [shape=Msquare]
+    shared [shape=parallelogram, refresh=true, script="echo text"]
+    bind [shape=parallelogram, script="echo $task_id"]
+    later [shape=parallelogram, refresh=true, script="echo later"]
+    start -> shared -> bind -> later -> exit
+  }`);
+  test("a refresh station the run made is made again; one it never reached and plain stations are not", () => {
+    expect(g.nodes.get("shared")?.refresh).toBe(true);
+    expect(g.nodes.get("bind")?.refresh).toBeUndefined();
+    expect(refreshedOnResume(g, ["start", "shared", "bind"]).map((n) => n.id)).toEqual(["shared"]);
+  });
+  test("a station made twice is made again once", () => {
+    expect(refreshedOnResume(g, ["shared", "bind", "shared"]).map((n) => n.id)).toEqual(["shared"]);
+  });
+  test("a station the graph dropped is skipped", () => {
+    expect(refreshedOnResume(g, ["gone", "later"]).map((n) => n.id)).toEqual(["later"]);
+  });
+});
+
+// ── A presenter the run sends back ───────────────────────────────────────────
+
+describe("workflow/runner (a station that presents a decision, sent back to)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+  let origFetch: typeof fetch;
+  let calls: Array<{ route: string; body: any }>;
+  // The presenter's pin, as the server stamps it: its last visit's until it pins again.
+  let pin: { state: string; status: string; at: number };
+  let readsSinceSend: number;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+    origFetch = globalThis.fetch;
+    calls = [];
+    pin = { state: "", status: "", at: 0 };
+    readsSinceSend = -1;
+    globalThis.fetch = (async (url: any, init: any) => {
+      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+      const body = JSON.parse(init?.body || "{}");
+      calls.push({ route, body });
+      const reply = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
+      if (route === "/cli/spawn") {
+        pin = { state: "Posted the decision", status: "done", at: 100 };
+        return reply({ conversation_id: "conv_presenter", short_id: "jx7pres" });
+      }
+      if (route === "/cli/messages/send") readsSinceSend = 0;
+      if (route === "/cli/inbox") {
+        // Brought back, it works a while and then pins again.
+        if (readsSinceSend >= 0 && ++readsSinceSend === 4) pin = { state: "Corrected the decision", status: "done", at: 200 };
+        return reply({ sessions: [{ id: "conv_presenter", work_state: pin.status || "working", is_live: readsSinceSend > 0, message_count: 12 }] });
+      }
+      if (route === "/cli/sessions/state/get") return reply(pin);
+      return reply({ ok: true });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = origFetch;
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  // The card refuses the first report and takes the second.
+  const graph = () => parseWorkflowSource(`digraph line {
+    start [shape=Mdiamond]
+    present [label="Present", backend=session, agent=claude, max_visits=2, prompt="present it"]
+    card [shape=parallelogram, script="test -f ${tmpDir}/refused && exit 0; touch ${tmpDir}/refused; exit 1"]
+    decide [shape=hexagon, asker=present, prompt="ship?"]
+    exit [shape=Msquare]
+    start -> present
+    present -> card
+    card -> decide [condition="outcome = success and card.exit_code = 7"]
+    card -> exit [condition="outcome = success"]
+    card -> present [condition="outcome = failure"]
+    decide -> exit [label="[s] Ship"]
+  }`);
+  const run = () => runWorkflow(graph(), { cwd: tmpDir, runId: "run-1", runSession: "conv_run", taskId: "ct-9", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions);
+
+  test("goes back to the hand that posted the decision, with its brief, and waits for it to pin again", async () => {
+    // ct-61115: a fresh Present hand found sd-1072 posted by its predecessor,
+    // re-pinned the same report, and the run failed on max_visits with the
+    // decision linked to nothing.
+    expect(await run()).toBe("completed");
+    expect(calls.filter(c => c.route === "/cli/spawn").length).toBe(1);
+    const sends = calls.filter(c => c.route === "/cli/messages/send");
+    expect(sends.length).toBe(1);
+    expect(sends[0]!.body.to).toBe("conv_presenter");
+    expect(sends[0]!.body.wake).toBe(true);
+    expect(sends[0]!.body.body).toContain("present it");
+    // It settled on the new pin, not on the one it left last visit.
+    const settled = calls.filter(c => c.route === "/cli/workflow-runs/progress" && c.body.node_id === "present" && c.body.node_status === "completed");
+    expect(settled.length).toBe(2);
+    expect(readsSinceSend).toBeGreaterThanOrEqual(4);
+  }, 30000);
+});
+
+// ── Free text at a gate is a question, never a choice ───────────────────────
+
+describe("workflow/runner (typed text at a ship gate)", () => {
+  let tmpDir: string;
+  let cap: ReturnType<typeof captureConsole>;
+  let origFetch: typeof fetch;
+  let gates: any[];
+  let replies: string[];
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    cap = captureConsole();
+    origFetch = globalThis.fetch;
+    gates = [];
+    globalThis.fetch = (async (url: any, init: any) => {
+      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+      const body = JSON.parse(init?.body || "{}");
+      if (route === "/cli/workflow-runs/gate") gates.push(body);
+      const reply = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
+      // Each posted gate is answered by the next reply in line.
+      if (route === "/cli/workflow-runs/poll-gate") return reply({ status: "running", gate_response: replies[gates.length - 1] ?? null });
+      return reply({ ok: true });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = origFetch;
+    cap.restore();
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  const mark = (name: string) => `script="echo ${name} >> ${tmpDir}/ran"`;
+  const ran = () => fs.existsSync(`${tmpDir}/ran`) ? fs.readFileSync(`${tmpDir}/ran`, "utf8").trim().split("\n") : [];
+  const run = (presenter: boolean) => runWorkflow(parseWorkflowSource(`digraph change {
+    start [shape=Mdiamond]
+    ${presenter ? `present [shape=parallelogram, ${mark("present")}]` : ""}
+    decide [label="Decide", shape=hexagon, ${presenter ? "asker=present, " : ""}prompt="Ship it?", doc="the review"]
+    ship [shape=parallelogram, ${mark("ship")}]
+    revise [shape=Msquare, label="Revise"]
+    dropped [shape=Msquare, label="Dropped"]
+    exit [shape=Msquare]
+    start -> ${presenter ? "present -> " : ""}decide
+    decide -> ship    [label="[S] Ship :: Land the change"]
+    decide -> revise  [label="[R] Revise :: Your note goes back"]
+    decide -> dropped [label="[D] Drop :: Leave it"]
+    ship -> exit
+  }`), { cwd: tmpDir, runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions);
+
+  test("a typed question does not reach Ship: the gate asks again with the question on top", async () => {
+    replies = ["can ou explain plainly", "D"];
+    await run(false);
+    expect(ran()).not.toContain("ship");
+    expect(gates).toHaveLength(2);
+    expect(gates[1].doc_md).toStartWith("**You asked:** can ou explain plainly");
+    expect(gates[1].doc_md).toContain("the review");
+  }, 20000);
+
+  test("a typed question goes back to the presenting station, which runs again before the gate asks again", async () => {
+    replies = ["what does this change for callers?", "S"];
+    expect(await run(true)).toBe("completed");
+    expect(ran()).toEqual(["present", "present", "ship"]);
+    expect(gates).toHaveLength(2);
+  }, 20000);
+
+  test("a typed question goes back to the answering station, which is not a presenter, and the gate asks again", async () => {
+    replies = ["does this touch billing?", "S"];
+    const g = parseWorkflowSource(`digraph change {
+      start [shape=Mdiamond]
+      review [shape=parallelogram, ${mark("review")}]
+      decide [label="Decide", shape=hexagon, answerer=review, prompt="Ship it?", doc="the review"]
+      ship [shape=parallelogram, ${mark("ship")}]
+      revise [shape=Msquare, label="Revise"]
+      exit [shape=Msquare]
+      start -> review -> decide
+      decide -> ship   [label="[S] Ship :: Land the change"]
+      decide -> revise [label="[R] Revise :: Your note goes back"]
+      ship -> exit
+    }`);
+    expect(await runWorkflow(g, { cwd: tmpDir, runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions)).toBe("completed");
+    expect(ran()).toEqual(["review", "review", "ship"]);
+    expect(gates).toHaveLength(2);
+    // The answering station reads the question, and no presenter brief.
+    const brief = buildNodePrompt({ ...g.nodes.get("review")!, prompt: "Review it." }, g, { "human.gate.question": "does this touch billing?" });
+    expect(brief).toContain("# The person's question at the card\ndoes this touch billing?");
+    expect(brief).not.toContain(PRESENTER_BASE);
+  }, 20000);
+
+  test("the change flow names its reviewer as the answerer of the decide segment's gate", () => {
+    const g = parseWorkflowSource(BUILTIN_WORKFLOW_TEMPLATES.change);
+    const gate = g.nodes.get("decide__decide")!;
+    expect(gate.answerer).toBe("review");
+    expect(g.nodes.get("review")?.backend).toBe("session");
+    expect(gate.asker).toBeUndefined();
+    // Decide alone names nobody: a question there is asked again with the question on top.
+    expect(parseWorkflowSource(BUILTIN_WORKFLOW_TEMPLATES.decide).nodes.get("decide")!.answerer).toBeUndefined();
+  });
+
+  test("a chosen option still routes, a note beside it included", async () => {
+    replies = ["S: looks right"];
+    expect(await run(false)).toBe("completed");
+    expect(ran()).toEqual(["ship"]);
+  }, 20000);
+});

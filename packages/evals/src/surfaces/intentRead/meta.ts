@@ -10,9 +10,9 @@ export const meta: SurfaceMeta = {
   model: INTENT_READ_MODEL,
   sources: surfaceSources(
     'intent-read',
-    'packages/cli/src/workflow/templates/intent.cast',
-    'packages/cli/src/workflow/templates/intent/asker.md',
-    'packages/cli/src/workflow/flowAsker.ts',
+    'apps/cli/src/workflow/templates/intent.cast',
+    'apps/cli/src/workflow/templates/intent/asker.md',
+    'apps/cli/src/workflow/flowAsker.ts',
     'apps/server/convex/lib/originatorChain.ts',
   ),
   reps: { check: 5 },

@@ -70,10 +70,10 @@ export function writeJsonAtomic(path: string, value: unknown): void {
 const HARNESS_ROOT = process.env.CODECAST_EVALS_HARNESS_ROOT || REPO_ROOT;
 
 /** The harness every model call goes through (pl-810). */
-export const DRY_RUN_SCRIPT = join(HARNESS_ROOT, 'packages', 'cli', 'scripts', 'prompt-dry-run.ts');
-export const DRY_RUN_SCRIPT_REL = 'packages/cli/scripts/prompt-dry-run.ts';
+export const DRY_RUN_SCRIPT = join(HARNESS_ROOT, 'apps', 'cli', 'scripts', 'prompt-dry-run.ts');
+export const DRY_RUN_SCRIPT_REL = 'apps/cli/scripts/prompt-dry-run.ts';
 /** The guard `cast` a dry run puts first on PATH; its read list is the one answer to whether a call writes. */
-export const GUARD_CAST = join(HARNESS_ROOT, 'packages', 'cli', 'scripts', 'prompt-dry-run-bin', 'cast');
+export const GUARD_CAST = join(HARNESS_ROOT, 'apps', 'cli', 'scripts', 'prompt-dry-run-bin', 'cast');
 /** The file in an agent rep's folder naming the guard classifier its refusals were graded with (replay.ts guardClassifierSha); part of its ruler. */
 export const GUARD_STAMP = 'guard.sha';
 

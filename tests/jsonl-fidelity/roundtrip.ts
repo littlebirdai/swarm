@@ -13,14 +13,14 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { decryptToken } from "../../packages/cli/src/tokenEncryption.js";
-import { parseSessionFile, extractMessages, parseSessionLine, type ParsedMessage, type ClaudeSessionEntry } from "../../packages/cli/src/parser.js";
+import { decryptToken } from "../../apps/cli/src/tokenEncryption.js";
+import { parseSessionFile, extractMessages, parseSessionLine, type ParsedMessage, type ClaudeSessionEntry } from "../../apps/cli/src/parser.js";
 import {
   fetchExport,
   generateClaudeCodeJsonl,
   type ExportResult,
   type ExportedMessage,
-} from "../../packages/cli/src/jsonlGenerator.js";
+} from "../../apps/cli/src/jsonlGenerator.js";
 
 // ── Config ──────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { staticImportSpecifiers } from "../../../packages/cli/src/bench/bootGraph";
+import { staticImportSpecifiers } from "../../../apps/cli/src/bench/bootGraph";
 
 // Enforces the convention in lib/optionalNative.ts. A static import of a native
 // package that the oldest binary in the field does not contain kills that

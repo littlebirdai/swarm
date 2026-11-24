@@ -8,7 +8,7 @@ a claim written when the turn started, not from heartbeats or pane scrapes.
 
 The shape comes from opencode (`opencode/packages/core/src/session/execution.ts`,
 `execution/restart.ts`, `specs/v2/session.md`: "Execution Is Process-Local",
-"Recovery Boundaries Stay Explicit"). Code: `packages/cli/src/turnClaims.ts`,
+"Recovery Boundaries Stay Explicit"). Code: `apps/cli/src/turnClaims.ts`,
 wired in `daemon.ts` (search `turnClaims()`).
 
 ## Lifecycle

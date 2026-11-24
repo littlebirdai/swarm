@@ -1,4 +1,4 @@
-// Client for the daemon's browser watch stream (packages/cli watchServer.ts).
+// Client for the daemon's browser watch stream (apps/cli watchServer.ts).
 //
 // The transport is the integrated terminal's loopback endpoint — same port,
 // same per-boot token, one more WS path — so discovery is just
@@ -6,7 +6,7 @@
 // the watch protocol: hello, then ready / frame / tab / action / error / exit.
 // Frames arrive as base64 JPEG, at most ~3 a second, paced daemon-side by CDP
 // acks. Action messages ride beside them: where the agent's hand is on the
-// page (packages/cli watchActions.ts), so a viewer can draw the cursor the
+// page (apps/cli watchActions.ts), so a viewer can draw the cursor the
 // pixels never show.
 
 import type { TerminalEndpoint } from "./terminal/endpoint";

@@ -4,7 +4,7 @@ import { getRelativePath } from "@codecast/shared/render";
 import { useDiffViewerStore } from "../../../store/diffViewerStore";
 
 // Files a Bash call changed on disk, as the daemon observed them around the
-// call (packages/cli/src/shellChanges.ts). The transcript itself carries no
+// call (apps/cli/src/shellChanges.ts). The transcript itself carries no
 // diff for a shell edit, so this line under the command's output is how the
 // reader learns the call wrote anything; each name opens the diff panel on
 // that file. Subscribes to a string signature of this call's changes, never

@@ -210,11 +210,11 @@ owns a project's line, routines that are its finders, the shipped `line`
 workflow, and the shared principles. A project's profile overrides any
 default.
 
-The release lives in this repository at `packages/cli/org-templates/line/`
+The release lives in this repository at `apps/cli/org-templates/line/`
 and installs like any other (org-templates.md):
 
 ```sh
-cast org template install packages/cli/org-templates/line --instance <name> \
+cast org template install apps/cli/org-templates/line --instance <name> \
   --project <exact-project-id> --team <team-id> --dir <checkout>
 ```
 

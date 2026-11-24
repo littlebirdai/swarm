@@ -9,7 +9,7 @@ import { FigureStyles, Stage, t } from "../figureKit";
  * (../figureKit.tsx). FactoryFigure follows docs/architecture/the-line-end-to-end.md
  * (sense, attach, ground, admit, prove, build, verify, eval, review, card,
  * decide, ship, watch, learn); LoopFigure is the shipped `change` flow
- * (packages/cli/src/workflow/templates/change.cast).
+ * (apps/cli/src/workflow/templates/change.cast).
  */
 
 export { FigureStyles };

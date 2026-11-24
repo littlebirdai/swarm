@@ -59,8 +59,8 @@ packages/web/public/binaries/
 packages/web/binaries/
 
 # CLI build artifacts
-packages/cli/daemon.js
-packages/cli/src/daemon.js
+apps/cli/daemon.js
+apps/cli/src/daemon.js
 
 # Deploy secrets
 .env.deploy
@@ -114,7 +114,7 @@ docs/social-posting.md
 # Test debris: a snippet-installer test resolved its target through a colorized
 # `ls`, so it created a directory literally named with an ANSI escape sequence
 # plus an absolute scratchpad path. Never a real source path.
-packages/cli/*
+apps/cli/*
 # Editor/atomic-write temp files (name.tsx.tmp.<pid>.<hash>)
 *.tmp.[0-9]*.[0-9a-f]*
 

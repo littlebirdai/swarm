@@ -2,7 +2,7 @@ import { join } from 'node:path';
 
 import { mapLimit } from '@codecast/shared/async';
 
-import { cliFetchRead, cliSearchRequest } from '../../../cli/src/cliHttp';
+import { cliFetchRead, cliSearchRequest } from '../../../../apps/cli/src/cliHttp';
 import { parseJsonBlock } from '../../../../apps/server/convex/lib/anthropic';
 import { typedWords } from '../../../../apps/server/convex/lib/userSend';
 import { REDIRECT_WORDS } from '../../../shared/contracts/redirectWords';

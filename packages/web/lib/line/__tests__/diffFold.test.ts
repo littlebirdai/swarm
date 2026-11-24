@@ -29,7 +29,7 @@ describe("foldGenerated", () => {
 
   test("only generated paths count", () => {
     expect(isGeneratedFile("packages/web/lib/fixtures.ts")).toBe(false);
-    expect(isGeneratedFile("packages/cli/src/__fixtures__/install-golden/existing/mods.md")).toBe(true);
+    expect(isGeneratedFile("apps/cli/src/__fixtures__/install-golden/existing/mods.md")).toBe(true);
     expect(isGeneratedFile("go/testdata/out.txt")).toBe(true);
   });
 });

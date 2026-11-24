@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import type { Command } from 'commander';
 
-import { redactSecrets } from '../../../cli/src/secretRedaction';
+import { redactSecrets } from '../../../../apps/cli/src/secretRedaction';
 import { homePaths } from '../paths';
 import { surfaceMeta } from '../registry';
 import { EVERY_READ, fillAliases, fillArgv, readFrozenVerbs, servedReadKey, writeCut, writeFrozenVerbs, writeServedRead } from '../served';

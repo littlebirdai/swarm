@@ -73,16 +73,16 @@ const session = (over: Partial<GatedSession> = {}): GatedSession => ({
 
 describe("storyPromptInput", () => {
   test("orders commits largest first, keeps a batch commit's slice to the story's areas, and filters paths by area", () => {
-    const small = commitOf("c1", "fix(cli): retry", { cli: [1, 5, 1] }, { top_paths: ["packages/cli/a.ts"] });
+    const small = commitOf("c1", "fix(cli): retry", { cli: [1, 5, 1] }, { top_paths: ["apps/cli/a.ts"] });
     const batch = commitOf("c2", "feat: everything", { cli: [2, 40, 4], web: [5, 300, 20], convex: [4, 90, 9] }, {
-      top_paths: ["packages/web/big.tsx", "packages/cli/b.ts", "apps/server/c.ts"],
+      top_paths: ["packages/web/big.tsx", "apps/cli/b.ts", "apps/server/c.ts"],
     });
     const input = storyPromptInput(facts(), [small, batch], [], []);
     expect(input.commits.map((c) => c.sha)).toEqual(["c2", "c1"]);
     expect(input.commits[0]).toMatchObject({ insertions: 40, deletions: 4, partial: ["cli"] });
     expect(input.commits[1].partial).toBeUndefined();
     expect(input.areas).toEqual([{ area: "cli", files: 3, insertions: 45, deletions: 5 }]);
-    expect(input.top_paths).toEqual(["packages/cli/b.ts", "packages/cli/a.ts"]);
+    expect(input.top_paths).toEqual(["apps/cli/b.ts", "apps/cli/a.ts"]);
   });
 
   test("a commit whose dominant area layer 0 split into subareas is whole, not a sliver of a config file", () => {
@@ -363,7 +363,7 @@ async function setup() {
   const day = async (date: string) => {
     await commit(`a1-${date}`, "feat(web): line pages", at("09:00", date), ["packages/web/line.tsx", "packages/web/page.tsx"], { conversation_id: ids.vis });
     await commit(`a2-${date}`, "fix(web): line page scroll", at("09:30", date), ["packages/web/line.tsx"], { conversation_id: ids.vis });
-    await commit(`b1-${date}`, `fix(cli): ${SECRET} upload\n\nBody of the private fix.`, at("10:00", date), ["packages/cli/upload.ts"], {
+    await commit(`b1-${date}`, `fix(cli): ${SECRET} upload\n\nBody of the private fix.`, at("10:00", date), ["apps/cli/upload.ts"], {
       conversation_id: ids.priv, author_name: "Ben", author_email: "ben@acme.dev",
     });
     await commit(`d1-${date}`, "docs: refresh the guide", at("11:00", date), ["docs/guide.md"]);

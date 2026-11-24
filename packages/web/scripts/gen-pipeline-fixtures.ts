@@ -8,11 +8,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { parseWorkflowFile, parseWorkflowSource } from "../../cli/src/workflow/parser";
-import { BUILTIN_WORKFLOW_TEMPLATES } from "../../cli/src/workflow/templates";
+import { parseWorkflowFile, parseWorkflowSource } from "../../../apps/cli/src/workflow/parser";
+import { BUILTIN_WORKFLOW_TEMPLATES } from "../../../apps/cli/src/workflow/templates";
 import { flowNodeAttrOf, foldFlow, type FlowNodeIn } from "../../shared/contracts/flowPool";
-import { readDeployTargets } from "../../cli/src/workspace/deployTargetsFile";
-import { shipSpec } from "../../cli/src/land/shipCheckout";
+import { readDeployTargets } from "../../../apps/cli/src/workspace/deployTargetsFile";
+import { shipSpec } from "../../../apps/cli/src/land/shipCheckout";
 import { deployStepCommand, LINE_DEPLOY_STEPS, type LineDeployProfile, type LineDeployStep } from "../../shared/contracts/lineDeploy";
 import type { Pipeline, PipelineFlow, PipelineStation, PipelineWho } from "../lib/line/pipelineTypes";
 

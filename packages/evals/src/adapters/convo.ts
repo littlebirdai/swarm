@@ -2,8 +2,8 @@ import { spawnSync } from 'node:child_process';
 
 import type { ConvoMessage, ConvoSource, ConvoSubject, Conversation, Freeze, FreezeStore, InboxRow, SearchHit } from '@platform/evals';
 
-import { cliFetchRead, cliSearchRequest } from '../../../cli/src/cliHttp';
-import { defaultConfigDir, readAuthConfig } from '../../../cli/src/config/readAuthConfig';
+import { cliFetchRead, cliSearchRequest } from '../../../../apps/cli/src/cliHttp';
+import { defaultConfigDir, readAuthConfig } from '../../../../apps/cli/src/config/readAuthConfig';
 
 // Codecast's conversations, read only through access-checked doors: /cli/read
 // and /cli/search with the CLI's own token, and `cast sessions --json` for

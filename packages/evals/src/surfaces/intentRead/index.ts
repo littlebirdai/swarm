@@ -5,11 +5,11 @@ import { mayBeTyped, typedPart } from '../../../../../apps/server/convex/lib/mes
 import { parseDecisionAnswer } from '../../../../shared/contracts';
 import { normalizeQuote } from '../../../../../apps/server/convex/lib/originatorChain';
 import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
-import { blindDiff } from '../../../../cli/src/workflow/blindChange';
-import { fitAskerRecord } from '../../../../cli/src/workflow/flowAsker';
-import { parseWorkflowSource } from '../../../../cli/src/workflow/parser';
-import { callNodeBody, taskProseVars } from '../../../../cli/src/workflow/runner';
-import { BUILTIN_WORKFLOW_TEMPLATES } from '../../../../cli/src/workflow/templates';
+import { blindDiff } from '../../../../../apps/cli/src/workflow/blindChange';
+import { fitAskerRecord } from '../../../../../apps/cli/src/workflow/flowAsker';
+import { parseWorkflowSource } from '../../../../../apps/cli/src/workflow/parser';
+import { callNodeBody, taskProseVars } from '../../../../../apps/cli/src/workflow/runner';
+import { BUILTIN_WORKFLOW_TEMPLATES } from '../../../../../apps/cli/src/workflow/templates';
 import { castJson } from '../../adapters/cast';
 import { apiConfig, readConversation, toConvoMessages } from '../../adapters/convo';
 import { REPO_ROOT } from '../../paths';

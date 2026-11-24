@@ -18,7 +18,7 @@ import { FactoryFigure, FigureStyles, LoopFigure } from "./figures";
 // task's own comments and the run record. The Ship popover is the header of
 // the session that wrote this post, closed without shipping. Mechanics were
 // checked against docs/architecture (the-line-end-to-end.md, the-line-model.md,
-// flows.md) and packages/cli/src/workflow/templates. Nothing was composited or
+// flows.md) and apps/cli/src/workflow/templates. Nothing was composited or
 // retouched.
 
 const DIR = "/blog/the-software-factory";

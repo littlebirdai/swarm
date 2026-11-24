@@ -18,7 +18,7 @@ const flags = (files: string[]) => classifyChangedPaths(files).flags;
 
 describe("areaOf", () => {
   test("maps each package to its area", () => {
-    expect(areaOf("packages/cli/src/daemon.ts")).toBe("cli");
+    expect(areaOf("apps/cli/src/daemon.ts")).toBe("cli");
     expect(areaOf("packages/evals/src/x.ts")).toBe("evals");
     expect(areaOf("packages/web/components/DiffView.tsx")).toBe("web");
     expect(areaOf("apps/server/convex/tasks.ts")).toBe("convex");
@@ -59,14 +59,14 @@ describe("touchesPlatform", () => {
     expect(touchesPlatform("platform/packages/keys/src/index.ts")).toBe(true);
     expect(touchesPlatform("platform/vendor-manifest.txt")).toBe(true);
     expect(touchesPlatform("packages/web/package.json")).toBe(true);
-    expect(touchesPlatform("packages/cli/package.json")).toBe(true);
+    expect(touchesPlatform("apps/cli/package.json")).toBe(true);
   });
 
   test("claims nothing else", () => {
     expect(touchesPlatform("packages/web/components/DiffView.tsx")).toBe(false);
     // Only a workspace root manifest declares an @platform dep; one nested
     // inside a package is a fixture or a bundled copy.
-    expect(touchesPlatform("packages/cli/src/fixtures/package.json")).toBe(false);
+    expect(touchesPlatform("apps/cli/src/fixtures/package.json")).toBe(false);
     expect(touchesPlatform("package.json")).toBe(false);
     expect(touchesPlatform("docs/architecture/sync-host.md")).toBe(false);
   });
@@ -89,7 +89,7 @@ describe("classifyChangedPaths", () => {
   // The few web and convex test files that import cli code run in
   // test-always instead.
   test("a cli change runs build, typecheck and the cli tests", () => {
-    expect(ran(["packages/cli/src/daemon.ts"])).toEqual(["build", "test-cli", "typecheck"]);
+    expect(ran(["apps/cli/src/daemon.ts"])).toEqual(["build", "test-cli", "typecheck"]);
   });
 
   // convex source imports web code. The cli test files that read web files
@@ -140,7 +140,7 @@ describe("classifyChangedPaths", () => {
 
   test("changes that cannot touch the mirror leave its job alone", () => {
     expect(flags(["packages/web/components/DiffView.tsx"]).run_test_platform).toBe(false);
-    expect(flags(["packages/cli/src/daemon.ts"]).run_test_platform).toBe(false);
+    expect(flags(["apps/cli/src/daemon.ts"]).run_test_platform).toBe(false);
     expect(flags(["packages/shared/contracts/agentClients.ts"]).run_test_platform).toBe(false);
     expect(flags(["docs/architecture/sync-host.md"]).run_test_platform).toBe(false);
   });
@@ -214,7 +214,7 @@ describe("classifyChangedPaths", () => {
   });
 
   test("emits one key=value line per flag", () => {
-    const lines = formatScope(classifyChangedPaths(["packages/cli/src/daemon.ts"])).split("\n");
+    const lines = formatScope(classifyChangedPaths(["apps/cli/src/daemon.ts"])).split("\n");
     expect(lines).toContain("cli=true");
     expect(lines).toContain("web=false");
     expect(lines).toContain("run_test_cli=true");
@@ -238,15 +238,15 @@ test("the classifier runs as a script and prints the flags", async () => {
 describe("computer test scope", () => {
   test("runs for computer source, native helpers and verification scripts", () => {
     for (const file of [
-      "packages/cli/src/computer/client.ts",
-      "packages/cli/src/computer/__fixtures__/fakeHelper.ts",
-      "packages/cli/native/computer-use-macos/Package.swift",
-      "packages/cli/scripts/computer-verify.ts",
+      "apps/cli/src/computer/client.ts",
+      "apps/cli/src/computer/__fixtures__/fakeHelper.ts",
+      "apps/cli/native/computer-use-macos/Package.swift",
+      "apps/cli/scripts/computer-verify.ts",
     ]) expect(touchesComputer(file)).toBe(true);
   });
 
   test("does not run for unrelated CLI, web or documentation changes", () => {
-    for (const file of ["packages/cli/src/daemon.ts", "packages/web/index.ts", "docs/README.md", ""])
+    for (const file of ["apps/cli/src/daemon.ts", "packages/web/index.ts", "docs/README.md", ""])
       expect(touchesComputer(file)).toBe(false);
   });
 
@@ -255,8 +255,8 @@ describe("computer test scope", () => {
   test("an empty diff runs the helper lane, an unrelated one skips it", () => {
     expect(computerScope([])).toBe(true);
     expect(computerScope(["", "  "])).toBe(true);
-    expect(computerScope(["packages/cli/src/daemon.ts"])).toBe(false);
-    expect(computerScope(["packages/cli/src/daemon.ts", "packages/cli/src/computer/client.ts"])).toBe(true);
+    expect(computerScope(["apps/cli/src/daemon.ts"])).toBe(false);
+    expect(computerScope(["apps/cli/src/daemon.ts", "apps/cli/src/computer/client.ts"])).toBe(true);
   });
 
   test("the script prints the fail-closed flag on empty input", async () => {
@@ -274,14 +274,14 @@ describe("computer test scope", () => {
 describe("injection suite scope", () => {
   test("runs for the daemon, the paste path and the agent client contract", () => {
     for (const file of [
-      "packages/cli/src/daemon.ts",
-      "packages/cli/src/tmuxPaste.ts",
+      "apps/cli/src/daemon.ts",
+      "apps/cli/src/tmuxPaste.ts",
       "packages/shared/contracts/agentClients.ts",
     ]) expect(touchesInjection(file)).toBe(true);
   });
 
   test("does not run for other files", () => {
-    for (const file of ["packages/cli/src/daemon.test.ts", "packages/cli/src/index.ts", "docs/README.md", ""])
+    for (const file of ["apps/cli/src/daemon.test.ts", "apps/cli/src/index.ts", "docs/README.md", ""])
       expect(touchesInjection(file)).toBe(false);
   });
 
@@ -290,8 +290,8 @@ describe("injection suite scope", () => {
   test("an empty diff runs the suites, an unrelated one skips them", () => {
     expect(injectionScope([])).toBe(true);
     expect(injectionScope(["", "  "])).toBe(true);
-    expect(injectionScope(["packages/cli/src/index.ts"])).toBe(false);
-    expect(injectionScope(["packages/cli/src/index.ts", "packages/cli/src/tmuxPaste.ts"])).toBe(true);
+    expect(injectionScope(["apps/cli/src/index.ts"])).toBe(false);
+    expect(injectionScope(["apps/cli/src/index.ts", "apps/cli/src/tmuxPaste.ts"])).toBe(true);
   });
 
   test("the script prints the flag", async () => {
@@ -307,6 +307,6 @@ describe("injection suite scope", () => {
     };
     expect(await run("\n")).toBe("run_test_injection=true");
     expect(await run("packages/web/index.ts\n")).toBe("run_test_injection=false");
-    expect(await run("packages/cli/src/daemon.ts\n")).toBe("run_test_injection=true");
+    expect(await run("apps/cli/src/daemon.ts\n")).toBe("run_test_injection=true");
   });
 });

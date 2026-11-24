@@ -5,11 +5,11 @@ import { dirname, join, resolve } from 'node:path';
 import type { ConvoMessage, GateResult } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { captureDecision, capturePin, readWrites, type CapturedDecision, type CapturedPin } from '../../../../cli/scripts/lib/linePresent';
-import { DECISION_KIT_GUIDE } from '../../../../cli/src/decisionKit';
-import { expandPromptVars, lineRunDir, recordNodeOutput, stationBrief } from '../../../../cli/src/workflow/runner';
-import { parseWorkflowSource } from '../../../../cli/src/workflow/parser';
-import { BUILTIN_WORKFLOW_TEMPLATES } from '../../../../cli/src/workflow/templates';
+import { captureDecision, capturePin, readWrites, type CapturedDecision, type CapturedPin } from '../../../../../apps/cli/scripts/lib/linePresent';
+import { DECISION_KIT_GUIDE } from '../../../../../apps/cli/src/decisionKit';
+import { expandPromptVars, lineRunDir, recordNodeOutput, stationBrief } from '../../../../../apps/cli/src/workflow/runner';
+import { parseWorkflowSource } from '../../../../../apps/cli/src/workflow/parser';
+import { BUILTIN_WORKFLOW_TEMPLATES } from '../../../../../apps/cli/src/workflow/templates';
 import { inlineForeignText } from '../../../../shared/contracts';
 import { CHANGE_VERDICTS, validateChangeCard, type ChangeCard } from '../../../../shared/contracts/changeCard';
 import { REPO_ROOT } from '../../paths';
@@ -273,7 +273,7 @@ const impl: SurfaceImpl = {
       serveDir,
       model: ctx.model,
       maxTurns: 80,
-      guard: resolve(REPO_ROOT, 'packages/cli/scripts/line-present-replay-bin'),
+      guard: resolve(REPO_ROOT, 'apps/cli/scripts/line-present-replay-bin'),
     });
     const { decision, pin } = presented(a);
     return { reply: decision ? decisionText(decision) : `(no decision posted)\n\n${a.said.at(-1) ?? ''}`, parsed: { decision, pin: pin?.fields ?? null } };

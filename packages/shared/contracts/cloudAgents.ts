@@ -8,7 +8,7 @@
  * its sessions carry, where it opens, and how its setup cards read.
  *
  * The daemon's side (API client, mirror, delivery) lives in
- * packages/cli/src/cloudAgents; the web's in components/cloudAgents.
+ * apps/cli/src/cloudAgents; the web's in components/cloudAgents.
  */
 import type { AgentClientId } from "./agentClients";
 import type { CloudSessionSource } from "./cloudSessionSync";

@@ -109,7 +109,7 @@
      }
     },
     "top_paths": [
-     "packages/cli/commands/export.ts"
+     "apps/cli/commands/export.ts"
     ]
    }
   ],

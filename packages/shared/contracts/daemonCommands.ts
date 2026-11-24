@@ -149,7 +149,7 @@ export const DAEMON_COMMANDS = [
   // device and connects to whichever endpoint answers on 127.0.0.1 — only the
   // machine the browser is on is reachable. Old daemons: "Unknown command"
   // (the web treats no-answer as "no local daemon"). See
-  // packages/cli/src/terminal/.
+  // apps/cli/src/terminal/.
   "get_terminal_endpoint",
   // Watch a tmux pane on THIS device for a browser that can't reach it on
   // loopback (the pane runs on another of the user's machines). args:
@@ -198,7 +198,7 @@ export const DAEMON_COMMANDS = [
   // The app's edit of a project's .codecast/line.toml (plan pl-838), sent
   // through users.sendConfigCommand like config_read/config_write and
   // targeted at the device that published the profile. args:
-  // LineProfileEditArgs (packages/cli/src/lineProfileEdit.ts) — { root,
+  // LineProfileEditArgs (apps/cli/src/lineProfileEdit.ts) — { root,
   // edits[] | content, base? }. The daemon applies the edits in place,
   // validates with the profile loader, writes atomically and republishes.
   // Station edits (set_station, reset_station) write the repo's own line in
@@ -215,14 +215,14 @@ export const DAEMON_COMMANDS = [
   // The app's edit of one step of a published graph (line-workspace.md LW4):
   // the prompt or script file a .cast names, in the checkout its origin
   // names (workflows.origin), targeted at the device that pushed it. args:
-  // LineGraphEditArgs (packages/cli/src/lineGraphEdit.ts) — { root, file,
+  // LineGraphEditArgs (apps/cli/src/lineGraphEdit.ts) — { root, file,
   // node, field?, text, base_hash?, base_text? }. Written atomically after the parser
   // accepts the result, then pushed again. Result: LineGraphEditReply. Old
   // daemons: "Unknown command".
   "line_graph_edit",
   // Try (LW4): a step's edited prompt run on past cases through the dry-run
   // harness with writes refused, on the device that pushed the graph. args:
-  // LineTryArgs (packages/cli/src/lineTry.ts). Answers { accepted } at once;
+  // LineTryArgs (apps/cli/src/lineTry.ts). Answers { accepted } at once;
   // each case reports to its line_tries row (/cli/line-tries/report). Old
   // daemons: "Unknown command".
   "line_try",

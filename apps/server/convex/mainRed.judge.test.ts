@@ -270,7 +270,7 @@ describe("judge, on what GitHub said about two real runs", () => {
     });
     // The second attempt failed a different test than the first; the event carries what is still red, and never the aggregate.
     expect(e.data?.main_red?.failing.map((f) => [f.job, f.test, f.file, f.line])).toEqual([
-      ["test-cli", "actual load bench uses private tmux doctor stubs, independent HTTP and exact verified cleanup", "packages/cli/src/bench/httpFixture.ts", 14],
+      ["test-cli", "actual load bench uses private tmux doctor stubs, independent HTTP and exact verified cleanup", "apps/cli/src/bench/httpFixture.ts", 14],
     ]);
     expect((await w.briefs(w.anaConv))[0].content).toContain("fake HTTP startup failed");
   });

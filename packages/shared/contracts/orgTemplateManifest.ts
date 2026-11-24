@@ -1,7 +1,7 @@
 // The template manifest (docs/architecture/org-hire.md H2): its types, its
 // validator and its tokens. Pure, so the CLI (inspect, install), the server
 // (publish) and the web (the hire form) all read one definition. File handling
-// for a release folder stays in packages/cli/src/orgTemplateArtifact.ts.
+// for a release folder stays in apps/cli/src/orgTemplateArtifact.ts.
 
 import { LINE_SLUG_RE } from "./lineSlug";
 

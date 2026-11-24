@@ -68,7 +68,7 @@ importScripts("status.js");
 
 const PROTOCOL = 5;
 const DEFAULT_CAST_GROUP = { title: "Cast", color: "red" };
-/** An agent tab nobody drove for this long is closed; the same bound as TAB_IDLE_MS in packages/cli/src/browser/engineReap.ts. */
+/** An agent tab nobody drove for this long is closed; the same bound as TAB_IDLE_MS in apps/cli/src/browser/engineReap.ts. */
 const TAB_IDLE_MS = 30 * 60 * 1000;
 /** A handoff the CLI gave no timeout waits this long, and never longer than a day. */
 const HANDOFF_DEFAULT_MS = 30 * 60 * 1000;
@@ -529,7 +529,7 @@ function reconnect(refreshConfig = true) {
 
 // --------------------------------------------------------------------------
 // The handshake's arithmetic: HMAC-SHA256 as hex, mirroring bridgeProof in
-// packages/cli/src/browser/bridge/protocol.ts.
+// apps/cli/src/browser/bridge/protocol.ts.
 // --------------------------------------------------------------------------
 
 function randomHex(bytes) {
@@ -548,7 +548,7 @@ async function sha256Hex(text) {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** The slow hash of a pairing code, mirroring pairingCodeKey in packages/cli/src/browser/bridge/pairing.ts. */
+/** The slow hash of a pairing code, mirroring pairingCodeKey in apps/cli/src/browser/bridge/pairing.ts. */
 async function pairingCodeKey(code) {
   const enc = new TextEncoder();
   const k = await crypto.subtle.importKey("raw", enc.encode(normalizePairingCode(code)), "PBKDF2", false, ["deriveBits"]);
@@ -1310,7 +1310,7 @@ function borderSource(color) {
     // key before deciding whether to hand the page to the desktop app, and a
     // page already parsing when we attached hears the event instead. Storage
     // and DOM events are shared with the page's world; nothing else here is.
-    // Same names as packages/cli/src/browser/observe.ts (agentTabStampSource).
+    // Same names as apps/cli/src/browser/observe.ts (agentTabStampSource).
     try { sessionStorage.setItem("codecast-agent-tab", "1"); } catch {}
     try { document.dispatchEvent(new Event("cast:driven")); } catch {}
     const LEASE_MS = ${LEASE_MS};

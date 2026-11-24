@@ -450,7 +450,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 - Every vendor run copies from a platform commit sha, never the live tree: `git -C ~/src/platform worktree add /tmp/pf-<sha> <sha>`, run with `PLATFORM_DIR=/tmp/pf-<sha>` (added by V1), then remove the worktree. This lets platform units and vendor units run in parallel safely.
 
 **Codecast**
-- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `packages/cli/package.json` and `packages/web/package.json`. `packages/evals` already has it.
+- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `apps/cli/package.json` and `packages/web/package.json`. `packages/evals` already has it.
 - Run `scripts/vendor-platform.sh` and commit `platform/packages/**`, `platform/vendor-manifest.txt` and `bun.lock` together. The vendor commit lands before any commit that imports a new subpath.
 - CI `test-platform` then installs inside the mirror and runs its React tests with no CI edit.
 - A running dev server needs `depsCacheGuard`, because vendoring purges `.vite`.
@@ -774,7 +774,7 @@ C1 must merge before P1 copies from it. If needed, P1 starts once C1 lands.
     - **Codecast's half of the ship.** Codecast's mirror was vendored from frozen copies of uncommitted platform (C9, C10, U4 and the fix passes), and `daemon.ts` loads `@platform/evals/client`, `contract` and `analysis` files on every cast start (risk 1), so codecast lands only after platform is committed, and through section 0's boot-path gate:
       1. Commit platform (the same commit union's step 1 vendors from).
       2. Re-vendor codecast's mirror from that commit: `PLATFORM_DIR=<worktree at the commit> scripts/vendor-platform.sh vendor evals keys cli-kit`, then `--check` against the same `PLATFORM_DIR`.
-      3. Restamp the daemon build id: `bun packages/cli/scripts/stamp-daemon-build-id.ts`. The closure holds files this convergence changed (`platform/packages/evals/src/client/*`, `contract/views.ts`, `analysis/*`, `shared/contracts/evalsApi/*`), so `--check` fails until then, and a release built on a stale stamp fails finalize, as the one dispatched on 5122a28a4 did for C8.
+      3. Restamp the daemon build id: `bun apps/cli/scripts/stamp-daemon-build-id.ts`. The closure holds files this convergence changed (`platform/packages/evals/src/client/*`, `contract/views.ts`, `analysis/*`, `shared/contracts/evalsApi/*`), so `--check` fails until then, and a release built on a stale stamp fails finalize, as the one dispatched on 5122a28a4 did for C8.
       4. `cast --version` from the checkout.
       5. Build the commit's tree in a clean worktree of origin/main with pl-810's files only, and run `scripts/vendor-platform.sh --write-manifest` then `--check-manifest` there. The shared checkout's `platform/vendor-manifest.txt` also carries other sessions' mirror state (a changed `agent` hash, and an `assistant` line for the untracked `platform/packages/assistant` that the hosted-assistant work adopts through its own dep lines). Committing that file as it stands, without those mirrors, fails CI's `test-platform` job; committing it with them ships another session's work. Of the manifest's lines only `evals` and `keys` are pl-810's (`cli-kit` is unchanged).
       6. `gh workflow run cut-cli-release.yml -R codecast-sh/codecast -f dry_run=true` on that commit, and land the codecast commits only once it passes.

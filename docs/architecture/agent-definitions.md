@@ -47,7 +47,7 @@ surface default. A model the forced client cannot run is dropped and named in
 client, model, effort, tool lists, the prompt in its mode, `mode` and
 `isolated`.
 
-`definitionLaunchFlags` (`packages/cli/src/agentLaunch.ts`) turns that into
+`definitionLaunchFlags` (`apps/cli/src/agentLaunch.ts`) turns that into
 per client argv. Tool policy is honest per client: claude takes both lists, pi
 takes the allowlist, every other client drops the policy and says so. A
 `propose` definition adds the safe mode fence the trigger scheduler already

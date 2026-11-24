@@ -8,7 +8,7 @@ import { formatCost } from '@platform/cli-kit/format';
 import { stripAnsi } from '@platform/cli-kit/render';
 import { holdsAcross, type Separation } from '@platform/evals/analysis';
 
-import { acquireLock, releaseLock, type LockOptions } from '../../../cli/src/capabilities/lock';
+import { acquireLock, releaseLock, type LockOptions } from '../../../../apps/cli/src/capabilities/lock';
 import { outcomeOf, prepareFreeze, repCount, replayModel, replayRep, treeFacts, type RepLedger } from '../adapters/replay';
 import { agentScratchGap } from '../adapters/dryRun';
 import { hasSnapshot, loadLabel, loadSnapshot } from '../adapters/resolver';

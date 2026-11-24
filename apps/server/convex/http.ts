@@ -4584,7 +4584,7 @@ cliRoute("/cli/artifacts/state", async (ctx, body) => ctx.runAction(api.pageStat
 // The motion player HyperFrames composition pages load (see lib/castMotion.ts).
 http.route({ path: "/cli/motion.js", method: "GET", handler: artifactMotionJs });
 
-// Vault remote mirror — the daemon's push channel (packages/cli/src/vault/
+// Vault remote mirror — the daemon's push channel (apps/cli/src/vault/
 // vaultMirror.ts). Mirroring is opt-in per vault; a vault nobody turned on
 // never reaches these routes at all. The body upload URL deliberately reuses
 // images.generateUploadUrl: it is the generic "give this authenticated user a
@@ -4597,7 +4597,7 @@ cliRoute("/cli/vault/upsert", async (ctx, body) => ctx.runMutation(api.vaultMirr
 cliRoute("/cli/vault/upload-url", async (ctx, body) => ctx.runMutation(api.vaultMirror.cliBodyUploadUrl, body));
 http.route({ path: VAULT_BODY_UPLOAD_PATH, method: "POST", handler: vaultUploadBody });
 
-// Remote pane watching — the daemon's frame push (packages/cli/src/terminal/
+// Remote pane watching — the daemon's frame push (apps/cli/src/terminal/
 // paneStream.ts). Only reached while a viewer holds a lease on the pane; the
 // reply carries that lease, so the capture loop learns when to stop from the
 // request it was already making.
@@ -4607,7 +4607,7 @@ cliRoute("/cli/terminal/clipboard", async (ctx, body) => ctx.runMutation(api.ter
 cliRoute("/cli/terminal/watch", async (ctx, body) => ctx.runMutation(api.terminalStream.watchPane, body), { forwardDeviceId: true });
 cliRoute("/cli/terminal/pane", async (ctx, body) => ctx.runQuery(api.terminalStream.getPane, body), { forwardDeviceId: true });
 cliRoute("/cli/terminal/input", async (ctx, body) => ctx.runMutation(api.terminalStream.sendPaneInput, body), { forwardDeviceId: true });
-// Remote browser watching: the daemon's frame push (packages/cli/src/browser/
+// Remote browser watching: the daemon's frame push (apps/cli/src/browser/
 // watchRelay.ts), same lease-in-the-reply shape as the terminal's.
 cliRoute("/cli/browser/frame", async (ctx, body) => ctx.runMutation(api.browserStream.cliPushBrowserFrame, body), { forwardDeviceId: true });
 

@@ -1,6 +1,6 @@
 // A commit's Codecast-Session trailer, shown as the session it names rather
 // than a raw URL. The trailer is added by the session trailer hook to each
-// commit an agent runs (packages/cli/src/sessionTrailer.ts); the same parser
+// commit an agent runs (apps/cli/src/sessionTrailer.ts); the same parser
 // the server trusts (splitSessionTrailer) takes the line out of the message (hooks/useSessionTrailer).
 import { SESSION_TRAILER_KEY } from "@codecast/shared/blame";
 import { EntityIdPill } from "./EntityIdPill";

@@ -110,7 +110,7 @@ export function jobFlag(job: string): string {
 }
 
 const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
-  ["cli", ["packages/cli/"]],
+  ["cli", ["apps/cli/"]],
   // The eval home (docs/architecture/evals-home.md). Its unit tests run as a
   // step of test-cli.
   ["evals", ["packages/evals/"]],
@@ -161,18 +161,18 @@ export function areaOf(file: string): Area | null {
  * Paths that make the vendored mirror worth re-checking on top of whatever area
  * they belong to. The mirror's package set is derived from the workspace
  * manifests: scripts/vendor-platform.sh reads the `@platform` dep lines out of
- * every package.json under packages. Adopting a package there is what makes the
+ * workspace manifests under apps, packages and tests. Adopting a package there is what makes the
  * mirror wrong, and the mirror check is the only thing that catches the
  * adoption landing without a re-vendor (ct-49675).
  */
 export function touchesPlatform(file: string): boolean {
-  return file.startsWith("platform/") || /^packages\/[^/]+\/package\.json$/.test(file);
+  return file.startsWith("platform/") || /^(apps|packages|tests)\/[^/]+\/package\.json$/.test(file);
 }
 
 export function touchesComputer(file: string): boolean {
-  return file.startsWith("packages/cli/src/computer/")
-    || file.startsWith("packages/cli/native/computer-use-")
-    || file.startsWith("packages/cli/scripts/computer-");
+  return file.startsWith("apps/cli/src/computer/")
+    || file.startsWith("apps/cli/native/computer-use-")
+    || file.startsWith("apps/cli/scripts/computer-");
 }
 
 /**
@@ -190,8 +190,8 @@ export function computerScope(files: string[]): boolean {
  * it runs the injection suites as an extra step of test-cli (ct-49536).
  */
 const INJECTION_PATHS = new Set([
-  "packages/cli/src/daemon.ts",
-  "packages/cli/src/tmuxPaste.ts",
+  "apps/cli/src/daemon.ts",
+  "apps/cli/src/tmuxPaste.ts",
   "packages/shared/contracts/agentClients.ts",
 ]);
 

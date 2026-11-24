@@ -2,8 +2,8 @@ import { parseChangeGuide } from '@codecast/shared/contracts/changeGuide';
 
 import { briefBudget, briefBudgetWords, briefOverBudgetMessage } from '@codecast/shared/contracts/rolePlaybook';
 
-import { patchBriefNarrative } from '../../../../cli/src/briefLines';
-import { parseFindings } from '../../../../cli/src/reviewFindings';
+import { patchBriefNarrative } from '../../../../../apps/cli/src/briefLines';
+import { parseFindings } from '../../../../../apps/cli/src/reviewFindings';
 
 import type { Parsed } from './tree';
 import { mint, type FakeTask, type FakeWorld } from './world';

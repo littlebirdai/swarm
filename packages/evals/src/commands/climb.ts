@@ -245,7 +245,7 @@ export function registerClimb(program: Command, sources: EvalSources): void {
             ? fmt.success(`\nclaim: the held-out corrections separated better and the guards are not worse. The guidance in this tree is the round ${best.round} rewrite (git diff ${GUIDANCE_SOURCES.join(' ')}).`)
             : fmt.warning(`\nno claim: ${!complete ? 'the final is incomplete' : held.s.kind !== 'better' ? 'the held-out corrections did not separate better' : 'the guards are worse'}. The guidance in this tree is the round ${best.round} rewrite, left for reading; the record is ${dir}.`),
         );
-        console.log(`Spent $${spent.toFixed(2)} of $${flags.maxUsd}. Next: read the diff, then UPDATE_GOLDEN=1 bun test src/install.golden.test.ts in packages/cli.`);
+        console.log(`Spent $${spent.toFixed(2)} of $${flags.maxUsd}. Next: read the diff, then UPDATE_GOLDEN=1 bun test src/install.golden.test.ts in apps/cli.`);
         keep = true;
       } finally {
         if (!keep) restore();

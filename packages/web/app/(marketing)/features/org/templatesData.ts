@@ -2,7 +2,7 @@ import type { IconKey } from "./icons";
 
 /*
  * The hire gallery's catalog, read from the real manifests
- * (~/src/platform/packs/*\/org-template.json and packages/cli/org-templates/line):
+ * (~/src/platform/packs/*\/org-template.json and apps/cli/org-templates/line):
  * names, versions, descriptions, routine titles and cadences, and the counts of
  * what each asks for. "Answers" are the form's non-secret inputs; "must" are
  * the required ones with no default. Permissions are the manifest's authority

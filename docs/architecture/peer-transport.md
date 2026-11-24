@@ -1,7 +1,7 @@
 # Peer transport: direct links between one owner's machines over Tailscale
 
-Status: in progress (2026-11-11). Builds on `packages/cli/src/cloud/tailnet.ts`
-(cloud hosts) and `packages/cli/src/folderSync.ts` (relay folder fetch).
+Status: in progress (2026-11-11). Builds on `apps/cli/src/cloud/tailnet.ts`
+(cloud hosts) and `apps/cli/src/folderSync.ts` (relay folder fetch).
 
 ## Problem
 
@@ -127,13 +127,13 @@ refs from a peer, a confirm for folders over 2 GB.
 
 - `packages/shared/contracts/peerTransport.ts` — pure: `PeerTailnet` type,
   `samePeerTailnet`, `peerLinkState(self, peer, now)` for the UI.
-- `packages/cli/src/peer/grant.ts` — the grant listener (source side).
-- `packages/cli/src/peer/pull.ts` — validate + dial + stream (requester side).
-- `packages/cli/src/cloud/tailnet.ts` — `localTailnet` gains an async variant
+- `apps/cli/src/peer/grant.ts` — the grant listener (source side).
+- `apps/cli/src/peer/pull.ts` — validate + dial + stream (requester side).
+- `apps/cli/src/cloud/tailnet.ts` — `localTailnet` gains an async variant
   so hot paths never `spawnSync`; `selfTailnet(status)`, `peerOnline(status, record)`.
-- `packages/cli/src/folderSync.ts` — direct-first, relay fallback.
+- `apps/cli/src/folderSync.ts` — direct-first, relay fallback.
 - `apps/server/convex/folderSync.ts` — passes requester tailnet through.
-- `packages/cli/src/sessionTransfer.ts` — `export_session` on both sides, on
+- `apps/cli/src/sessionTransfer.ts` — `export_session` on both sides, on
   the folder machinery (`servePlan`, `syncFolderFromPeer` with `receive`).
 - `apps/server/convex/sessionTransfer.ts` — the request, outcomes and
   discard for it, sharing `requestPeerExport` and the folder rate limit.

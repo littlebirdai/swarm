@@ -62,7 +62,7 @@ Store or press **Pair**, so cast does both on the Chrome it runs there:
   Linux, the login session on a Mac), which the app shows in a session's
   watch pane and the host screen pane.
 - **Install.** Every cast build carries this directory (`shipped.mjs` lists
-  the files; the build writes them into `packages/cli/src/browser/extension.tar`).
+  the files; the build writes them into `apps/cli/src/browser/extension.tar`).
   The host's Chrome starts with `--enable-unsafe-extension-debugging`, and cast
   loads the carried copy over CDP (`Extensions.loadUnpacked`) on every start:
   branded Chrome ignores `--load-extension` since 137, and a Mac honours

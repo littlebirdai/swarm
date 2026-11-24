@@ -105,7 +105,7 @@ through `orgRoles.markBriefRead`).
   standing or hand pointer; `wakes_per_day` in flush; `tokens_per_day` in flush
   and spawn using `conversations.usage_totals` summed over the role's standing
   session and hands for the day. Usage writer: extract `message.usage` from
-  Claude JSONL assistant records in packages/cli/src/parser.ts, send it with
+  Claude JSONL assistant records in apps/cli/src/parser.ts, send it with
   the message sync, and roll it up into `usage_totals` on the conversation in
   the message insert path. Other backends: absent, and the role page shows
   "tokens not counted for N sessions".

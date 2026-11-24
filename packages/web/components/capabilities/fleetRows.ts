@@ -23,7 +23,7 @@ export interface TokenCost {
 }
 
 /** One capability as one machine reported it. A projection of the daemon's
- *  `InventoryItem` (packages/cli/src/capabilities/inventory.ts:36) — same field
+ *  `InventoryItem` (apps/cli/src/capabilities/inventory.ts:36) — same field
  *  meanings, flattened so the browser never imports that Node-only module. */
 export interface FleetInventoryItem {
   kind: CapabilityKind | string;

@@ -43,8 +43,8 @@ describe("parseAddedLines", () => {
 
   test("keeps every hunk of a multi-hunk file", () => {
     const diff = [
-      "--- a/packages/cli/src/x.ts",
-      "+++ b/packages/cli/src/x.ts",
+      "--- a/apps/cli/src/x.ts",
+      "+++ b/apps/cli/src/x.ts",
       "@@ -3,0 +4,1 @@",
       "+first",
       "@@ -40,2 +41,3 @@ function tail()",
@@ -52,7 +52,7 @@ describe("parseAddedLines", () => {
       "+b",
       "+c",
     ].join("\n");
-    expect(parseAddedLines(diff).get("packages/cli/src/x.ts")).toEqual([
+    expect(parseAddedLines(diff).get("apps/cli/src/x.ts")).toEqual([
       { start: 4, end: 4 },
       { start: 41, end: 43 },
     ]);
@@ -202,7 +202,7 @@ describe("parseEslintFindings", () => {
 });
 
 describe("parseTscFindings", () => {
-  const cwd = `${import.meta.dir}/../../packages/cli`;
+  const cwd = `${import.meta.dir}/../../apps/cli`;
 
   test("reads located diagnostics and ignores their continuation lines", () => {
     const stdout = [
@@ -212,13 +212,13 @@ describe("parseTscFindings", () => {
     ].join("\n");
     expect(parseTscFindings(stdout, cwd)).toEqual([
       {
-        file: "packages/cli/src/daemon.ts",
+        file: "apps/cli/src/daemon.ts",
         line: 1420,
         code: "TS2345",
         message: "Argument of type 'X' is not assignable.",
       },
       {
-        file: "packages/cli/src/index.ts",
+        file: "apps/cli/src/index.ts",
         line: 9,
         code: "TS2304",
         message: "Cannot find name 'foo'.",

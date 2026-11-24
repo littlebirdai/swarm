@@ -7,7 +7,7 @@ import type { Command } from 'commander';
 import { fmt } from '@platform/cli-kit/colors';
 import { formatCheckLine, runDoctor, type DoctorCheck } from '@platform/cli-kit/doctor';
 
-import { readLocalCredential } from '../../../cli/src/ccKeychain';
+import { readLocalCredential } from '../../../../apps/cli/src/ccKeychain';
 import { evalsApiKey } from '../adapters/apiCall';
 import { apiConfig } from '../adapters/convo';
 import { codecastFreezeStore } from '../adapters/freezes';

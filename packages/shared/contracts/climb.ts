@@ -5,8 +5,8 @@
 // enforce, so no agent station can bend them: the caps on what a card may
 // ask for, which levels can see one change, what counts as separating from
 // base, what a candidate may touch, and how long a production test needs.
-// The flow is packages/cli/src/workflow/templates/climb.cast; the commands
-// are packages/cli/src/climbCommand.ts.
+// The flow is apps/cli/src/workflow/templates/climb.cast; the commands
+// are apps/cli/src/climbCommand.ts.
 import { pairedDelta, type EnvCase, type EnvLevel, type PairedDelta, isEnvLevel } from "./envs";
 import { MDE_WEEKS, minimumDetectableLift, parseMetricNoise } from "./metricStanding";
 

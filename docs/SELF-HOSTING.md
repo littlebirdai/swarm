@@ -268,22 +268,22 @@ The CLI daemon watches local agent session files and syncs them to your Convex b
 
 ```bash
 bun install
-bun run packages/cli/src/main.ts --version
+bun run apps/cli/src/main.ts --version
 ```
 
 ### Build standalone binary
 
 ```bash
-cd packages/cli
+cd apps/cli
 bun run build:binary
-# Produces: packages/cli/codecast (single-file executable)
+# Produces: apps/cli/codecast (single-file executable)
 ```
 
 ### Install and configure
 
 ```bash
 # Copy the binary
-cp packages/cli/codecast ~/.local/bin/codecast
+cp apps/cli/codecast ~/.local/bin/codecast
 ln -sf ~/.local/bin/codecast ~/.local/bin/cast
 
 # Point the CLI at your instance (writes ~/.codecast/config.json)
@@ -303,7 +303,7 @@ cast setup
 To distribute pre-built binaries like the hosted version:
 
 1. Set up an S3-compatible bucket (Cloudflare R2, AWS S3, MinIO)
-2. Create a `.env.deploy` in `packages/cli/`:
+2. Create a `.env.deploy` in `apps/cli/`:
    ```bash
    AWS_ACCESS_KEY_ID=your-key
    AWS_SECRET_ACCESS_KEY=your-secret
@@ -311,7 +311,7 @@ To distribute pre-built binaries like the hosted version:
    ```
 3. Build and upload all platform binaries:
    ```bash
-   cd packages/cli
+   cd apps/cli
    ./scripts/deploy.sh
    ```
 
@@ -644,7 +644,7 @@ The Caddy service needs `CONVEX_SITE_UPSTREAM` and `CONVEX_BACKEND_UPSTREAM` (St
 
 `cast config` lists every key and sets one: `cast config <key> <value>`.
 
-### CLI Deploy (`packages/cli/.env.deploy`)
+### CLI Deploy (`apps/cli/.env.deploy`)
 
 | Variable | Purpose |
 |----------|---------|

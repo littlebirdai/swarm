@@ -90,7 +90,7 @@ and continues with the existing flow. The folder form stays for authors
 `org-template.json` with `schemaVersion: 2`. Every v1 field keeps its meaning;
 the exact shape rule stays (unknown keys refused at every object). New top
 level fields, all optional; a v1 manifest that carries any of them is refused.
-Validated in `packages/cli/src/orgTemplateArtifact.ts` (`validateTemplate`),
+Validated in `apps/cli/src/orgTemplateArtifact.ts` (`validateTemplate`),
 tested in `orgTemplateArtifact.v2.test.ts`.
 
 ```json
@@ -592,7 +592,7 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
 
 ## As built (2026-09-18), in files the W7 wave does not touch
 
-- **Manifest v2** in `packages/cli/src/orgTemplateArtifact.ts` (`validateTemplate`,
+- **Manifest v2** in `apps/cli/src/orgTemplateArtifact.ts` (`validateTemplate`,
   `manifestFiles`, `inputTokens`): every H2 field with exact shapes and cross
   reference checks; v1 manifests validate unchanged and refuse every v2 field.
   `{{input.<key>}}` is accepted only for declared inputs, in manifest strings

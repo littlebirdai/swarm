@@ -14,7 +14,7 @@ copy = [
   ".env.local",
   "apps/server/.env.local",
   "packages/web/.env.local",
-  "packages/cli/.env.local",
+  "apps/cli/.env.local",
 ]
 # A fresh worktree has its own (empty) node_modules — bun doesn't share them
 # across worktrees, so install once on creation. If this fails, the daemon

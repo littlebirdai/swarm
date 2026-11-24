@@ -1,7 +1,7 @@
 // "Set up judging" and "Improve this judge" (docs/architecture/learning-loop.md
 // LL4): one action that starts a session in the project's checkout, on the
 // machine that holds it, with the setup pass. The pass itself lives in the
-// CLI (packages/cli/src/judgingSetup.md, printed by `cast line judging`), so
+// CLI (apps/cli/src/judgingSetup.md, printed by `cast line judging`), so
 // the session reads the same words wherever it was started from; this brief
 // only names the project, the judge to start from, and the cases a person
 // marked wrong. The session goes through the one spawn route the web has

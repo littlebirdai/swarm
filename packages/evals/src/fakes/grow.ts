@@ -248,7 +248,7 @@ export function staticCheck(original: string, candidate: string): string | null 
  * candidate never sits in the checkout.
  */
 /** What the copy links from the checkout rather than copies. */
-const LINKED = ['packages/evals/node_modules', 'packages/evals/fixtures', 'packages/cli', 'packages/shared', 'node_modules', 'platform', 'package.json', 'tsconfig.json'].filter((l) => existsSync(join(REPO_ROOT, l)));
+const LINKED = ['packages/evals/node_modules', 'packages/evals/fixtures', 'apps/cli', 'packages/shared', 'node_modules', 'platform', 'package.json', 'tsconfig.json'].filter((l) => existsSync(join(REPO_ROOT, l)));
 
 function scratchCopy(root: string, verbs: string): string {
   const evals = join(root, 'packages', 'evals');

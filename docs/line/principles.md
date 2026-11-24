@@ -88,7 +88,7 @@ Evidence: 15 corrections across 12 sessions [PR-verify-2]: codecast/c26c9845, co
 
 ### CC-verify-2 A prompt change is proven on frozen moments
 
-A change to a prod prompt is shown on real codecast moments before and after: freeze the moments that matter, take a baseline, change the prompt, and run `./evals check` until the verdict separates. A win needs `separated: better`; a handful of draws decides nothing, and gates fail on a single sample. Every headless model run, whether a dry run, a grade or a rehearsal, goes through `packages/cli/scripts/prompt-dry-run.ts`, the only harness that keeps the run out of the owner's inbox. Real content never enters git; only synthetic fixtures do.
+A change to a prod prompt is shown on real codecast moments before and after: freeze the moments that matter, take a baseline, change the prompt, and run `./evals check` until the verdict separates. A win needs `separated: better`; a handful of draws decides nothing, and gates fail on a single sample. Every headless model run, whether a dry run, a grade or a rehearsal, goes through `apps/cli/scripts/prompt-dry-run.ts`, the only harness that keeps the run out of the owner's inbox. Real content never enters git; only synthetic fixtures do.
 
 Why: score-only comparisons on a few synthetic draws passed while real behavior regressed, and bare headless runs leaked into the founder's inbox on four separate days.
 

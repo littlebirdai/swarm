@@ -37,7 +37,7 @@ const TARGETED_POLL_TIMEOUT_MS = 3_000;
 
 const CACHE_KEY = "cast_term_endpoint";
 // Dev override: `localStorage.CAST_TERM_ENDPOINT = "42871:dev-token"` points
-// the panel at a standalone terminal server (packages/cli terminal dev server)
+// the panel at a standalone terminal server (apps/cli terminal dev server)
 // without a daemon round-trip.
 const OVERRIDE_KEY = "CAST_TERM_ENDPOINT";
 // Dev override: `localStorage.CAST_TERM_FORCE_RELAY = "1"` makes discovery
@@ -314,7 +314,7 @@ const forwardedByDevice = new Map<string, TerminalEndpoint>();
  * A machine the browser is not on, reached through the daemon it IS on. A
  * cloud host's daemon serves the same loopback server as this one; this
  * machine's daemon listens on a loopback port whose connections ride SSH to
- * the host's port (packages/cli/src/cloud/hostForward.ts), so the endpoint
+ * the host's port (apps/cli/src/cloud/hostForward.ts), so the endpoint
  * is the host's own token at a local port. Only a laptop that holds the
  * host in its registry can forward; everything else answers 404 and the
  * caller keeps its relay path.

@@ -8,7 +8,7 @@ A CLI daemon watches the history files coding agents write (Claude Code, Codex, 
 
 | Package | What it does |
 |---------|-------------|
-| `packages/cli` | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages |
+| `apps/cli` | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages |
 | `apps/server` | Backend: schema, queries, mutations, auth, HTTP routes |
 | `packages/web` | React + Vite web app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff) |
@@ -69,10 +69,10 @@ PORT=3000
 EOF
 ```
 
-### `packages/cli/.env.local`
+### `apps/cli/.env.local`
 
 ```bash
-cat > packages/cli/.env.local << 'EOF'
+cat > apps/cli/.env.local << 'EOF'
 CONVEX_URL=https://convex.codecast.sh
 CODE_CHAT_SYNC_WEB_URL=https://codecast.sh
 EOF
@@ -126,7 +126,7 @@ This starts Vite on port 3200 and the Convex pusher (`apps/server/scripts/gated-
 
 ```bash
 cd packages/web && bun run dev       # Vite dev server (HMR) on vite's default port
-cd packages/cli && bun run dev       # the cast CLI from source (pass a command, e.g. `bun run dev status`)
+cd apps/cli && bun run dev       # the cast CLI from source (pass a command, e.g. `bun run dev status`)
 ```
 
 Leave the Convex pusher to `dev.sh`, which checks the tree is fresh before starting it. To ship Convex changes without `dev.sh`, run `apps/server/deploy.sh`; never a raw `npx convex deploy` or `convex dev`.
@@ -162,7 +162,7 @@ The Convex dashboard for the self-hosted instance runs on the Convex host: `ssh 
 The quickest route is the released binary (`curl -fsSL codecast.sh/install | sh`). To work on the daemon, run it from your checkout instead; the README's "Run the daemon from source" section has the steps. To build a binary yourself:
 
 ```bash
-cd packages/cli
+cd apps/cli
 bun run build:binary               # produces ./codecast
 cp codecast ~/.local/bin/codecast
 ln -sf ~/.local/bin/codecast ~/.local/bin/cast
@@ -303,7 +303,7 @@ TMUX / TMUX_PANE                    # tmux session/pane detection
 
 ## CLI Binary Distribution
 
-Releases are cut from CI (next section). The laptop path, `packages/cli/scripts/deploy.sh`, is only needed to publish the npm package and Homebrew tap mirrors. It reads R2 credentials from `packages/cli/.env.deploy`:
+Releases are cut from CI (next section). The laptop path, `apps/cli/scripts/deploy.sh`, is only needed to publish the npm package and Homebrew tap mirrors. It reads R2 credentials from `apps/cli/.env.deploy`:
 
 ```bash
 AWS_ACCESS_KEY_ID=<s3-access-key>
@@ -311,7 +311,7 @@ AWS_SECRET_ACCESS_KEY=<s3-secret-key>
 R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
 ```
 
-Then `cd packages/cli && ./scripts/deploy.sh`.
+Then `cd apps/cli && ./scripts/deploy.sh`.
 
 ### Cut a release from CI (no local certificate)
 

@@ -15,7 +15,7 @@
     "test-results",
     "packages/web/dist-ssr",
     "packages/web/dist-perf",
-    "packages/cli/dist",
+    "apps/cli/dist",
     "apps/browser-extension/dist",
     "apps/vscode-extension/dist",
     "apps/desktop/dist",

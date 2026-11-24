@@ -39,12 +39,12 @@ interface Determination {
 // disagree with evidence rather than with a feeling.
 const DETERMINATIONS: Record<string, Determination> = {
   ws: {
-    versions: "8.21.3 (packages/cli), 8.18.0 (nested under convex@1.36.1), 8.20.0 (@expo/cli, ink), 7.5.10 (metro, react-devtools-core), 6.2.3 (react-native)",
+    versions: "8.21.3 (apps/cli), 8.18.0 (nested under convex@1.36.1), 8.20.0 (@expo/cli, ink), 7.5.10 (metro, react-devtools-core), 6.2.3 (react-native)",
     modes: ["runtime-cli", "dev-only"],
     symbol: "receiver fragment handling (GHSA-96hv-2xvq-fx4p): memory exhaustion from tiny fragments on a server socket",
     untrustedInput: "yes",
     decision: "fixed",
-    evidence: "The CLI's own ws (bridge host, loopback WebSocket server for the extension and CDP clients) is 8.21.3 in package.json and bun.lock; the resolved import is asserted by packages/cli/src/browser/bridge/wsVersion.test.ts. The nested 8.18.0 under convex is the Convex client's outbound socket to our own backend, a client role the advisory does not cover, and it is pinned exactly by convex; it moves when convex does. The 8.20.0/7.x/6.x copies are expo, metro, react-native and ink dev tooling, never in a shipped bundle. Pre-auth bounds on the bridge (origin allow list, 256 KiB hello cap, 4 concurrent handshakes, hello timeout) landed in 30a74b510.",
+    evidence: "The CLI's own ws (bridge host, loopback WebSocket server for the extension and CDP clients) is 8.21.3 in package.json and bun.lock; the resolved import is asserted by apps/cli/src/browser/bridge/wsVersion.test.ts. The nested 8.18.0 under convex is the Convex client's outbound socket to our own backend, a client role the advisory does not cover, and it is pinned exactly by convex; it moves when convex does. The 8.20.0/7.x/6.x copies are expo, metro, react-native and ink dev tooling, never in a shipped bundle. Pre-auth bounds on the bridge (origin allow list, 256 KiB hello cap, 4 concurrent handshakes, hello timeout) landed in 30a74b510.",
     owner: "release owner (jx7f70q)",
     reviewBy: "2026-12-23",
   },

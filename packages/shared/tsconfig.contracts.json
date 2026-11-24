@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "types": ["bun"],
-    "typeRoots": ["../cli/node_modules/@types"]
+    "typeRoots": ["../../apps/cli/node_modules/@types"]
   },
   "include": ["contracts/edge/**/*.ts"]
 }

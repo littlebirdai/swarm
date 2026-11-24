@@ -33,7 +33,7 @@ describe("bulk", () => {
   });
 
   test("a slice counts only its own area's generated lines", () => {
-    const c = commit({ sha: "s", paths: { "packages/web/a.tsx": 1600, "packages/cli/bun.lock": 3000, "docs/x.png": 10 } });
+    const c = commit({ sha: "s", paths: { "packages/web/a.tsx": 1600, "apps/cli/bun.lock": 3000, "docs/x.png": 10 } });
     const slice = { ...base, units: [{ commit: c, area: "web" }], insertions: 1600, deletions: 0 };
     expect(computeRisks(slice, ctx).map((r) => r.code)).toEqual(["bulk"]);
   });
@@ -44,7 +44,7 @@ describe("isGeneratedPath", () => {
     for (const p of [
       "bun.lock", "packages/web/package-lock.json", "yarn.lock", "pnpm-lock.yaml", "go.sum",
       "drizzle/meta/0007_snapshot.json", "apps/server/convex/_generated/api.d.ts",
-      "packages/cli/src/__fixtures__/x/calls.md", "src/__snapshots__/a.test.ts.snap", "x.snap",
+      "apps/cli/src/__fixtures__/x/calls.md", "src/__snapshots__/a.test.ts.snap", "x.snap",
       "public/fonts/Inter.woff2", "a/b.ttf", "public/og.PNG", "icon.svg",
     ]) expect([p, isGeneratedPath(p)]).toEqual([p, true]);
     for (const p of ["packages/web/app/globals.css", "drizzle/0007_add.sql", "src/lock.ts", "docs/fixtures.md", "meta/notes.json"]) {

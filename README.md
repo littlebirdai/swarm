@@ -388,7 +388,7 @@ per-client reality as merged; ✓ = supported, ✗ = not available.
 bun install
 cp packages/web/.env.example packages/web/.env.local
 cp apps/server/.env.example apps/server/.env.local
-cp packages/cli/.env.example packages/cli/.env.local
+cp apps/cli/.env.example apps/cli/.env.local
 ```
 
 Configure your Convex instance URL in each `.env.local`. See [Getting Started](docs/GETTING-STARTED.md) for the full walkthrough and [Self-Hosting](docs/SELF-HOSTING.md) for infrastructure setup.
@@ -411,17 +411,17 @@ For faster iteration on daemon behavior, run it directly from your checkout with
 After installing dependencies and signing in with `cast auth`, run these commands from the repository root:
 
 ```bash
-bun run packages/cli/src/main.ts setup
-bun run packages/cli/src/main.ts restart --wait
+bun run apps/cli/src/main.ts setup
+bun run apps/cli/src/main.ts restart --wait
 ```
 
-On macOS and Linux, `setup` points the login service at this checkout's `packages/cli/src/daemon.ts`. Keep Bun and the checkout at those paths while using this setup.
+On macOS and Linux, `setup` points the login service at this checkout's `apps/cli/src/daemon.ts`. Keep Bun and the checkout at those paths while using this setup.
 
 **Source mode does not watch for code changes.** The service restarts the daemon if it exits, but saving a source file does not trigger a restart. After editing daemon code, load your changes and check its status with:
 
 ```bash
-bun run packages/cli/src/main.ts restart --wait
-bun run packages/cli/src/main.ts status
+bun run apps/cli/src/main.ts restart --wait
+bun run apps/cli/src/main.ts status
 ```
 
 To switch back to a released build, run `setup` and `restart --wait` using the installed binary instead of the source command above.

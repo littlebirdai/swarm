@@ -30,7 +30,7 @@ const ROOT = join(import.meta.dir, "..", "..");
 export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-convex": ["apps/server/convex", "apps/server/scripts"],
   "test-web": ["packages/web"],
-  "test-cli": ["packages/cli/src", "packages/evals/src"],
+  "test-cli": ["apps/cli/src", "packages/evals/src"],
   "test-shared": ["packages/shared"],
   "test-mobile": ["apps/mobile"],
   "test-electron": ["apps/desktop"],
@@ -41,7 +41,7 @@ export const JOB_TEST_ROOTS: Record<string, string[]> = {
  * ignores src/computer/, which the macOS lane runs instead.
  */
 export const JOB_TEST_EXCLUDES: Record<string, string[]> = {
-  "test-cli": ["packages/cli/src/computer/"],
+  "test-cli": ["apps/cli/src/computer/"],
 };
 
 const SKIP_DIRS = new Set(["node_modules", "dist", ".vite", ".next", "build", ".turbo", "coverage", "out"]);
@@ -163,10 +163,10 @@ const ROOT_NAMES = WORKSPACE_ROOTS.join("|");
 // `../../apps/server/`, `../../web/` or `../../../apps/browser-extension/`: a path
 // relative to the file, so it can only mean this repository, from any file.
 const RELATIVE_REACH = new RegExp(`["'\`/]\\.\\./(?:(?:${ROOT_NAMES})/)?(${PACKAGE_NAMES})(?=["'\`/])`, "g");
-// The same reach spelled as path segments: join(dir, "..", "..", "cli", "src")
+// The same reach spelled as path segments: join(dir, "..", "..", "..", "apps", "cli", "src")
 // or join(dir, "..", "..", "apps", "playground").
 const SEGMENT_REACH = new RegExp(`["'\`]\\.\\.["'\`]\\s*,\\s*(?:["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*)?["'\`](${PACKAGE_NAMES})["'\`]`, "g");
-// The same as segments from the repo root: join(ROOT, "packages", "cli", "src").
+// The same as segments from the repo root: join(ROOT, "apps", "cli", "src").
 const ROOTED_SEGMENT_REACH = new RegExp(`["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`, "g");
 // `packages/web/`: from test code it means this repository; from product code
 // it is usually a path in someone else's checkout (a worktree, a workspace),
@@ -183,7 +183,7 @@ const TEST_CODE = /(\.test\.[a-z]+$|\/(test-helpers|__tests__|__fixtures__|fixtu
 export const LITERAL_FALSE_POSITIVES: Record<string, string> = {
   "apps/server/convex/signals.test.ts": "docs/line/principles.md is a principles value in a fixture",
   "packages/web/server/staticAssets.test.ts": "/docs/guide.js is a URL path passed to isBuildArtifactPath",
-  "packages/cli/src/cloudAgents/codex.test.ts": "packages/web is a directory it makes inside a temporary git repo",
+  "apps/cli/src/cloudAgents/codex.test.ts": "packages/web is a directory it makes inside a temporary git repo",
   "packages/web/lib/__tests__/tabLocation.test.ts": "/docs/test and docs/why?#.md are tab URLs it parses",
 };
 

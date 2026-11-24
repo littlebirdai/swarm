@@ -3,7 +3,7 @@
 Many agents edit one checkout at once, and everything they leave uncommitted
 ships in one pass while they keep working. `cast ship checkout` is that pass;
 `cast land level` and the daemon's level sweep keep the checkout on top of its
-upstream between passes. The code is in `packages/cli/src/land/`.
+upstream between passes. The code is in `apps/cli/src/land/`.
 
 ## Why the usual tools do not work here
 

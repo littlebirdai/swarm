@@ -47,7 +47,7 @@ live = "github-status:codecast - web"
 # the commit (CLAUDE.md, CLI releases). Then every machine is made to update to it.
 [[target]]
 name = "cli"
-when = ["packages/cli/**", "packages/shared/**", "platform/**"]
+when = ["apps/cli/**", "packages/shared/**", "platform/**"]
 run = "scripts/cut-cli-release.sh"
 live = "json:https://dl.codecast.sh/latest.json#sourceCommit,version"
 policy = "release"

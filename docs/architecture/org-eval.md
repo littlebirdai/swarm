@@ -13,7 +13,7 @@ One round: build the ground truth once per workspace; capture the
 workspace's inputs as a served snapshot (`./evals snapshot org-review --team T
 --name <ws>-baseN`) and freeze it (`./evals freeze create
 org-review@<ws>-baseN`); run the analyzer on it with `./evals check
-org-review`, which goes through `packages/cli/scripts/prompt-dry-run.ts`
+org-review`, which goes through `apps/cli/scripts/prompt-dry-run.ts`
 (never a bare `claude -p`) and grades every sample's spec and substance
 against the labels; render the proposal on the real proposal page (the DEV
 preview mounted on the run's proposal JSON, in the founder's Chrome, desktop

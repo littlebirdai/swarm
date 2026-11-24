@@ -12,7 +12,7 @@ name: Cut signed CLI release
 # Rotate by replacing both secrets; the laptop keychain stays the escrow copy.
 #
 # Not covered here: npm publish and the Homebrew tap. Those remain laptop-only
-# mirrors in packages/cli/scripts/deploy.sh.
+# mirrors in apps/cli/scripts/deploy.sh.
 
 on:
   workflow_dispatch:
@@ -73,9 +73,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          previous=$(jq -r '.version' packages/cli/package.json)
+          previous=$(jq -r '.version' apps/cli/package.json)
           if [[ ! "$previous" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error::packages/cli/package.json version is not a canonical semver: $previous"
+            echo "::error::apps/cli/package.json version is not a canonical semver: $previous"
             exit 1
           fi
           IFS=. read -r major minor patch <<<"$previous"
@@ -137,9 +137,9 @@ jobs:
         run: |
           set -euo pipefail
           jq --arg version "$RELEASE_VERSION" '.version = $version' \
-            packages/cli/package.json > /tmp/cli-package.json
-          mv /tmp/cli-package.json packages/cli/package.json
-          cd packages/cli
+            apps/cli/package.json > /tmp/cli-package.json
+          mv /tmp/cli-package.json apps/cli/package.json
+          cd apps/cli
           ./scripts/build-binaries.sh
 
       - name: Remove the signing keychain
@@ -180,7 +180,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd packages/cli
+          cd apps/cli
           bun scripts/computer-helper-release.ts verify ../web/binaries \
             --identity "$CODECAST_SIGN_IDENTITY" \
             --team "$SIGN_TEAM_ID" \
@@ -193,7 +193,7 @@ jobs:
           CODECAST_NO_AUTO_UPDATE: "1"
         run: |
           set -euo pipefail
-          cd packages/cli
+          cd apps/cli
           bun test src/browser/appIdentity.test.ts src/browser/appIdentity.native.test.ts --timeout 30000
           browser_keychain="$RUNNER_TEMP/browser-test.keychain-db"
           security create-keychain -p '' "$browser_keychain"

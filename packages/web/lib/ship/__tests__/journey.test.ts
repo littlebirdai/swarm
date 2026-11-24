@@ -4,7 +4,7 @@ import { BRANCHING_FLOW, FANOUT_FLOW } from "../journeyFixtures";
 import { pushedFlow } from "../../line/flowPool";
 import { SHIPPED_FLOWS } from "../../line/shippedFlows.generated";
 import { GALLERY_FLOW, renderGalleryRecords } from "../../renderGallery";
-// The library change flow, parsed with its segments expanded (bun packages/cli/scripts/gen-change-graph-fixture.ts).
+// The library change flow, parsed with its segments expanded (bun apps/cli/scripts/gen-change-graph-fixture.ts).
 import graph from "./changeGraph.fixture.json";
 
 // Node statuses as the runner reports them (runner.ts): one entry per node, its latest visit, entered at `t`. A fan-out

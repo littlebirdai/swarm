@@ -12,7 +12,7 @@ repository.
 ## T1. What is recorded
 
 A snapshot is a dangling git commit of the checkout's working tree
-(`packages/cli/src/treeSnapshot.ts`), built like the older sweep snapshot
+(`apps/cli/src/treeSnapshot.ts`), built like the older sweep snapshot
 (`wipSnapshot.ts`): `.gitignore` applies, so a secret git ignores never enters
 one; the real index, HEAD and branch are untouched. Two things are new.
 

@@ -17,7 +17,7 @@ import {
  * page all speak these shapes, so there is exactly one definition of "a
  * capability", "a machine that reports capabilities" and "where it is
  * installed". Everything here is a projection of what a daemon already reads off
- * disk (`packages/cli/src/capabilities/inventory.ts` — `InventoryItem`,
+ * disk (`apps/cli/src/capabilities/inventory.ts` — `InventoryItem`,
  * `MarketplaceRef`), deliberately kept structural rather than imported: that
  * module is Node-only (`fs`, `path`) and cannot be pulled into a browser bundle.
  */

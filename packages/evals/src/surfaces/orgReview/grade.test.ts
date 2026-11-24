@@ -103,7 +103,7 @@ describe('org-review, synthetic', () => {
   });
 
   test('stale watches the prompt text and the spec, not only the builder that wraps them', () => {
-    for (const p of ['packages/shared/contracts/headOfPeoplePrompt.ts', 'packages/shared/contracts/orgProposal.ts', 'packages/cli/src/orgInitRun.ts']) {
+    for (const p of ['packages/shared/contracts/headOfPeoplePrompt.ts', 'packages/shared/contracts/orgProposal.ts', 'apps/cli/src/orgInitRun.ts']) {
       expect(meta.sources).toContain(p);
       expect(existsSync(join(REPO_ROOT, p))).toBe(true);
     }

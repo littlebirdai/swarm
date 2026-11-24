@@ -6,7 +6,7 @@ REPO_ROOT="$(cd ../.. && pwd)"
 bash "$REPO_ROOT/scripts/lib/fork-guard.sh"
 
 # Load R2 credentials from CLI's .env.deploy
-ENV_FILE="$REPO_ROOT/packages/cli/.env.deploy"
+ENV_FILE="$REPO_ROOT/apps/cli/.env.deploy"
 if [ ! -f "$ENV_FILE" ]; then
   echo "Error: $ENV_FILE not found"
   echo "Create it with AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, R2_ENDPOINT"
@@ -40,7 +40,7 @@ done
 
 OLD_VERSION=$(jq -r '.version' package.json)
 # Bump via jq (not `npm version`): npm walks up to the bun workspace root and
-# chokes on `workspace:*` deps it can't parse. Mirrors packages/cli/deploy.sh.
+# chokes on `workspace:*` deps it can't parse. Mirrors apps/cli/scripts/deploy.sh.
 IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
 case "$BUMP_TYPE" in
   major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;

@@ -477,7 +477,7 @@ describe("reading a thread selector", () => {
   });
 
   test("a windows-looking path with no line still names a file", () => {
-    expect(parseCommentLocation("packages/cli/src/index.ts")).toEqual({ file: "packages/cli/src/index.ts" });
+    expect(parseCommentLocation("apps/cli/src/index.ts")).toEqual({ file: "apps/cli/src/index.ts" });
   });
 });
 

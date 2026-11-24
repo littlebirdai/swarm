@@ -92,8 +92,8 @@ describe("reach", () => {
     expect(reachOfJob("test-cli").has("web")).toBe(true);
   }, 120_000);
 
-  // Paths spelled as segments, join(dir, "..", "..", "cli", "src"), reach as
-  // far as a joined "../cli/" does.
+  // Paths spelled as segments, join(dir, "..", "..", "..", "apps", "cli", "src"), reach as
+  // far as a joined "../../../apps/cli/" does.
   test("finds a reach spelled as path segments", () => {
     const desktop = crossingOf("test-web").find(({ file }) => file.endsWith("packages/web/lib/desktop.test.ts"));
     expect(desktop?.areas.map(([area]) => area)).toEqual(expect.arrayContaining(["cli", "extension"]));
@@ -101,12 +101,12 @@ describe("reach", () => {
 
   test("reads spelled as segments, from the file or from the repo root, count as reach", () => {
     const read = (path: string) => `import { readFileSync } from "node:fs";\nreadFileSync(${path});`;
-    const areas = (file: string, text: string, own: string) => literalReach(file, text, own).map(([area]) => area);
-    expect(areas("packages/web/lib/desktop.test.ts", read(`join(import.meta.dir, "..", "..", "cli", "src", "observe.ts")`), "web")).toEqual(["cli"]);
+    const areas = (file: string, text: string, own: string) => [...new Set(literalReach(file, text, own).map(([area]) => area))];
+    expect(areas("packages/web/lib/desktop.test.ts", read(`join(import.meta.dir, "..", "..", "..", "apps", "cli", "src", "observe.ts")`), "web")).toEqual(["cli"]);
     expect(areas("packages/evals/src/x.test.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual(["web"]);
     // A relative path through a workspace root is still this repository, from product code too.
-    expect(areas("packages/cli/src/browser/hostExtension.ts", read(`join(import.meta.dir, "../../../../apps/browser-extension")`), "cli")).toEqual(["extension"]);
-    expect(areas("packages/cli/src/x.ts", read(`join(import.meta.dir, "..", "..", "..", "apps", "browser-extension")`), "cli")).toEqual(["extension"]);
+    expect(areas("apps/cli/src/browser/hostExtension.ts", read(`join(import.meta.dir, "../../../../apps/browser-extension")`), "cli")).toEqual(["extension"]);
+    expect(areas("apps/cli/src/x.ts", read(`join(import.meta.dir, "..", "..", "..", "apps", "browser-extension")`), "cli")).toEqual(["extension"]);
     // From product code a rooted path is usually someone else's checkout.
     expect(areas("packages/evals/src/x.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual([]);
   });
