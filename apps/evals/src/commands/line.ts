@@ -178,8 +178,8 @@ export function prepareTreeAt(sha: string, o: { patch?: string; prefix?: string 
 
 /**
  * Give a worktree this checkout's installed packages without reading this
- * checkout's own code. Each package's node_modules (the root's, apps/evals, packages/*,
- * platform/packages/*) becomes a real folder of links to this checkout's
+ * checkout's own code. Each package's node_modules (the root's, apps/*,
+ * packages/*, platform/packages/*) becomes a real folder of links to this checkout's
  * entries, except a workspace link (`@codecast/convex`, `@platform/evals`: an
  * entry that resolves inside this checkout but outside any node_modules),
  * which points at the same package inside the worktree when the commit has
@@ -214,8 +214,7 @@ export function borrowNodeModules(root: string, wt: string): void {
     }
   };
   borrow('.');
-  borrow('apps/evals');
-  for (const dir of ['packages', 'platform/packages']) if (existsSync(join(root, dir))) for (const name of readdirSync(join(root, dir))) borrow(join(dir, name));
+  for (const dir of ['apps', 'packages', 'platform/packages']) if (existsSync(join(root, dir))) for (const name of readdirSync(join(root, dir))) borrow(join(dir, name));
 }
 
 /**
