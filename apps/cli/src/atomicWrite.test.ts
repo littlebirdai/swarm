@@ -18,7 +18,6 @@ afterEach(() => {
 });
 
 const modeOf = (p: string): string => (fs.statSync(p).mode & 0o777).toString(8);
-const inodeOf = (p: string): number => fs.statSync(p).ino;
 const tmpLeftovers = (d: string): string[] =>
   fs.readdirSync(d).filter((n) => n.endsWith(".tmp"));
 
@@ -203,10 +202,6 @@ describe("atomicWriteFile — concurrency", () => {
 });
 
 describe("atomicWriteFile — publish step", () => {
-  // The mode tests below only mean something if the file was really published by
-  // rename; a plain fs.writeFileSync preserves an existing mode for free. This
-  // pins the mechanism they rely on.
-
   it("names the target, not the temp path, when the target is a directory", () => {
     // Raw node reports the failure against the temp path, which tells the user
     // nothing about the argument they passed. Asserted on the wrapper's own

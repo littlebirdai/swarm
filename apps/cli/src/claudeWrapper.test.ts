@@ -18,20 +18,36 @@ const sent = (actions: InjectionAction[]) =>
   );
 
 describe("planInjection", () => {
-  test("a text-only poll answer declines the menu once and types the text, not the JSON", () => {
-    const content = JSON.stringify({
-      __cc_poll: true,
-      text: "use the staging db",
-    });
-    const plan = planInjection(content);
-    expect(plan.poll).toBe(true);
-    expect(sent(plan.actions)).toEqual([
-      "key:Escape",
-      "paste:use the staging db",
-      "key:Enter",
-    ]);
-    expect(pastes(plan.actions).join("")).not.toContain("__cc_poll");
-  });
+  test.each([
+    {
+      name: "multi-line text",
+      payload: { text: "first\nsecond" },
+      pasted: "first  ·  second",
+    },
+    {
+      name: "text in steps",
+      payload: {
+        steps: [
+          { key: "2" },
+          { key: "1", text: "my own answer" },
+          { key: "1" },
+        ],
+      },
+      pasted: "my own answer",
+    },
+  ])(
+    "a poll answer with $name declines once and pastes one line",
+    ({ payload, pasted }) => {
+      const content = JSON.stringify({ __cc_poll: true, ...payload });
+      const plan = planInjection(content);
+      expect(plan.poll).toBe(true);
+      expect(sent(plan.actions)).toEqual([
+        "key:Escape",
+        `paste:${pasted}`,
+        "key:Enter",
+      ]);
+    },
+  );
 
   test("structured keys are pressed in order with no Escape", () => {
     const plan = planInjection(

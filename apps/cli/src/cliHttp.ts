@@ -20,7 +20,6 @@ export interface CliFetchOptions {
    * committed server-side). Set 1+ only for idempotent reads.
    */
   retries?: number;
-  /** Notified before each retry. Used for debug output and in tests. */
 }
 
 export const DEFAULT_CLI_TIMEOUT_MS = 45_000;

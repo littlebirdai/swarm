@@ -19,9 +19,8 @@
 // The set is persisted, because a daemon restart with live panes must come back
 // with the gate still CLOSED — an empty in-memory set would let the first
 // maintenance tick rotate the token out from under a claude that outlived the
-// daemon. Persisted ids are seeded as unconfirmed and released by the first
-// reconcile against the live tmux list, so a pane that died while the daemon
-// was down cannot hold the gate shut forever.
+// daemon. The first reconcile against the live tmux list releases restored
+// ids for panes that died while the daemon was down.
 
 import * as fs from "fs";
 import * as path from "path";
@@ -207,8 +206,7 @@ export function unstampedClaudeHolders(
   return out;
 }
 
-/** Restore the gate from disk at daemon start. Every restored id is unconfirmed
- *  — the gate is closed on it until a reconcile proves the pane is gone. */
+/** Restore the gate from disk at daemon start. */
 export async function seedLiveClaudeSessions(): Promise<LiveClaudeSession[]> {
   let parsed: GateFile | null = null;
   try {
