@@ -51,6 +51,7 @@
     "@codecast/ship": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
+    "@codecast/triggers": "workspace:*",
     "@codecast/vault": "workspace:*",
     "@inquirer/prompts": "^8.2.0",
     "@platform/auth": "file:../../platform/packages/auth",

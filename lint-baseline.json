@@ -29965,23 +29965,11 @@
   "packages/shared/contracts/transcriptChunk.ts": {
     "swarm/no-comments": 80
   },
-  "packages/shared/contracts/triggerEvents.test.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/triggerEvents.ts": {
-    "swarm/no-comments": 72
-  },
   "packages/shared/contracts/triggerLifecycle.test.ts": {
     "swarm/no-comments": 20
   },
   "packages/shared/contracts/triggerLifecycle.ts": {
     "swarm/no-comments": 68
-  },
-  "packages/shared/contracts/triggerPrecheck.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/triggerPrecheck.ts": {
-    "swarm/no-comments": 31
   },
   "packages/shared/contracts/unattended.ts": {
     "swarm/no-comments": 9
@@ -30219,6 +30207,18 @@
   },
   "packages/time/test/time.test.ts": {
     "swarm/no-comments": 5
+  },
+  "packages/triggers/src/triggerEvents.ts": {
+    "swarm/no-comments": 72
+  },
+  "packages/triggers/src/triggerPrecheck.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/triggers/test/triggerEvents.test.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/triggers/test/triggerPrecheck.test.ts": {
+    "swarm/no-comments": 7
   },
   "packages/vault/src/entityRef.ts": {
     "swarm/no-comments": 79

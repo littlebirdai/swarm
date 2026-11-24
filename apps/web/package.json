@@ -47,6 +47,7 @@
     "@codecast/ship": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
+    "@codecast/triggers": "workspace:*",
     "@codecast/vault": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",

@@ -7,7 +7,7 @@ import {
   isPrTriggerEvent,
   triggerEventShorthand,
   triggerEventLabel,
-} from "./triggerEvents";
+} from "../src/triggerEvents";
 
 // The names prShepherd.firePrTrigger and githubWebhooks.fireTrigger pass to
 // matchTaskTriggers. A name the backend fires but the CLI cannot arm is an
@@ -151,7 +151,10 @@ describe("which events a repository narrows", () => {
   });
 });
 
-import { INGEST_TRIGGER_EVENTS, isIngestTriggerEvent } from "./triggerEvents";
+import {
+  INGEST_TRIGGER_EVENTS,
+  isIngestTriggerEvent,
+} from "../src/triggerEvents";
 
 describe("the derived ingestion vocabulary", () => {
   test("every ingestion name is a derived shorthand with a label", () => {
@@ -172,7 +175,7 @@ describe("the derived ingestion vocabulary", () => {
   });
 });
 
-import { describeEventScope, eventFilterForSave } from "./triggerEvents";
+import { describeEventScope, eventFilterForSave } from "../src/triggerEvents";
 
 describe("a trigger's scope, said and saved", () => {
   test("a source event names its source, a pull request event its repository", () => {

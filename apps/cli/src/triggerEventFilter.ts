@@ -17,7 +17,7 @@ import {
   isPageTriggerEvent,
   isPrTriggerEvent,
   type TriggerScopeFilter,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerEvents";
 import { didYouMean, nearMatches } from "./commandSuggestion.js";
 
 export interface EventFilterFlags {

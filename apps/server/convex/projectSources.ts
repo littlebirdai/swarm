@@ -29,7 +29,7 @@ import { startSessionAsComposer } from "./dispatch";
 import {
   TRIGGER_EVENT_SHORTHANDS,
   triggerEventLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerEvents";
 
 /** What a source's run is asked to do. The event lines follow it in the frame. */
 export const PROJECT_SOURCE_PROMPT = [

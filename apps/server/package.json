@@ -39,6 +39,7 @@
     "@codecast/ship": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
+    "@codecast/triggers": "workspace:*",
     "@convex-dev/auth": "0.0.79",
     "@convex-dev/prosemirror-sync": "^0.2.3",
     "@platform/agent": "file:../../platform/packages/agent",

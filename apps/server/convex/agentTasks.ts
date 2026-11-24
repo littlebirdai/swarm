@@ -37,7 +37,6 @@ import {
   workspaceGrantsAccess,
 } from "./lib/access";
 import { canAccessChannel } from "./chatAccess";
-import { projectChannelRefusal } from "@codecast/shared/contracts";
 import { mainSessionFor, mainSessionRefusal } from "./lib/projectMainSession";
 import { restoreToInbox } from "./inboxFilters";
 import {
@@ -47,21 +46,26 @@ import {
 import { enqueuePendingMessage, reachableRole } from "./pendingMessages";
 import {
   isHostedAgentType,
-  triggerFiringSource,
-  triggerFiringContinues,
-  TRIGGER_PRECHECK_MESSAGE_CHARS,
   normalizeThreadState,
   runOwnerWakeOf,
   runParentOf,
   runResultThreadOf,
   triggerRunFrame,
   formatScheduledTask,
-  isChatTriggerEvent,
-  isPageTriggerEvent,
   type RoleCard,
   type RunOutcome,
   type WaitingSession,
 } from "@codecast/shared/contracts";
+import {
+  triggerFiringSource,
+  triggerFiringContinues,
+  TRIGGER_PRECHECK_MESSAGE_CHARS,
+} from "@codecast/triggers/triggerPrecheck";
+import {
+  isChatTriggerEvent,
+  isPageTriggerEvent,
+  projectChannelRefusal,
+} from "@codecast/triggers/triggerEvents";
 import type { AreaChange } from "@codecast/shared/contracts/orgAreas";
 import {
   isOrgReviewFocusKey,
@@ -138,9 +142,6 @@ export {
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_MAX_RUNTIME_MS = 10 * 60 * 1000; // 10 min
 const LEASE_DURATION_MS = 5 * 60 * 1000; // 5 min
-
-// --- Shared core: CLI (api_token) and web (session auth) entry points resolve
-// to a userId, then go through these so the two surfaces can't drift. ---
 
 function offCadence(
   task: Doc<"agent_tasks">,

@@ -426,7 +426,7 @@ export type TriggerEdit = {
   schedule_type?: "once" | "recurring" | "event";
   interval_ms?: number;
   run_at?: number;
-  event_filter?: import("@codecast/shared/contracts").TriggerScopeFilter;
+  event_filter?: import("@codecast/triggers/triggerEvents").TriggerScopeFilter;
 };
 export type TriggerStripRequest = {
   convId: string;

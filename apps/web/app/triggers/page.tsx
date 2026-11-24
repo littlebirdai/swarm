@@ -19,7 +19,7 @@ import {
   eventFilterForSave,
   isChatTriggerEvent,
   isPageTriggerEvent,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerEvents";
 import { useLaneMailAbilities } from "../../components/simple/useLaneMail";
 import { serverErrorText } from "../../lib/errorCause";
 import { copyToClipboard } from "../../lib/utils";

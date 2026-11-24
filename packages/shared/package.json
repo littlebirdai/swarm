@@ -157,6 +157,7 @@
     "@codecast/sessions": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
+    "@codecast/triggers": "workspace:*",
     "@platform/agent": "file:../../platform/packages/agent",
     "@platform/assistant": "file:../../platform/packages/assistant",
     "@platform/evals": "file:../../platform/packages/evals",

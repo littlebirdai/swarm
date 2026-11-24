@@ -12,7 +12,7 @@ import {
   formatScheduledTask,
   parseScheduledTask,
 } from "@codecast/shared/contracts";
-import { ORG_AREA_CHANGE_EVENT } from "@codecast/shared/contracts";
+import { ORG_AREA_CHANGE_EVENT } from "@codecast/triggers/triggerEvents";
 import { HEAD_AREA_CHANGE_TITLE } from "./lib/orgRoutine";
 
 // The area watch (docs/architecture/org-staffing.md S29): a pressing status

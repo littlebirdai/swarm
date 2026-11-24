@@ -142,9 +142,6 @@ import {
   toConvexAgentType,
   LOCAL_AGENT_CLIENTS,
   type VaultInfo,
-  TRIGGER_EVENT_NAMES,
-  describeEventScope,
-  type TriggerScopeFilter,
   inlineForeignText,
   fenceForeignText,
   FOREIGN_TEXT_CAPS,
@@ -155,6 +152,11 @@ import {
 import { callDisplayTitle, callLength } from "@codecast/calls/callRoomKeys";
 import { segmentAt } from "@codecast/calls/callRecordings";
 import { normalizeGuestName } from "@codecast/calls/callGuests";
+import {
+  TRIGGER_EVENT_NAMES,
+  describeEventScope,
+  type TriggerScopeFilter,
+} from "@codecast/triggers/triggerEvents";
 import {
   teamFeaturesForSnippet,
   TEAM_FEATURES,
@@ -262,7 +264,7 @@ import {
   TRIGGER_PRECHECK_MODES,
   triggerPrecheckMode,
   type TriggerPrecheckMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerPrecheck";
 import {
   agentDisplayName,
   CHEAP_MODEL,

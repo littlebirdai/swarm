@@ -8,7 +8,7 @@
 import {
   TRIGGER_EVENT_LABELS,
   triggerEventLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerEvents";
 export { TRIGGER_EVENT_LABELS, triggerEventLabel };
 
 // Compact duration for countdowns and intervals: "45s", "12m", "2h 30m", "3d 4h".

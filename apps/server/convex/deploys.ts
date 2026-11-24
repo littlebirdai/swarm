@@ -46,7 +46,7 @@ import { devPushedOver } from "./deployTargetsState";
 import {
   DEPLOY_FAILED_EVENT,
   DEPLOY_LIVE_EVENT,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerEvents";
 import {
   carriesForMarker,
   deployRowOf,

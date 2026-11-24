@@ -12,7 +12,7 @@ import {
   TRIGGER_EVENT_NAMES,
   projectChannelRefusal,
   triggerEventLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerEvents";
 import { useInboxStore, isConvexId } from "../../store/inboxStore";
 import { useCollectionRows } from "../../hooks/useCollectionRows";
 import { useSyncProjectTeammateSources } from "../../hooks/useSyncProjectTeammateSources";
