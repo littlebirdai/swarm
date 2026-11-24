@@ -37,6 +37,9 @@ describe("chat list scrolling", () => {
     expect(fill["display"]).toBe("flex");
     expect(fill["flex-direction"]).toBe("column");
     expect(fill["justify-content"]).toBe("flex-end");
+    expect(css).not.toMatch(
+      /\.ch-thread\s+\.ch-list-fill\s*\{[^}]*justify-content\s*:(?!\s*flex-end\b)/,
+    );
     expect(rule(".ch-list-sizer")["margin-top"]).toBeUndefined();
   });
 

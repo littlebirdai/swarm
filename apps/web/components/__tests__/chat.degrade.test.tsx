@@ -77,3 +77,23 @@ test("a chat channel paints its cached line with every query missing", async () 
     await page.unmount();
   }
 }, 120_000);
+
+test("standalone community chat uses its own page wrapper", async () => {
+  const originalPath = window.location.pathname;
+  window.history.replaceState(null, "", "/community");
+  try {
+    const page = await mountPage("/community", {
+      community: <ChatPage scope="community" />,
+    });
+    try {
+      expect(describeFailures(page)).toBe("");
+      expect(
+        page.container.querySelector(".ch-community-page > .ch-shell"),
+      ).not.toBeNull();
+    } finally {
+      await page.unmount();
+    }
+  } finally {
+    window.history.replaceState(null, "", originalPath);
+  }
+}, 120_000);

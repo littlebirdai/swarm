@@ -88,6 +88,12 @@ describe("parseCastCommandString with env prefixes", () => {
 });
 
 describe("stripCdPrefix", () => {
+  test.each([";", "&&"])("strips a cd prefix followed by %s", (separator) => {
+    expect(stripCdPrefix(`cd /repo ${separator} cast task ready`)).toBe(
+      "cast task ready",
+    );
+  });
+
   test("does not strip a `cd` that isn't a leading prefixed command", () => {
     // No `;`/`&&` separator — not a prefix, so leave it alone.
     expect(stripCdPrefix('cast doc create "cd into the dir"')).toBe(
@@ -553,6 +559,15 @@ describe("extractFlagValue", () => {
         "--goal",
       ]),
     ).toBe("ship the parser");
+  });
+
+  test("reads the long message flag", () => {
+    expect(
+      extractFlagValue("ct-40882 --message 'all tests green'", [
+        "-m",
+        "--message",
+      ]),
+    ).toBe("all tests green");
   });
 
   test("ignores a flag spelled inside a heredoc body", () => {

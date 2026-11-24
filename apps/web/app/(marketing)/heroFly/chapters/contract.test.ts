@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { MOTIONS } from "../motion";
 import { SCENES, SURFACE_BY_ID, type SurfaceId } from "../world";
 import { EAGER_CHAPTERS, LAZY_CHAPTERS, loadAllChapters } from "./index";
@@ -6,6 +8,17 @@ import { EAGER_CHAPTERS, LAZY_CHAPTERS, loadAllChapters } from "./index";
 const ids = SCENES.map((s) => s.id);
 
 describe("hero chapter contract", () => {
+  test("every chapter has a chapter file, a motion file and a fixtures file, and nothing else is a chapter", () => {
+    const names = readdirSync(import.meta.dir);
+    for (const suffix of [".chapter.ts", ".motion.ts"]) {
+      expect(names.filter((name) => name.endsWith(suffix)).sort()).toEqual(
+        ids.map((id) => id + suffix).sort(),
+      );
+    }
+    const fixtures = readdirSync(join(import.meta.dir, "../fixtures"));
+    for (const id of ids) expect(fixtures).toContain(`${id}.ts`);
+  });
+
   test("every chapter is registered, eager or lazy, and gathered by motion.ts", () => {
     const registered = [
       ...EAGER_CHAPTERS.map((c) => c.id),

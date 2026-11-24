@@ -24,6 +24,7 @@ test("transcript resizing preserves geometry and progress without redundant rend
   expect({ code, stdout, stderr }).toMatchObject({ code: 0 });
   expect(stderr).toMatch(/\b[1-9]\d* pass\b/);
   expect(stderr).toMatch(/\b0 fail\b/);
+  expect(stderr).not.toMatch(/\b[1-9]\d* skip\b/);
 }, 250_000);
 
 test("the legacy anchored list suspends and resumes its landing timer", async () => {

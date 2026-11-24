@@ -439,17 +439,23 @@ describe("the lobby and the door", () => {
   test("while the browser's prompt is up the two switches rest, and are not drawn as off", () => {
     const asking = {
       ...preview,
-      getSnapshot: () => ({
-        ...preview.getSnapshot(),
-        asking: true,
-        audio: true,
-        video: true,
-      }),
+      getSnapshot: () => ({ ...preview.getSnapshot(), asking: true }),
     };
     const view = JSDOM.fragment(lobby("ask", { preview: asking }));
+    const switches = view.querySelectorAll<HTMLButtonElement>(
+      "button[aria-pressed]",
+    );
+    expect(switches).toHaveLength(2);
+    for (const button of switches) {
+      expect(button.disabled).toBe(true);
+      expect(button.classList.contains("bg-sol-red/85")).toBe(false);
+    }
+    const ready = JSDOM.fragment(lobby("ask"));
     expect(
-      view.querySelectorAll('button[disabled][aria-pressed="false"]'),
-    ).toHaveLength(2);
+      ready.querySelector(
+        'button:not([disabled])[aria-pressed="true"][class~="bg-sol-red/85"]',
+      ),
+    ).not.toBeNull();
   });
 
   test("let in, then the transcript went public: the Join names what changed", () => {
@@ -753,7 +759,7 @@ describe("inside the call", () => {
   const inCall = (...args: Parameters<typeof callMarkup>) =>
     text(callMarkup(...args));
 
-  test("my own row reads 'you', never my name with a guest mark", () => {
+  test("my own row says 'you' and omits my name", () => {
     const names = [
       ...JSDOM.fragment(callMarkup(fakeCall())).querySelectorAll("span"),
     ].map((node) => node.textContent);

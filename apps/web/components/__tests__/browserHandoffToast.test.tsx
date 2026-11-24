@@ -97,6 +97,11 @@ describe("BrowserHandoffCard", () => {
           ?.click();
       });
     try {
+      expect(
+        [...container.querySelectorAll("button")].map((button) =>
+          button.getAttribute("type"),
+        ),
+      ).toEqual(["button", "button", "button", "button"]);
       await click("Open session");
       expect(callbacks.onOpen).toHaveBeenCalledTimes(1);
       expect(callbacks.onDismiss).not.toHaveBeenCalled();
