@@ -12,6 +12,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pollUntil } from "../test-helpers/pollUntil.js";
+import { stillRunning } from "../test-helpers/processLiveness.js";
 import {
   isolateCodecastDir,
   type IsolatedCodecastDir,
@@ -162,20 +163,70 @@ describe("a station whose runner goes", () => {
     const { node, started } = nastyStation("poll");
     const runner = runnerScript(node);
     await pollUntil(
-      () => started().length === 4,
+      () => {
+        const pids = started();
+        const detached = pids[3];
+        return (
+          pids.length === 4 &&
+          snapshotProcessTable().some(
+            (row) => row.pid === detached && row.pgid === detached,
+          )
+        );
+      },
       "the station's processes starting",
       { ms: 15_000 },
     );
     runner.kill("SIGTERM");
     expect(await runner.exited).toBe(143);
     await pollUntil(
-      () => !started().some(alive),
+      async () => (await stillRunning(started())).length === 0,
       "every station process ending",
       { ms: 30_000 },
     );
     expect(
       fs.existsSync(path.join(stationRecordDir(), `${runner.pid}.json`)),
     ).toBe(false);
+  }, 60_000);
+
+  test("ends a station child that creates its own session after TERM", async () => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "station-procs-"));
+    const ready = path.join(tmp, "ready");
+    const node = {
+      id: "detach",
+      type: "command",
+      script: `perl -MPOSIX -e '
+        $SIG{TERM} = sub {
+          $SIG{TERM} = "IGNORE";
+          POSIX::setsid() >= 0 or die $!;
+          rename("ready", "detached") or die $!;
+        };
+        open(my $f, ">", "starting") or die $!;
+        print $f getpid();
+        close($f);
+        rename("starting", "ready") or die $!;
+        while (1) { sleep 600 }
+      ' & wait`,
+      timeout: 600,
+    } as WorkflowNode;
+    const runner = runnerScript(node);
+    try {
+      await pollUntil(() => fs.existsSync(ready), "the station child starting");
+      const pid = Number(fs.readFileSync(ready, "utf-8"));
+      strays.push(pid);
+      const group = snapshotProcessTable().find((row) => row.pid === pid)?.pgid;
+      expect(group).toBeDefined();
+      expect(group).not.toBe(pid);
+      runner.kill("SIGTERM");
+      expect(await runner.exited).toBe(143);
+      await pollUntil(
+        async () => (await stillRunning([pid])).length === 0,
+        "the detached child ending",
+      );
+      expect(fs.existsSync(path.join(tmp, "detached"))).toBe(true);
+    } finally {
+      runner.kill();
+      await runner.exited;
+    }
   }, 60_000);
 
   test("leaves a pid alone once it names another process, and KILLs it while it is the same one", async () => {
