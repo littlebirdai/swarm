@@ -183,7 +183,7 @@ jobs:
           jq -S 'del(.version)' apps/cli/package.json > /tmp/head-cli-package.json
           diff -u /tmp/source-cli-package.json /tmp/head-cli-package.json
           source_changes=$(git diff --name-only "$SOURCE_COMMIT"..HEAD -- \
-            apps/cli packages/shared bun.lock package.json |
+            apps/cli packages bun.lock package.json |
             grep -v '^apps/cli/package.json$' || true)
           if [[ -n "$source_changes" ]]; then
             echo "::error::CLI/shared build inputs changed after the binary build commit"
@@ -545,7 +545,7 @@ jobs:
           jq -S 'del(.version)' apps/cli/package.json > /tmp/head-cli-package.json
           diff -u /tmp/source-cli-package.json /tmp/head-cli-package.json
           source_changes=$(git diff --name-only "$SOURCE_COMMIT"..HEAD -- \
-            apps/cli packages/shared bun.lock package.json |
+            apps/cli packages bun.lock package.json |
             grep -v '^apps/cli/package.json$' || true)
           if [[ -n "$source_changes" ]]; then
             echo "::error::CLI/shared build inputs changed while the release was staging"
