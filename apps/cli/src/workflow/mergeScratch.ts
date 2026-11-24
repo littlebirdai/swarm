@@ -192,11 +192,9 @@ export function trackStep(child: ChildProcess): void {
 export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
   const steps = [...running];
   const groups = steps.flatMap((step) => (step.pid ? [step.pid] : []));
-  for (const step of steps) {
-    if (!step.pid || step.exitCode !== null || step.signalCode !== null)
-      continue;
+  for (const group of groups) {
     try {
-      process.kill(-step.pid, "SIGTERM");
+      process.kill(-group, "SIGTERM");
     } catch {}
   }
   const deadline = Date.now() + graceMs;
@@ -225,7 +223,7 @@ export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
         if (stdout.trim() && !hasLiveMember) return true;
       } catch {}
     }
-    const delay = Math.min(50, deadline - Date.now());
+    const delay = Math.min(250, deadline - Date.now());
     if (delay <= 0) return false;
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
