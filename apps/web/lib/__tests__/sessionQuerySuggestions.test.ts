@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sessionQueryCompletion } from "@codecast/shared/search";
+import { sessionQueryCompletion } from "@codecast/search/sessionQuery";
 import {
   reposFromSessions,
   sessionQuerySuggestions,

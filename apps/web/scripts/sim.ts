@@ -36,7 +36,7 @@ import type {
   SimScenario,
   SimShrinkProgress,
 } from "@codecast/evals-api/evalsApi";
-import { levenshtein } from "@codecast/shared/contracts/levenshtein";
+import { levenshtein } from "@codecast/search/levenshtein";
 import {
   closeSession,
   openSession,

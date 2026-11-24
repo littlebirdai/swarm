@@ -14,7 +14,7 @@ import type { IdentityRow } from "../../lib/sessionIdentity";
 import { clipFade } from "../CollapsibleBody";
 import { useOverflows } from "../../hooks/useOverflows";
 import { formatSearchTimestamp } from "../../lib/searchTimestamp";
-import { stripWrapperTags } from "@codecast/shared/search";
+import { stripWrapperTags } from "@codecast/search/terms";
 
 /** The lines a snippet shows before it clips: three reads as a passage, not a wall. */
 const CLIP_PX = 76;

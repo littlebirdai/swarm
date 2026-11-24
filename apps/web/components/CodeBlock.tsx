@@ -10,7 +10,7 @@ import {
   SEARCH_MARK_ATTR,
   SEARCH_MARK_CLASS,
 } from "../lib/rehypeSearchHighlight";
-import { parseSearchTerms } from "@codecast/shared/search";
+import { parseSearchTerms } from "@codecast/search";
 
 interface CodeBlockProps {
   code: string;

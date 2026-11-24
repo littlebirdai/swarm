@@ -8,10 +8,8 @@
 // return, so a surface renders one list and never branches on where a row came
 // from — except to say, honestly, that content search is still running.
 import { useDeferredValue, useMemo } from "react";
-import {
-  normalizeQueryQuotes,
-  parseSessionQuery,
-} from "@codecast/shared/search";
+import { normalizeQueryQuotes } from "@codecast/search/tokenize";
+import { parseSessionQuery } from "@codecast/search/sessionQuery";
 import type { WorkState } from "@codecast/sessions/workState";
 import {
   useInboxStore,

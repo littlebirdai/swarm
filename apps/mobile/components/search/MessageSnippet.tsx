@@ -4,7 +4,7 @@
 // the rendered text. A long stretch clips with a fade into the row behind it.
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View as RNView } from "react-native";
-import { stripWrapperTags } from "@codecast/shared/search";
+import { stripWrapperTags } from "@codecast/search/terms";
 import { Text as RNText } from "@/components/Themed";
 import { MarkdownContent } from "@/components/MarkdownRenderer";
 import { FadeGradient } from "@/components/CollapsibleBody";

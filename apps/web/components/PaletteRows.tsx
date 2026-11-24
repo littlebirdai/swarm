@@ -28,7 +28,7 @@ import { getProjectName } from "../store/inboxStore";
 import { useLabelColor } from "../lib/labelColors";
 import { itemClass } from "./paletteStyles";
 import { ShortId } from "./ShortId";
-import { parseSessionQuery } from "@codecast/shared/search";
+import { parseSessionQuery } from "@codecast/search/sessionQuery";
 import { stripMarkdown } from "@codecast/shared/contracts/plainText";
 import { highlightMatch, getSnippet } from "../lib/searchHighlight";
 import { SearchOrigin } from "./search/SearchOrigin";

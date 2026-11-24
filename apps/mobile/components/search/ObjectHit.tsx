@@ -12,7 +12,7 @@ import {
   parseQueryTerms,
   snippetAround,
   termSpans,
-} from "@codecast/shared/search";
+} from "@codecast/search/terms";
 import { Text as RNText } from "@/components/Themed";
 import { STATUS_CONFIG, PRIORITY_CONFIG } from "@/components/TaskItem";
 import { PLAN_STATUS_CONFIG } from "@/components/PlanItem";

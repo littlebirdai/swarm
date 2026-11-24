@@ -7,7 +7,7 @@
 // Maps intersect, so operators AND together; the matched time orders an
 // operator-only result by the recency of the matching change.
 
-import { normalizeRepoName } from "@codecast/shared/search";
+import { normalizeRepoName } from "@codecast/search/sessionQuery";
 
 export type Candidates = Map<string, number | undefined>;
 

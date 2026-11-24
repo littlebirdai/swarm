@@ -52,6 +52,7 @@
     "@codecast/pull-requests": "workspace:*",
     "@codecast/ratchet": "workspace:*",
     "@codecast/render": "workspace:*",
+    "@codecast/search": "workspace:*",
     "@codecast/sessions": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/ship": "workspace:*",

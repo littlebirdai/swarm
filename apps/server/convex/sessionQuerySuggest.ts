@@ -6,7 +6,7 @@
 
 import { query } from "./functions";
 import { requireUser } from "./lib/auth";
-import { recentFilesFromSessions } from "@codecast/shared/search";
+import { recentFilesFromSessions } from "@codecast/search/sessionQuery";
 
 const SESSIONS = 60;
 const FILES = 200;

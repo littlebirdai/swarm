@@ -10,7 +10,7 @@ import {
   sessionQueryCompletion,
   sessionQuerySearches,
   sessionSearchHref,
-} from "./sessionQuery";
+} from "../src/sessionQuery";
 
 const NOW = Date.UTC(2026, 8, 29, 12, 0, 0);
 const DAY = 86_400_000;

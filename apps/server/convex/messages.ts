@@ -81,7 +81,7 @@ import {
   navPromptPatch,
 } from "./userMessagesFilter";
 import { dropMirroredMessage } from "./searchMirror";
-import { countMatches, parseSearchTerms } from "@codecast/shared/search";
+import { countMatches, parseSearchTerms } from "@codecast/search";
 import { batchHasLoopEvent, deriveLoopState } from "./loopState";
 import {
   nextAgentStatusOnAddMessages,
