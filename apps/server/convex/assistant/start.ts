@@ -7,7 +7,7 @@ import {
   HOSTED_AGENT_TYPE,
   HOSTED_TITLE_MAX_CHARS,
   promptTitle,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { MutationCtx } from "../functions";
 import type { Doc, Id } from "../_generated/dataModel";

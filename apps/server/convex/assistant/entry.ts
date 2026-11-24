@@ -26,7 +26,7 @@ import {
 } from "./turns";
 import { confirmEmailCode, sendEmailCode } from "../lib/emailProof";
 import { turnsIn } from "./input";
-import { TURN_DEADLINE_MS } from "@codecast/shared/contracts/assistant";
+import { TURN_DEADLINE_MS } from "@codecast/hosted-assistant/assistant";
 
 /** Start a hosted conversation for the signed-in person, optionally with its
  *  first message, which is queued like any composer send and so wakes the

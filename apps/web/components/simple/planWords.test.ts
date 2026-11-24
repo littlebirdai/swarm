@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { TYPICAL_REQUEST_USD } from "@codecast/shared/contracts/assistant";
+import { TYPICAL_REQUEST_USD } from "@codecast/hosted-assistant/assistant";
 import { requestsLeftWords } from "./planWords";
 
 describe("requestsLeftWords", () => {

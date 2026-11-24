@@ -59,7 +59,7 @@ import {
   type NoticeKind,
   type PlanSpec,
   type TurnReason,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { type AgentStatus } from "@codecast/sessions/agentStatus";
 import {

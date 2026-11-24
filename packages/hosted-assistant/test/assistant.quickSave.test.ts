@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { QUICK_SAVE_NOTE_CHARS, turnIsQuickSave } from "./assistant";
+import { QUICK_SAVE_NOTE_CHARS, turnIsQuickSave } from "../src/assistant";
 
 describe("turnIsQuickSave", () => {
   const todo = { name: "create_task", input: { title: "Buy stamps" } };

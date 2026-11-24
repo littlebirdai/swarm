@@ -5,7 +5,7 @@
 // account's history in plain words. Every number comes from the wallet
 // (useWallet) and the PLANS catalog.
 import { useMemo } from "react";
-import { planOf } from "@codecast/shared/contracts/assistant";
+import { planOf } from "@codecast/hosted-assistant/assistant";
 import { useWallet } from "../../hooks/useWallet";
 import {
   LANE_COPY,

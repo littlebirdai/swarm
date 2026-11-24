@@ -8,7 +8,7 @@ import type { WalletSummary } from "@codecast/convex/convex/lib/wallet";
 import {
   BILLING_RETURN,
   billingReturnOutcome,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import {
   BILLING_RETURN_PATIENCE_MS,

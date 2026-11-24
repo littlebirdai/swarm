@@ -9,7 +9,7 @@
 // queues it in the same transaction and the two reconcile. The compose popup
 // reaches the same create through its own stub (ComposeView).
 // Relative imports only: mobile reaches this file.
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { useInboxStore } from "../store/inboxStore";
 import { isRefusedDispatchError } from "../store/mutativeMiddleware";
 

@@ -1,7 +1,7 @@
 // A hosted assistant conversation has no process of the person's: it is never
 // called disconnected and never idle "to resume".
 import { describe, expect, it } from "bun:test";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { sessionDisconnected } from "../conversation/agentStatusPill";
 import { LANE_COPY } from "../simple/lane";
 import { renderToStaticMarkup } from "react-dom/server";

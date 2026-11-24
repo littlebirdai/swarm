@@ -5,7 +5,7 @@
 // line, a summary, a prompt, a draft, a snooze line and a rest line; this picks
 // the one that says the most and leaves the rest to the line's tooltip.
 
-import type { NoticeKind } from "@codecast/shared/contracts/assistant";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import { NOTICE_ROW_WORD } from "./hostedNotice";
 import { sessionStartupState } from "./sessionLifecycle";
 import {

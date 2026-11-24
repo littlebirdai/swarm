@@ -12,7 +12,7 @@ import type {
   BillingRedirect,
   BillingStatus,
 } from "@codecast/convex/convex/billing";
-import type { PlanId } from "@codecast/shared/contracts/assistant";
+import type { PlanId } from "@codecast/hosted-assistant/assistant";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 
 /** A plan to subscribe to, or a top-up in one of `TOPUP.amounts_usd`. Where

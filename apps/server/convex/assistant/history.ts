@@ -9,7 +9,7 @@ import { MESSAGE_ROW_FIELDS, type MessageRow } from "@platform/agent";
 import {
   noticeSubtype,
   type NoticeKind,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import type { MutationCtx, QueryCtx } from "../functions";
 import type { Id } from "../_generated/dataModel";
 import { withHostedReplay } from "../hostedReplay";

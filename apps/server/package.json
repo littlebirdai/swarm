@@ -32,6 +32,7 @@
     "@codecast/fence": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
+    "@codecast/hosted-assistant": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",

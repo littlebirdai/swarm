@@ -4,7 +4,7 @@ import { nestParentIdOf } from "@codecast/convex/convex/ccAccountsShared";
 import type { InboxSession } from "../store/inboxStore";
 import { cleanTitle } from "./conversationProcessor";
 import { conversationTitle } from "./conversationTitle";
-import { promptTitle } from "@codecast/shared/contracts/assistant";
+import { promptTitle } from "@codecast/hosted-assistant/assistant";
 
 // Small pure pieces of the inbox session card (components/inbox), shared with
 // its container.

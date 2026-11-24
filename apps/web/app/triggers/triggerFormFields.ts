@@ -5,7 +5,7 @@
 // field turned a schedule-only save into an agent change, and changing what a
 // trigger runs is for the account that runs it alone (convex agentTasks
 // assertMayRewrite), so a teammate's save was refused for a field never touched.
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 
 export type TriggerRunValues = {
   prompt: string;

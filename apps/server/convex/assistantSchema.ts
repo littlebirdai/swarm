@@ -12,12 +12,12 @@ import {
   TURN_REASONS,
   TURN_STATUSES,
   WAKE_CAUSES,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import type {
   RuleDecision,
   ToolRisk,
   TurnReason,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import type {
   GateVerdict,
   StopReason,

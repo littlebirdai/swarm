@@ -16,7 +16,7 @@ import {
   SettingsScroll,
 } from "@/components/settings/SettingsUI";
 import { openLink, openWebPage } from "@/lib/links";
-import { PLANS } from "@codecast/shared/contracts/assistant";
+import { PLANS } from "@codecast/hosted-assistant/assistant";
 import {
   LANE_COPY,
   TOPUP_AMOUNTS_USD,

@@ -237,7 +237,7 @@ import {
 import { actionFor } from "./conversation/HostedNotice";
 import { useThinkingAvailable } from "./simple/assistantPromise";
 import { useUpgradesOpen } from "./simple/billing";
-import type { NoticeKind } from "@codecast/shared/contracts/assistant";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import { LabelChipsRow } from "./LabelChipsRow";
 import {
   DeviceIcon,

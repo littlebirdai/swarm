@@ -20,7 +20,7 @@ import {
   type BillingReturnOutcome,
   type PlanId,
   type PlanSpec,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import type { InboxSession, SessionDecisionItem } from "../../store/inboxStore";
 import {
   isTriggerFailing,

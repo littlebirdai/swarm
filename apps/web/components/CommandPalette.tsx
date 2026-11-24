@@ -178,7 +178,7 @@ import {
 import { popOutPeople } from "./people/popOutPeople";
 import { AskHeldLine, useHostedAskGate } from "./simple/useHostedAskGate";
 import { AgentTypeIcon } from "./AgentTypeIcon";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { startHostedConversation } from "../lib/startHostedConversation";
 import { openForwardToChat } from "../lib/forwardToChat";
 import { settleComposerAttachments } from "../lib/draftImages";

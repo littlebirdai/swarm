@@ -32,7 +32,7 @@
 // age, so oldest-first minimizes fleet idle time.
 import { BLOCKED_BANNER_KINDS, isStackedAsk } from "@codecast/shared/contracts";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
-import { APPROVAL_ANSWERS } from "@codecast/shared/contracts/assistant";
+import { APPROVAL_ANSWERS } from "@codecast/hosted-assistant/assistant";
 import { byImpact } from "@codecast/decisions/decisionImpact";
 import { nestParentIdOf } from "@codecast/convex/convex/ccAccountsShared";
 import type {

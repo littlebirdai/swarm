@@ -20,7 +20,7 @@ import { sendToSession } from "@codecast/web/lib/sendToSession";
 import { useUpgradesOpen } from "@codecast/web/components/simple/billing";
 import { useThinkingAvailable } from "@codecast/web/components/simple/assistantPromise";
 import { PENDING_HOSTED_GRACE_MS } from "@codecast/web/components/conversation/pendingSend";
-import type { NoticeKind } from "@codecast/shared/contracts/assistant";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import {
   EMAIL_PROOF_DIGITS,
   useEmailProof,

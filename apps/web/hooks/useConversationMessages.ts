@@ -15,7 +15,7 @@ import { prefetchStorageImageUrls } from "./useStorageImageUrl";
 import { parseMessageHash } from "../lib/messageHash";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { mergeUnconfirmedMessages } from "./conversationMessageMerge";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { rowSigExcluding } from "../store/wakeSig";
 import { withClearedInboxStamps } from "../store/syncProtocol";
 import { shareTokenArg } from "../lib/shareTokenScope";

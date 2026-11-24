@@ -32,7 +32,7 @@ import {
 import {
   HOSTED_INPUT_MAX_CHARS,
   HOSTED_TITLE_MAX_CHARS,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { applyPatches } from "./dispatch";
 import { makeChangeTrackedDb } from "./changeLog";
 import { routeFor } from "./sessionDecisions";

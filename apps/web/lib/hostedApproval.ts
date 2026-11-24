@@ -12,7 +12,7 @@ import { parseDecisionAnswer } from "@codecast/shared/contracts";
 import {
   APPROVAL_ANSWERS,
   ROUTINE_SHOWS_UP,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { answeredLabel } from "./decisionQueue";
 
 type Row = {

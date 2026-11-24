@@ -17,7 +17,7 @@ import { v } from "convex/values";
 import {
   HOSTED_AGENT_TYPE,
   ROUTINE_SHOWS_UP,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import {
   isActiveTask,
   isAssistantTask,
