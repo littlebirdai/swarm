@@ -141,7 +141,7 @@ const PIN = 243;
 const result = checkRatchet({
   name: "max lines",
   root: REPO_ROOT,
-  dirs: ["packages"],
+  dirs: ["apps", "packages"],
   // ios/ and android/ are Expo prebuild output, not ours to split. The Convex
   // codegen under _generated is ignored by the walker already.
   ignoreDirs: ["ios", "android"],

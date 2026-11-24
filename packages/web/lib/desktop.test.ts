@@ -1137,7 +1137,7 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
 // import from the CLI, so the names are pinned by text.
 describe("agent-tab stamp contract", () => {
   const cliDir = join(import.meta.dir, "..", "..", "cli", "src", "browser");
-  const extDir = join(import.meta.dir, "..", "..", "browser-extension");
+  const extDir = join(import.meta.dir, "..", "..", "..", "apps", "browser-extension");
 
   test("the CLI recorder (shared by the engine init script) exports the gate's names", () => {
     const recorder = readFileSync(join(cliDir, "observe.ts"), "utf8");

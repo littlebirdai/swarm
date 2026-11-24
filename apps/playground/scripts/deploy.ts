@@ -3,7 +3,7 @@
 // codecast-playground prod deployment first, then the shell, built against
 // it (.env.production), to the clayground Worker (wrangler.jsonc).
 //
-//   bun run deploy   from packages/playground
+//   bun run deploy   from apps/playground
 import { join } from "node:path";
 import { $ } from "bun";
 

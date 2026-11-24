@@ -2,9 +2,9 @@
 /**
  * Cut a Chrome Web Store release of the extension.
  *
- *   bun packages/browser-extension/release.mjs                # bump patch, build the zip, print it
- *   bun packages/browser-extension/release.mjs --upload       # ...and upload it to the store as a draft
- *   bun packages/browser-extension/release.mjs --upload --publish   # ...and submit it for review
+ *   bun apps/browser-extension/release.mjs                # bump patch, build the zip, print it
+ *   bun apps/browser-extension/release.mjs --upload       # ...and upload it to the store as a draft
+ *   bun apps/browser-extension/release.mjs --upload --publish   # ...and submit it for review
  *   --bump patch|minor|major   which part of manifest.json's version moves (default patch)
  *   --version X.Y.Z            set it outright instead
  *   --dry-run                  build the zip for the next version, write nothing back, upload nothing

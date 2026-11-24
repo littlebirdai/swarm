@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { BRIDGE_EXTENSION_ID, BRIDGE_STORE_URL, bridgePairingPage, bridgePairingUrl, bridgeWakeUrl, extensionIdOfKey } from "./protocol.js";
 
-const manifestPath = path.join(import.meta.dir, "../../../../browser-extension/manifest.json");
+const manifestPath = path.join(import.meta.dir, "../../../../../apps/browser-extension/manifest.json");
 
 describe("BRIDGE_EXTENSION_ID", () => {
   test("pairing, wake and installation use the published store item", () => {

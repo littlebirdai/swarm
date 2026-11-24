@@ -302,7 +302,7 @@ export function installChromeLauncher(dir = path.join(os.homedir(), "Application
   const script = `#!/bin/bash
 # Opens Google Chrome with the switches that keep background tabs and the
 # Codecast extension's worker at normal priority and drop the debugging
-# bar (see codecast: packages/browser-extension/README.md). Made by
+# bar (see codecast: apps/browser-extension/README.md). Made by
 # \`cast browser chrome launcher\`.
 # The human's Chrome, when it runs, is brought forward rather than given a new
 # window; a managed Chrome (it passes --user-data-dir) is never it.

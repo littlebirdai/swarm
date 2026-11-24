@@ -27,7 +27,7 @@ export const AREAS = [
   "electron",
   "mobile",
   "extension",
-  // packages/playground: its own Vite shell and its own Convex deployment. It
+  // apps/playground: its own Vite shell and its own Convex deployment. It
   // is built and typechecked by the root jobs; nothing else imports it.
   "playground",
   // infra/: host and worker config and code. No gated job reads it. Its own
@@ -72,7 +72,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
   // Also runs the eval home's unit tests. About 160 files import convex, and
   // about 60 reach a README under docs/ through decisionKit.ts. About 180
   // reach the browser extension, which the CLI carries for cloud hosts
-  // (browser/hostExtension.ts reads packages/browser-extension/shipped.mjs).
+  // (browser/hostExtension.ts reads apps/browser-extension/shipped.mjs).
   "test-cli": ["cli", "evals", "convex", "docs", "shared", "platform", "extension"],
   // The mirror's own job: its package tests, and the drift check. Every other
   // job lists "platform" too, because the mirror is a dependency of all of
@@ -123,8 +123,8 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   ["platform", ["platform/"]],
   ["electron", ["packages/electron/"]],
   ["mobile", ["packages/mobile/"]],
-  ["extension", ["packages/browser-extension/", "packages/vscode-extension/"]],
-  ["playground", ["packages/playground/"]],
+  ["extension", ["apps/browser-extension/", "apps/vscode-extension/"]],
+  ["playground", ["apps/playground/"]],
   ["infra", ["infra/"]],
 ];
 

@@ -4,7 +4,9 @@
   "license": "MIT",
   "packageManager": "bun@1.4.4",
   "workspaces": [
-    "packages/*"
+    "apps/*",
+    "packages/*",
+    "tests/*"
   ],
   "scripts": {
     "start": "cd packages/web && bun run start",

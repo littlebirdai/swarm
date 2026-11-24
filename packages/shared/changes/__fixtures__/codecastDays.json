@@ -277,7 +277,7 @@
     }
    },
    "top_paths": [
-    "packages/browser-extension/background.js"
+    "apps/browser-extension/background.js"
    ],
    "schema_paths": []
   },

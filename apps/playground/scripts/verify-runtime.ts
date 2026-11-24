@@ -161,7 +161,7 @@ if (failed()) process.exit(1);
 
 if (process.argv.includes("--serve")) {
   const fresh = await client.mutation(api.apps.create, { ...credsA, name: "Browser check", unlisted: true });
-  const avatarDir = join(ROOT, "../web/components/org/avatars");
+  const avatarDir = join(ROOT, "../../packages/web/components/org/avatars");
   const dataUrl = async (k: string) => `data:image/webp;base64,${Buffer.from(await Bun.file(join(avatarDir, `${k}.webp`)).arrayBuffer()).toString("base64")}`;
   const avatars = Object.fromEntries(await Promise.all(AVATAR_KEYS.map(async (k) => [k, await dataUrl(k)])));
   const init = await initFor({

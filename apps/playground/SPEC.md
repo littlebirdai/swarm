@@ -109,7 +109,7 @@ read as "simple, fast, fun, and real software", in that order.
 ## Architecture
 
 ### Packages and reuse
-- `packages/playground`: Vite + React 19 app (the shell) and `convex/` (its own
+- `apps/playground`: Vite + React 19 app (the shell) and `convex/` (its own
   Convex deployment, project `codecast-playground`, dev deployment in
   `.env.local`). It is a workspace member and imports:
   - `@codecast/shared/contracts/orgAvatars` and `sessionCharacter` for

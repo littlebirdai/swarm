@@ -51,7 +51,7 @@ export const LINK_HOST_PORT_SPAN = 8_000;
 
 /**
  * The extension's ID, the same on every machine because the manifest carries
- * a fixed public key (`key` in packages/browser-extension/manifest.json). Chrome
+ * a fixed public key (`key` in apps/browser-extension/manifest.json). Chrome
  * derives the ID from that key: SHA-256 of the DER-encoded public key, the
  * first 32 hex characters, each digit mapped from 0-9a-f onto a-p (an ID is
  * letters only so it can never look like a number). `extensionIdOfKey` is that

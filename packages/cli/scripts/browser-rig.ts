@@ -20,7 +20,7 @@
  *   downloads/       where the rig Chromes save downloads (never the human's ~/Downloads)
  *
  * The bridge host runs from checkout source on a free port, Chrome for
- * Testing loads packages/browser-extension unpacked, and the extension is
+ * Testing loads apps/browser-extension unpacked, and the extension is
  * paired the product way (the options page opened with a one-time code in its
  * fragment, then the Pair click; `--legacy-pair` hands it the shared token
  * the way cast did before per-profile keys), and `up` returns once the host reports the
@@ -39,7 +39,7 @@
  *   bun packages/cli/scripts/browser-rig.ts exec --cli /tmp/old/packages/cli/src/main.ts -- open ...   # drive with another checkout's CLI
  *   bun packages/cli/scripts/browser-rig.ts exec [--name <n>] [--session <id>] -- open http://...
  *   bun packages/cli/scripts/browser-rig.ts exec -- snapshot -i
- *   bun packages/cli/scripts/browser-rig.ts reload-ext      # pick up edits to packages/browser-extension
+ *   bun packages/cli/scripts/browser-rig.ts reload-ext      # pick up edits to apps/browser-extension
  *   bun packages/cli/scripts/browser-rig.ts restart-host    # pick up edits to the bridge host source
  *   bun packages/cli/scripts/browser-rig.ts restart-chrome  # quit and relaunch the rig Chrome (same profile)
  *   bun packages/cli/scripts/browser-rig.ts add-profile     # a second Chrome profile on the same bridge (own user-data-dir), paired with its own code
@@ -77,7 +77,7 @@ import { enableDeveloperMode, extensionContext, extensionInfo, findTestChrome, f
 
 const REPO = path.resolve(import.meta.dir, "../../..");
 const CLI_ENTRY = path.join(REPO, "packages/cli/src/main.ts");
-const DEFAULT_EXT_DIR = path.join(REPO, "packages/browser-extension");
+const DEFAULT_EXT_DIR = path.join(REPO, "apps/browser-extension");
 const FIXTURES_DIR = path.join(import.meta.dir, "browser-rig-fixtures");
 const RIG_ROOT = process.env.CAST_RIG_ROOT || "/tmp/cast-browser-rig";
 // Generous: a bun parsing the whole CLI from source took over two minutes to
@@ -111,7 +111,7 @@ interface RigState {
   /** A second Chrome profile (`add-profile`): its own user-data-dir and CDP port, the same extension and bridge. */
   chrome2Pid?: number;
   cdpPort2?: number;
-  /** The unpacked extension the rig Chromes load (`up --extension`); this worktree's packages/browser-extension when unset. */
+  /** The unpacked extension the rig Chromes load (`up --extension`); this worktree's apps/browser-extension when unset. */
   extDir?: string;
   /** The agent-browser binary every rig CLI drives with (`up --engine`); unset, the CLI falls back to its built-in driver, since the rig HOME has no engine install. */
   engine?: string;
@@ -502,7 +502,7 @@ function realEngine(): string {
 /**
  * `--extension <dir>` loads another unpacked extension, e.g. an older release
  * to check a new host against what the Store still serves. `git:<rev>` (say
- * `git:HEAD`) unpacks that revision's packages/browser-extension into the rig
+ * `git:HEAD`) unpacks that revision's browser extension into the rig
  * directory first. Kept in state.json, so restart-chrome and add-profile load
  * the same one.
  */
@@ -512,8 +512,11 @@ function resolveExtensionDir(arg: string | undefined): string | undefined {
     const rev = arg.slice(4) || "HEAD";
     const out = path.join(rigDir, "extension");
     fs.mkdirSync(out, { recursive: true });
-    const archive = spawnSync("git", ["archive", rev, "packages/browser-extension"], { cwd: REPO, maxBuffer: 256 * 1024 * 1024 });
-    if (archive.status !== 0) die(`git archive ${rev} packages/browser-extension failed: ${archive.stderr}`);
+    const appPath = "apps/browser-extension";
+    const hasAppPath = spawnSync("git", ["cat-file", "-e", `${rev}:${appPath}`], { cwd: REPO }).status === 0;
+    const extPath = hasAppPath ? appPath : "packages/browser-extension";
+    const archive = spawnSync("git", ["archive", rev, extPath], { cwd: REPO, maxBuffer: 256 * 1024 * 1024 });
+    if (archive.status !== 0) die(`git archive ${rev} ${extPath} failed: ${archive.stderr}`);
     const untar = spawnSync("tar", ["-x", "-C", out, "--strip-components", "2"], { input: archive.stdout });
     if (untar.status !== 0) die(`could not unpack the ${rev} extension: ${untar.stderr}`);
     return out;

@@ -1,6 +1,6 @@
 /**
  * Scratch-Chrome plumbing shared by the extension smoke test
- * (packages/browser-extension/smoke.mjs) and the isolated e2e rig
+ * (apps/browser-extension/smoke.mjs) and the isolated e2e rig
  * (scripts/browser-rig.ts): find a Chrome that still honours
  * --load-extension, talk raw CDP to it, reach the extension's own pages, and
  * pair the extension with a bridge the way `cast browser extension setup`

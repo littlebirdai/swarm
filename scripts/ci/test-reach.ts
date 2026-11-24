@@ -63,12 +63,21 @@ export function testFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+const WORKSPACE_ROOTS = ["apps", "packages", "tests"];
+// Include directories without a manifest, such as the browser extension.
+const WORKSPACE_DIRS = new Map(WORKSPACE_ROOTS.flatMap((root) =>
+  readdirSync(join(ROOT, root), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => [entry.name, `${root}/${entry.name}`] as const),
+));
+
 type Workspace = { dir: string; exports: Record<string, string> };
 
 /** Every workspace package by name, with its subpath exports. */
 const WORKSPACES = new Map<string, Workspace>();
-for (const name of readdirSync(join(ROOT, "packages"))) {
-  const manifest = join(ROOT, "packages", name, "package.json");
+for (const workspace of WORKSPACE_DIRS.values()) {
+  const dir = join(ROOT, workspace);
+  const manifest = join(dir, "package.json");
   if (!existsSync(manifest)) continue;
   const pkg = JSON.parse(readFileSync(manifest, "utf8"));
   const exports: Record<string, string> = {};
@@ -80,7 +89,7 @@ for (const name of readdirSync(join(ROOT, "packages"))) {
     }
   }
   if (!exports["."] && typeof pkg.main === "string") exports["."] = pkg.main;
-  WORKSPACES.set(pkg.name, { dir: join(ROOT, "packages", name), exports });
+  WORKSPACES.set(pkg.name, { dir, exports });
 }
 
 const PLATFORM_MARKER = join(ROOT, "platform", "packages");
@@ -90,8 +99,8 @@ const PLATFORM_MARKER = join(ROOT, "platform", "packages");
  * here rather than left to bun, because mobile's tsconfig extends a base in
  * node_modules and the contract job runs without an install.
  */
-const ROOT_ALIAS_PACKAGES = readdirSync(join(ROOT, "packages")).filter((name) => {
-  const tsconfig = join(ROOT, "packages", name, "tsconfig.json");
+const ROOT_ALIAS_PACKAGES = [...WORKSPACE_DIRS.values()].filter((dir) => {
+  const tsconfig = join(ROOT, dir, "tsconfig.json");
   return existsSync(tsconfig) && /"@\/\*"\s*:\s*\[\s*"\.\/\*"/.test(readFileSync(tsconfig, "utf8"));
 });
 
@@ -119,9 +128,10 @@ export function resolveImport(spec: string, fromFile: string): string | null {
     return resolveFile(join(workspace.dir, target), workspace.dir) ?? join(workspace.dir, "package.json");
   }
   if (spec.startsWith("@/")) {
-    const pkg = relative(ROOT, fromFile).split("/");
-    if (pkg[0] === "packages" && ROOT_ALIAS_PACKAGES.includes(pkg[1])) {
-      return resolveFile(join(ROOT, "packages", pkg[1], spec.slice(2)), join(ROOT, "packages", pkg[1]));
+    const workspace = relative(ROOT, fromFile).split("/").slice(0, 2).join("/");
+    if (ROOT_ALIAS_PACKAGES.includes(workspace)) {
+      const dir = join(ROOT, workspace);
+      return resolveFile(join(dir, spec.slice(2)), dir);
     }
   }
   const resolved = resolveFile(spec, dirname(fromFile));
@@ -148,22 +158,19 @@ function importsOf(file: string, text: string): string[] {
   }
 }
 
-// Every directory under packages/, manifest or not (browser-extension has none).
-const PACKAGE_DIRS = readdirSync(join(ROOT, "packages"), { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => entry.name);
-const PACKAGE_NAMES = PACKAGE_DIRS.map((name) => name.replace(/-/g, "\\-")).join("|");
+const PACKAGE_NAMES = [...WORKSPACE_DIRS.keys()].map((name) => name.replace(/-/g, "\\-")).join("|");
+const ROOT_NAMES = WORKSPACE_ROOTS.join("|");
 // `../convex/` or `../../web/`: a path relative to the file, so it can only mean
 // this repository, from any file.
 const RELATIVE_REACH = new RegExp(`["'\`/]\\.\\./(${PACKAGE_NAMES})(?=["'\`/])`, "g");
 // The same reach spelled as path segments: join(dir, "..", "..", "cli", "src").
 const SEGMENT_REACH = new RegExp(`["'\`]\\.\\.["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`, "g");
 // The same as segments from the repo root: join(ROOT, "packages", "cli", "src").
-const ROOTED_SEGMENT_REACH = new RegExp(`["'\`]packages["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`, "g");
+const ROOTED_SEGMENT_REACH = new RegExp(`["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`, "g");
 // `packages/web/`: from test code it means this repository; from product code
 // it is usually a path in someone else's checkout (a worktree, a workspace),
 // so it counts only in test files and test helpers.
-const ROOTED_REACH = new RegExp(`["'\`/]packages/(${PACKAGE_NAMES})(?=["'\`/])`, "g");
+const ROOTED_REACH = new RegExp(`["'\`/](?:${ROOT_NAMES})/(${PACKAGE_NAMES})(?=["'\`/])`, "g");
 const DOCS_REACH = /["'`/]docs\//;
 const TEST_CODE = /(\.test\.[a-z]+$|\/(test-helpers|__tests__|__fixtures__|fixtures)\/)/;
 
@@ -198,8 +205,9 @@ export function literalReach(file: string, text: string, ownPackage: string): Ar
   const matches = [...code.matchAll(RELATIVE_REACH), ...code.matchAll(SEGMENT_REACH), ...(testCode ? [...code.matchAll(ROOTED_REACH), ...code.matchAll(ROOTED_SEGMENT_REACH)] : [])];
   for (const match of matches) {
     if (match[1] === ownPackage) continue;
-    const area = areaOf(`packages/${match[1]}/`);
-    if (area) hits.push([area, `packages/${match[1]}`]);
+    const dir = WORKSPACE_DIRS.get(match[1])!;
+    const area = areaOf(`${dir}/`);
+    if (area) hits.push([area, dir]);
   }
   if (testCode && DOCS_REACH.test(code)) hits.push(["docs", "docs"]);
   return hits;
@@ -227,7 +235,7 @@ function nodeOf(file: string): Node {
   // The mirror's own imports are npm packages.
   if (node.area === "platform" || !CODE_EXT.test(file) || !existsSync(file) || !statSync(file).isFile()) return node;
   const text = readFileSync(file, "utf8");
-  const ownPackage = rel.startsWith("packages/") ? rel.split("/")[1] : "";
+  const ownPackage = WORKSPACE_ROOTS.includes(rel.split("/")[0]) ? rel.split("/")[1] : "";
   node.reads = rel in LITERAL_FALSE_POSITIVES ? [] : literalReach(file, text, ownPackage);
   for (const spec of importsOf(file, text)) {
     const target = resolveImport(spec, file);

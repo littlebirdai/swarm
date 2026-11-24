@@ -124,9 +124,9 @@ export const BROWSER_EXTENSION_PAYLOAD = path.join(import.meta.dir, "../src/brow
 
 /** Tar the extension's shipped files (browser-extension/shipped.mjs) into the payload. */
 export async function packBrowserExtension(output = BROWSER_EXTENSION_PAYLOAD): Promise<number> {
-  const { SHIPPED } = await import("../../browser-extension/shipped.mjs");
+  const { SHIPPED } = await import("../../../apps/browser-extension/shipped.mjs");
   // COPYFILE_DISABLE keeps macOS tar from adding ._ resource-fork entries.
-  run("/usr/bin/env", ["COPYFILE_DISABLE=1", "tar", "-cf", output, "-C", path.join(import.meta.dir, "../../browser-extension"), ...SHIPPED]);
+  run("/usr/bin/env", ["COPYFILE_DISABLE=1", "tar", "-cf", output, "-C", path.join(import.meta.dir, "../../../apps/browser-extension"), ...SHIPPED]);
   return fs.statSync(output).size;
 }
 

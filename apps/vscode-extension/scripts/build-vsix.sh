@@ -11,7 +11,7 @@ EXT_DIR="$(pwd)"
 if [ "${1:-}" = "--publish" ]; then
   bash ../../scripts/lib/fork-guard.sh
 fi
-STAGE="$EXT_DIR/../web/public/binaries"
+STAGE="$EXT_DIR/../../packages/web/public/binaries"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

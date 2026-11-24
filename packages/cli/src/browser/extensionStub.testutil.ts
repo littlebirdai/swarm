@@ -16,9 +16,9 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { webcrypto } from "node:crypto";
 
-/** The extension file's source, read from packages/browser-extension. */
+/** The extension file's source, read from apps/browser-extension. */
 export function extensionSource(name: string): string {
-  return readFileSync(new URL(`../../../browser-extension/${name}`, import.meta.url), "utf8");
+  return readFileSync(new URL(`../../../../apps/browser-extension/${name}`, import.meta.url), "utf8");
 }
 
 export interface ChromeEvent<A extends unknown[] = any[]> {
@@ -132,7 +132,7 @@ export interface LoadOptions {
   beforeMain?: string;
 }
 
-/** Run status.js and then `main` from packages/browser-extension in a fresh vm context. */
+/** Run status.js and then `main` from apps/browser-extension in a fresh vm context. */
 export function loadExtensionScript(main: string, opts: LoadOptions): vm.Context {
   const context = vm.createContext({
     chrome: opts.chrome, crypto: webcrypto, TextEncoder, URL, URLSearchParams, navigator: { userAgent: "test" },

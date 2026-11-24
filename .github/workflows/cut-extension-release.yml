@@ -1,6 +1,6 @@
 name: Cut Chrome extension release
 
-# Ships packages/browser-extension to the Chrome Web Store. The store is the
+# Ships apps/browser-extension to the Chrome Web Store. The store is the
 # only distribution Chrome updates on its own (self-hosted packages are
 # blocked on macOS and Windows outside enterprise policy), so this is what
 # makes every install pick up a fix: bump the manifest version, zip the shipped
@@ -65,7 +65,7 @@ jobs:
       - name: Build the package
         if: inputs.dry_run
         shell: bash
-        run: bun packages/browser-extension/release.mjs --dry-run --bump "${{ inputs.bump }}"
+        run: bun apps/browser-extension/release.mjs --dry-run --bump "${{ inputs.bump }}"
 
       - name: Build, upload and submit
         if: ${{ !inputs.dry_run }}
@@ -80,13 +80,13 @@ jobs:
           set -euo pipefail
           publish=""
           if [[ "${{ inputs.publish }}" == "true" ]]; then publish="--publish"; fi
-          bun packages/browser-extension/release.mjs --bump "${{ inputs.bump }}" --upload $publish
+          bun apps/browser-extension/release.mjs --bump "${{ inputs.bump }}" --upload $publish
 
       - name: Keep the package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codecast-extension
-          path: packages/browser-extension/dist/*.zip
+          path: apps/browser-extension/dist/*.zip
           retention-days: 30
 
       - name: Commit the version bump and tag it
@@ -94,7 +94,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version=$(jq -r '.version' packages/browser-extension/manifest.json)
+          version=$(jq -r '.version' apps/browser-extension/manifest.json)
           tag="extension-v$version"
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
             echo "::error::tag $tag already exists"
@@ -102,7 +102,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/browser-extension/manifest.json
+          git add apps/browser-extension/manifest.json
           git commit -m "chore(extension): bump version to $version"
           git tag -a "$tag" -m "Codecast extension $version"
           git push --atomic origin HEAD:main "refs/tags/$tag"

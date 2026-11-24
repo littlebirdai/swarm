@@ -13,9 +13,42 @@
         "typescript": "^5.7.2",
       },
     },
+    "apps/playground": {
+      "name": "@codecast/playground",
+      "dependencies": {
+        "@codecast/shared": "workspace:*",
+        "@mariozechner/pi-ai": "0.73.1",
+        "@platform/agent": "file:../../platform/packages/agent",
+        "convex": "^1.31.6",
+        "react": "19.1.0",
+        "react-dom": "19.1.0",
+        "sucrase": "^3.35.1",
+      },
+      "devDependencies": {
+        "@happy-dom/global-registrator": "^20.14.5",
+        "@types/bun": "^1.3.13",
+        "@types/react": "^19.0.1",
+        "@types/react-dom": "^19.0.1",
+        "@vitejs/plugin-react": "^4.5.2",
+        "convex-test": "0.0.54",
+        "happy-dom": "^20.14.5",
+        "typescript": "^5.7.2",
+        "vite": "^6.3.5",
+      },
+    },
+    "apps/vscode-extension": {
+      "name": "codecast-blame",
+      "version": "0.1.4",
+      "devDependencies": {
+        "@types/node": "^22.10.1",
+        "@types/vscode": "^1.75.0",
+        "esbuild": "^0.24.0",
+        "typescript": "^5.7.2",
+      },
+    },
     "packages/cli": {
       "name": "@codecast/cli",
-      "version": "1.1.239",
+      "version": "1.1.265",
       "bin": {
         "codecast": "./dist/main.js",
         "cast": "./dist/main.js",
@@ -80,7 +113,7 @@
     },
     "packages/electron": {
       "name": "@codecast/electron",
-      "version": "1.1.128",
+      "version": "1.1.131",
       "dependencies": {
         "@platform/desktop": "file:../../platform/packages/desktop",
       },
@@ -183,29 +216,6 @@
         "typescript": "~5.9.2",
       },
     },
-    "packages/playground": {
-      "name": "@codecast/playground",
-      "dependencies": {
-        "@codecast/shared": "workspace:*",
-        "@mariozechner/pi-ai": "0.73.1",
-        "@platform/agent": "file:../../platform/packages/agent",
-        "convex": "^1.31.6",
-        "react": "19.1.0",
-        "react-dom": "19.1.0",
-        "sucrase": "^3.35.1",
-      },
-      "devDependencies": {
-        "@happy-dom/global-registrator": "^20.14.5",
-        "@types/bun": "^1.3.13",
-        "@types/react": "^19.0.1",
-        "@types/react-dom": "^19.0.1",
-        "@vitejs/plugin-react": "^4.5.2",
-        "convex-test": "0.0.54",
-        "happy-dom": "^20.14.5",
-        "typescript": "^5.7.2",
-        "vite": "^6.3.5",
-      },
-    },
     "packages/shared": {
       "name": "@codecast/shared",
       "version": "0.0.1",
@@ -219,16 +229,6 @@
       },
       "devDependencies": {
         "@types/css-tree": "^2.3.11",
-      },
-    },
-    "packages/vscode-extension": {
-      "name": "codecast-blame",
-      "version": "0.1.4",
-      "devDependencies": {
-        "@types/node": "^22.10.1",
-        "@types/vscode": "^1.75.0",
-        "esbuild": "^0.24.0",
-        "typescript": "^5.7.2",
       },
     },
     "packages/web": {
@@ -738,7 +738,7 @@
 
     "@codecast/evals": ["@codecast/evals@workspace:packages/evals"],
 
-    "@codecast/playground": ["@codecast/playground@workspace:packages/playground"],
+    "@codecast/playground": ["@codecast/playground@workspace:apps/playground"],
 
     "@codecast/shared": ["@codecast/shared@workspace:packages/shared"],
 
@@ -2098,7 +2098,7 @@
 
     "cmdk": ["cmdk@1.1.1", "", { "dependencies": { "@radix-ui/react-compose-refs": "^1.1.1", "@radix-ui/react-dialog": "^1.1.6", "@radix-ui/react-id": "^1.1.0", "@radix-ui/react-primitive": "^2.0.2" }, "peerDependencies": { "react": "^18 || ^19 || ^19.0.0-rc", "react-dom": "^18 || ^19 || ^19.0.0-rc" } }, "sha512-Vsv7kFaXm+ptHDMZ7izaRsP70GgrW9NBNGswt9OZaVBLlE0SNpDq8eu/VGXyF9r7M0azK3Wy7OlYXsuyYLFzHg=="],
 
-    "codecast-blame": ["codecast-blame@workspace:packages/vscode-extension"],
+    "codecast-blame": ["codecast-blame@workspace:apps/vscode-extension"],
 
     "color": ["color@4.2.3", "", { "dependencies": { "color-convert": "^2.0.1", "color-string": "^1.9.0" } }, "sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A=="],
 
@@ -4597,6 +4597,8 @@
     "@codecast/evals/@platform/snippets": ["@platform/snippets@file:platform/packages/snippets", { "dependencies": { "@platform/cli-kit": "file:../cli-kit" }, "devDependencies": { "@types/bun": "latest", "@types/node": "^22.0.0", "typescript": "^5.7.2" } }],
 
     "@codecast/playground/@platform/agent": ["@platform/agent@file:platform/packages/agent", { "dependencies": { "@mariozechner/pi-agent-core": "0.73.1", "@mariozechner/pi-ai": "0.73.1", "@opentelemetry/api": "^1.9.0", "@platform/fence": "file:../fence" }, "devDependencies": { "esbuild": "^0.25.0", "typescript": "^5.7.2" } }],
+
+    "@codecast/playground/@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
     "@codecast/shared/@platform/agent": ["@platform/agent@file:platform/packages/agent", { "dependencies": { "@mariozechner/pi-agent-core": "0.73.1", "@mariozechner/pi-ai": "0.73.1", "@opentelemetry/api": "^1.9.0", "@platform/fence": "file:../fence" }, "devDependencies": { "esbuild": "^0.25.0", "typescript": "^5.7.2" } }],
 
