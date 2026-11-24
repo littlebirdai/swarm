@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { draftTextNodes } from "@codecast/shared/docs";
+import { draftTextNodes } from "@codecast/docs";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { packSnapshotContent } from "./docSnapshot";
@@ -369,7 +369,7 @@ export function markdownToDoc(text: string): DocNode {
     const pc: DocNode[] = [];
     paraLines.forEach((pl, idx) => {
       if (idx > 0) pc.push({ type: "hardBreak" });
-      // Drafting spans (@codecast/shared/docs drafting) open as live editor marks.
+      // Drafting spans (@codecast/docs drafting) open as live editor marks.
       pc.push(...draftTextNodes(pl));
     });
     if (pc.length > 0) content.push({ type: "paragraph", content: pc });

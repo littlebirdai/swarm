@@ -18,7 +18,7 @@ import {
   RETYPABLE_DOC_TYPES,
   DOC_TYPE_LABELS,
   docTypeLabel,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 import { docTypeStyle } from "../../../lib/docTypeStyle";
 import { DocumentDetailLayout } from "../../../components/DocumentDetailLayout";
 import { LiveArtifactPage } from "../../../components/live/LiveArtifactPage";

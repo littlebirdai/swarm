@@ -34,12 +34,12 @@ import {
   type AltOption,
   type LabResult,
   wordCount,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 
 // Drafting in the editor (after Jason Fried's Write_On): alternatives you
 // cycle in place, text ghosted back instead of deleted, and Lab findings.
 // The three are marks whose markdown is the shared drafting markup
-// (@codecast/shared/docs drafting), so the server's converters, `cast doc`
+// (@codecast/docs drafting), so the server's converters, `cast doc`
 // verbs and agents read and write exactly what the editor shows. Ghosts always
 // read dimmed; the alternatives' underline and dot pager and the Lab flags
 // show only while drafting is on (the doc page's toggle), so a doc reads as

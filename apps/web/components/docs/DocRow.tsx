@@ -3,7 +3,7 @@ import { Bot, Star } from "lucide-react";
 import { useInboxStore, type DocItem } from "../../store/inboxStore";
 import type { ItemRowState } from "../ListRowShell";
 import { DocDates } from "../DocDates";
-import { docOrigin, docTypeLabel } from "@codecast/shared/docs";
+import { docOrigin, docTypeLabel } from "@codecast/docs";
 import { DocTypeMark } from "./DocTypeMark";
 import { getLabelColor } from "../../lib/labelColors";
 import { useIsModernStyle } from "../../hooks/useVisualStyle";

@@ -4,15 +4,11 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import type { DocItem as DocItemType } from "@codecast/web/store/inboxStore";
 import { formatDateSmart, wasEdited } from "@codecast/time";
-import {
-  DOC_TYPES,
-  DOC_TYPE_LABELS,
-  type DocType,
-} from "@codecast/shared/docs";
+import { DOC_TYPES, DOC_TYPE_LABELS, type DocType } from "@codecast/docs";
 
 type IconName = React.ComponentProps<typeof FontAwesome>["name"];
 
-// Styling only; the type list and labels come from @codecast/shared/docs.
+// Styling only; the type list and labels come from @codecast/docs.
 // Typed by DocType so a type added there without a style here fails to compile.
 const DOC_TYPE_STYLE: Record<DocType, { icon: IconName; color: string }> = {
   note: { icon: "file-text-o", color: Theme.textMuted0 },

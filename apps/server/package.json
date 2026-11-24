@@ -13,6 +13,7 @@
     "@auth/core": "^0.37.2",
     "@codecast/analytics": "workspace:*",
     "@codecast/diff": "workspace:*",
+    "@codecast/docs": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",

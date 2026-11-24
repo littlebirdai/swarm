@@ -1,7 +1,7 @@
-import type { DocType } from "@codecast/shared/docs";
+import type { DocType } from "@codecast/docs";
 import { ChartColumn, Shapes, Table2, type LucideIcon } from "lucide-react";
 
-// Styling only; the type list and labels come from @codecast/shared/docs.
+// Styling only; the type list and labels come from @codecast/docs.
 // Typed by DocType so a type added there without a style here fails to compile.
 // Every surface that colors a doc by its type reads this map: the docs list
 // and its rows, the doc page and its type picker, a project's docs, and the

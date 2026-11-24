@@ -87,7 +87,7 @@ import {
   renderDocMentionExcerpt,
   setTitleHeading,
   withTitleHeading,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { conversationProjectRoot, knownCheckoutRoots } from "./projectPaths";
 import { refuseRoleCharterWrite } from "./lib/roleCharter";
@@ -405,7 +405,7 @@ async function buildWebDocList(
 }
 
 /**
- * A doc is one text and its title is its leading heading (@codecast/shared/docs).
+ * A doc is one text and its title is its leading heading (@codecast/docs).
  * The (title, content) pair to store for any text write, given the row as it
  * is now:
  * - a title edit rewrites the leading heading of the content;

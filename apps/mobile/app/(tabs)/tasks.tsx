@@ -40,7 +40,7 @@ import {
   compareDocsDefault,
   DOC_SHELF_FILTER_LABELS,
   type DocShelfFilter,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 import { useWorkspaceCollection } from "@codecast/web/hooks/useWorkspaceCollection";
 import { filterToWorkspace } from "@codecast/web/lib/workspaceScope";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";

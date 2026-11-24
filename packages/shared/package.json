@@ -158,8 +158,6 @@
     "./render/codeRuns": "./render/codeRuns.ts",
     "./tasks": "./tasks/index.ts",
     "./tasks/resumeSources": "./tasks/resumeSources.ts",
-    "./docs": "./docs/index.ts",
-    "./docs/drafting": "./docs/drafting.ts",
     "./artifacts": "./artifacts/index.ts",
     "./artifacts/board": "./artifacts/board.ts",
     "./artifacts/sheet": "./artifacts/sheet.ts",
@@ -185,6 +183,7 @@
     "./contracts/theme": "./contracts/theme.ts"
   },
   "dependencies": {
+    "@codecast/docs": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "css-tree": "3.2.1",

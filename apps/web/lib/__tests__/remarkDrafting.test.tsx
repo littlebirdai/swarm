@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import ReactMarkdown from "react-markdown";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MD_REMARK_PLUGINS } from "../markdownPlugins";
-import { addAlternatives, ghostText, flagText } from "@codecast/shared/docs";
+import { addAlternatives, ghostText, flagText } from "@codecast/docs";
 
 const render = (md: string) =>
   renderToStaticMarkup(

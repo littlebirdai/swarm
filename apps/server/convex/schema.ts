@@ -38,7 +38,7 @@ import {
 } from "@codecast/shared/tasks";
 import { taskWaitValidator } from "./lib/taskWaitValidator";
 import { messagingPolicyValidator } from "./lib/messagingPolicyValidator";
-import { DOC_TYPES } from "@codecast/shared/docs";
+import { DOC_TYPES } from "@codecast/docs";
 import { LINE_CATEGORIES } from "@codecast/shared/contracts/goalsBrief";
 import { proseAnchorValidator } from "./lib/proseAnchorValidator";
 import { chatRoundValidator } from "./lib/chatRoundValidator";
@@ -8959,7 +8959,7 @@ export default defineSchema(
       workspace: v.optional(v.string()),
       title: v.string(),
       content: v.string(),
-      // Derived from @codecast/shared/docs DOC_TYPES so the schema and every
+      // Derived from @codecast/docs DOC_TYPES so the schema and every
       // client's type list cannot drift.
       doc_type: v.union(...DOC_TYPES.map((t) => v.literal(t))),
 

@@ -9,7 +9,7 @@ import type { Node as PMNode } from "@tiptap/pm/model";
  * schema requires, so the title is never a separate field. Paste a page and
  * line one is the title; arrow up out of the body and you are in it. The
  * markdown that leaves the editor opens with `# Title`, which is what the
- * server reads the stored title from (@codecast/shared/docs).
+ * server reads the stored title from (@codecast/docs).
  *
  * Two pieces:
  * - `TitleFirstDocument` replaces StarterKit's top node with one whose content

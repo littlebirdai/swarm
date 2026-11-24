@@ -17,6 +17,7 @@
     "@codecast/analytics": "workspace:*",
     "@codecast/convex": "workspace:*",
     "@codecast/diff": "workspace:*",
+    "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",

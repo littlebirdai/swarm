@@ -14,7 +14,7 @@ import {
   DOC_TYPES,
   DOC_TYPE_LABELS,
   RETYPABLE_DOC_TYPES,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 
 // The one place status/priority/type vocabularies live. The command palette's
 // drill-in submenus and the right-click context menus both render from these

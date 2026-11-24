@@ -15,7 +15,7 @@ import {
   createChipClass,
 } from "./CreateDialog";
 import { DocEditor } from "./editor/DocEditor";
-import { RETYPABLE_DOC_TYPES, DOC_TYPE_LABELS } from "@codecast/shared/docs";
+import { RETYPABLE_DOC_TYPES, DOC_TYPE_LABELS } from "@codecast/docs";
 
 const FIDELITY_OPTIONS = [
   { value: "", label: "Auto (default)" },

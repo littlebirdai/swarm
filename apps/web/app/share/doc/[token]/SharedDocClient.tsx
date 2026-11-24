@@ -4,7 +4,7 @@
 // on wide screens, the doc's own timeline under it.
 import { useState, type ReactNode } from "react";
 import type { Components } from "react-markdown";
-import { docTypeLabel, stripTitleHeading } from "@codecast/shared/docs";
+import { docTypeLabel, stripTitleHeading } from "@codecast/docs";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { formatDateFull, formatDateSmart } from "@codecast/time";
 import { MarkdownBlocks } from "../../../../components/tools/MarkdownRenderer";

@@ -1,6 +1,6 @@
-import { CLOSE_TAG, parseOpenTag } from "@codecast/shared/docs";
+import { CLOSE_TAG, parseOpenTag } from "@codecast/docs";
 
-// Drafting markup (@codecast/shared/docs drafting) in read-only markdown.
+// Drafting markup (@codecast/docs drafting) in read-only markdown.
 // Without rehype-raw, react-markdown prints a raw <span> as literal text, so a
 // doc with alternatives or ghosts would read as tag soup in review mode, on a
 // share page or in an embed. Here each drafting span becomes what the reader

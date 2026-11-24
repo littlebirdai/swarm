@@ -28,6 +28,7 @@
         "@anthropic-ai/sdk": "^0.71.2",
         "@codecast/async": "workspace:*",
         "@codecast/diff": "workspace:*",
+        "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
@@ -91,6 +92,7 @@
         "@bacons/apple-targets": "5.0.0",
         "@codecast/analytics": "workspace:*",
         "@codecast/convex": "workspace:*",
+        "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -197,6 +199,7 @@
         "@auth/core": "^0.37.2",
         "@codecast/analytics": "workspace:*",
         "@codecast/diff": "workspace:*",
+        "@codecast/docs": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
@@ -243,6 +246,7 @@
         "@codecast/analytics": "workspace:*",
         "@codecast/convex": "workspace:*",
         "@codecast/diff": "workspace:*",
+        "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -408,6 +412,13 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/docs": {
+      "name": "@codecast/docs",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/edge-contract": {
       "name": "@codecast/edge-contract",
       "version": "0.0.1",
@@ -443,6 +454,7 @@
       "name": "@codecast/shared",
       "version": "0.0.1",
       "dependencies": {
+        "@codecast/docs": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@platform/agent": "file:../../platform/packages/agent",
@@ -834,6 +846,8 @@
     "@codecast/convex": ["@codecast/convex@workspace:apps/server"],
 
     "@codecast/diff": ["@codecast/diff@workspace:packages/diff"],
+
+    "@codecast/docs": ["@codecast/docs@workspace:packages/docs"],
 
     "@codecast/edge-contract": ["@codecast/edge-contract@workspace:packages/edge-contract"],
 

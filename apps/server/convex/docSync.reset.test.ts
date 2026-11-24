@@ -9,7 +9,7 @@ import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import { getSteps, latestVersion, submitSteps } from "./docSync";
 import { writeDocBody } from "./lib/docBody";
-import { DOC_REWRITTEN_ERROR } from "@codecast/shared/docs";
+import { DOC_REWRITTEN_ERROR } from "@codecast/docs";
 
 const OWNER = "u_owner";
 const DOC = "doc_1";

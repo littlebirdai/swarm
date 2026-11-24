@@ -12,7 +12,7 @@ import {
   renderDocMentionExcerpt,
   filterDocsByShelf,
   compareDocsDefault,
-} from "./index";
+} from "../src/index";
 
 describe("docOrigin", () => {
   test("only an explicit human stamp is human", () => {
@@ -88,7 +88,7 @@ describe("title = leading heading", () => {
     setTitleHeading,
     withTitleHeading,
     stripTitleHeading,
-  } = require("./index") as typeof import("./index");
+  } = require("../src/index") as typeof import("../src/index");
 
   test("leadingHeading reads only a heading that opens the body", () => {
     expect(leadingHeading("# Auth notes\n\nbody")).toBe("Auth notes");

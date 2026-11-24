@@ -47,7 +47,7 @@ import {
   type AgentPromptMode,
   parseExecutionAgentClientId,
 } from "@codecast/shared/contracts";
-import { splitFrontmatter } from "@codecast/shared/docs";
+import { splitFrontmatter } from "@codecast/docs";
 import { parseYamlSubset, toStringList } from "@codecast/shared/vault";
 
 function frontmatterRecord(front: string): Record<string, unknown> {

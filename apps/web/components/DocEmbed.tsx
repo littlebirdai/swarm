@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import { stripTitleHeading } from "@codecast/shared/docs";
+import { stripTitleHeading } from "@codecast/docs";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import Link from "next/link";

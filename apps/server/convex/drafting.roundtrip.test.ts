@@ -7,7 +7,7 @@ import {
   flagText,
   pickAlternative,
   describeDrafts,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 import { labPrompt, parseLabReply } from "./docLab";
 
 // Drafting markup (alternatives, ghosts, Lab flags) crosses both server

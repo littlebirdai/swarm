@@ -3,7 +3,7 @@
 // out for a pin row, its name, where it opens, and the context a pin's tile
 // acts through.
 import { createContext } from "react";
-import { DOC_TYPE_LABELS, type DocType } from "@codecast/shared/docs";
+import { DOC_TYPE_LABELS, type DocType } from "@codecast/docs";
 import type { StagePinRow } from "../../hooks/useStagePins";
 import type { StagePinShare } from "../../components/calls/stageHost";
 

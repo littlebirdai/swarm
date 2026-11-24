@@ -46,7 +46,7 @@ export function chatSendOrigin(env: NodeJS.ProcessEnv = process.env): {
 /**
  * The origin stamp a `cast doc|plan|task create` sends, and the conversation
  * it binds to. Origin decides whether the row lands on the human shelf or
- * board (@codecast/shared/docs, @codecast/shared/tasks), so it must say
+ * board (@codecast/docs, @codecast/shared/tasks), so it must say
  * "human" only on positive evidence that a person is at the keyboard.
  *
  * A detected session is agent work: the row binds to that conversation. With
