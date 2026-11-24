@@ -17,7 +17,7 @@ import {
   type WebDeps as PlatformWebDeps,
 } from "@platform/assistant/web";
 import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
-import { parseDecisionAnswer } from "@codecast/shared/contracts";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { CHEAP_MODEL, postMessages } from "../../lib/anthropic";
 import { fetchPublicPage } from "../../lib/publicFetch";
 import type { VendorGate } from "../../lib/vendorGuard";

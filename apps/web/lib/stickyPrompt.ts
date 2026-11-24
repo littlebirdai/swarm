@@ -19,7 +19,7 @@ import {
   vaultReadyName,
 } from "../components/sessionMessage";
 import { isTurnInterruptionNotice } from "@codecast/messages/machineMessages";
-import { parseDecisionAnswer } from "@codecast/shared/contracts";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { LRUCache } from "./lruCache";
 
 // A slash command ("/model opus") and `!` bash mode are the human talking to

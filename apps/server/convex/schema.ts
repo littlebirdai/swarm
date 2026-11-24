@@ -6347,7 +6347,7 @@ export default defineSchema(
       // the web renders it natively in place of a report. Validated on ask.
       card: v.optional(v.any()),
       // A command the asker wants a person to run (`cast decide --run`,
-      // shared/contracts/commandRun.ts): the card shows it, a person's Run
+      // decisions/src/commandRun.ts): the card shows it, a person's Run
       // executes it on the session's machine (daemon run_cast) and the result
       // comes back as the answer.
       run: v.optional(

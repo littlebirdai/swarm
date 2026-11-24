@@ -291,7 +291,7 @@ describe("command groups stay off the boot graph", () => {
       // 327 on 2026-10-26: jsonlGenerator.ts took only encodePiCwdSlug from
       // transcriptDirWatcher.ts, which carried recursiveWatcher.ts along; the pi
       // slug pair moved beside claudeProjectDirName in projectPathResolver.ts.
-      // 328 on 2026-10-26: the barrel's contracts/decisionAnswers.ts, split out of
+      // 328 on 2026-10-26: the barrel's packages/decisions/src/decisionAnswers.ts, split out of
       // packages/messages/src/machineMessages.ts for its max-lines pin. The same pass's other
       // splits went into files already here: the resume flag readers into
       // resumeCommand.ts, live process discovery into sessionProcessMatcher.ts.
@@ -416,7 +416,7 @@ describe("command groups stay off the boot graph", () => {
       // 4406; the watcher pair above leaving (-36) more than pays for them.
       // 4379 on 2026-10-26: the max-lines splits above moved code between files
       // already on this graph (resumeCommand.ts, sessionProcessMatcher.ts,
-      // contracts/decisionAnswers.ts), adding their headers and imports, and
+      // packages/decisions/src/decisionAnswers.ts), adding their headers and imports, and
       // ccAccounts.ts grew; still under the 4406 this pass started from.
       // 4380 on 2026-10-27: `cast workflow resume --current-flow` in index.ts
       // (+0.25), which moves a failed run onto its flow's current version.
@@ -698,7 +698,7 @@ describe("command groups stay off the boot graph", () => {
       // 516 on 2026-10-26: packages/sessions/src/deliveryFailed.ts, the row the daemon writes
       // when it stops delivering a message (a subpath import, off the barrel).
       // 518 on 2026-10-26, two splits for max-lines pins: tmuxPaneState.ts (the
-      // pane classifiers, out of daemon.ts) and contracts/decisionAnswers.ts (above).
+      // pane classifiers, out of daemon.ts) and packages/decisions/src/decisionAnswers.ts (above).
       // 519 on 2026-10-27: psTerminal.ts, the ps terminal tokens as a leaf. They
       // lived in resourceMonitor.ts, which processTable.ts reads at load time
       // through the cycle processTable -> resourceMonitor -> sessionProcessMatcher

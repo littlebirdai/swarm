@@ -27,7 +27,7 @@ import {
   DEAD_SESSION_REVIVES_PER_PASS,
 } from "../pendingMessages";
 import { finalizeAnswer } from "../sessionDecisions";
-import { decisionAnswerClientId } from "@codecast/shared/contracts";
+import { decisionAnswerClientId } from "@codecast/decisions/decisionAnswers";
 import { ROUTINE_SHOWS_UP } from "@codecast/hosted-assistant/assistant";
 import { ensureWallet, LEAK_GRACE_MS, reserve } from "../lib/wallet";
 import { allModules as modules, loadPiAi } from "../testModules.testkit";

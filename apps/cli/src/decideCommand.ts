@@ -35,7 +35,7 @@ import {
   RUN_OPTIONS,
   commandLine,
   parseRunCommand,
-} from "@codecast/shared/contracts/commandRun";
+} from "@codecast/decisions/commandRun";
 import { invalidImpact } from "@codecast/decisions/decisionImpact";
 import { invalidCategory } from "@codecast/decisions/decisionCategory";
 import * as fs from "fs";

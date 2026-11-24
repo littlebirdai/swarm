@@ -118,6 +118,7 @@
       "dependencies": {
         "@codecast/async": "workspace:*",
         "@codecast/changes": "workspace:*",
+        "@codecast/decisions": "workspace:*",
         "@codecast/entities": "workspace:*",
         "@codecast/evals-api": "workspace:*",
         "@codecast/fence": "workspace:*",
@@ -154,6 +155,7 @@
         "@codecast/chat": "workspace:*",
         "@codecast/convex": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
+        "@codecast/decisions": "workspace:*",
         "@codecast/deploys": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/entities": "workspace:*",
@@ -720,6 +722,11 @@
     "packages/decisions": {
       "name": "@codecast/decisions",
       "version": "0.0.1",
+      "dependencies": {
+        "@codecast/daemon": "workspace:*",
+        "@codecast/messages": "workspace:*",
+        "@codecast/secrets": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.3",
       },
@@ -1049,8 +1056,6 @@
         "@codecast/changes": "workspace:*",
         "@codecast/cloud-hosts": "workspace:*",
         "@codecast/connectors": "workspace:*",
-        "@codecast/daemon": "workspace:*",
-        "@codecast/decisions": "workspace:*",
         "@codecast/deploys": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/fence": "workspace:*",
@@ -1063,7 +1068,6 @@
         "@codecast/projects": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/replay": "workspace:*",
-        "@codecast/secrets": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",

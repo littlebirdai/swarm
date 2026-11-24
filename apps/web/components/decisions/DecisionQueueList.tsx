@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ShortId } from "../ShortId";
 import Link from "next/link";
 import { toast } from "sonner";
-import { decisionAnswerLabel } from "@codecast/shared/contracts";
+import { decisionAnswerLabel } from "@codecast/decisions/decisionAnswers";
 import {
   ChevronDown,
   ChevronRight,

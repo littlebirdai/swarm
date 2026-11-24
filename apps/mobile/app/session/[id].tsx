@@ -231,7 +231,7 @@ import {
 } from "@/components/hosted/ApprovalCard";
 import { DecisionCard } from "@/components/decisions/DecisionCard";
 import { PermissionRecordLine } from "@/components/decisions/PermissionRecord";
-import { permissionRecord } from "@codecast/shared/contracts/commandRun";
+import { permissionRecord } from "@codecast/decisions/commandRun";
 import { useRunningPermission } from "@codecast/web/hooks/useRunningPermission";
 import { ProposalBatchContext } from "@/components/org/ProposalCard";
 import { usePendingDecisionItems } from "@codecast/web/hooks/useDecisionQueue";
@@ -274,8 +274,8 @@ import {
 import {
   parseDecisionAnswer,
   DECISION_ANSWER_TAG_RE,
-  SAFETY_BLOCK_HINT,
-} from "@codecast/shared/contracts";
+} from "@codecast/decisions/decisionAnswers";
+import { SAFETY_BLOCK_HINT } from "@codecast/shared/contracts";
 import { type VaultReadyMessage } from "@codecast/secrets/vaultMessages";
 import {
   parseScheduledTask,

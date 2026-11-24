@@ -6,7 +6,7 @@
 import {
   decisionIdFromClientId,
   parseDecisionAnswer,
-} from "@codecast/shared/contracts";
+} from "@codecast/decisions/decisionAnswers";
 import type { QueryCtx } from "../functions";
 import type { Doc, Id } from "../_generated/dataModel";
 

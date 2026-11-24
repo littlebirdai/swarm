@@ -1,4 +1,4 @@
-import { isTaggedDecisionAnswer } from "@codecast/shared/contracts";
+import { isTaggedDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import type { Message } from "./useConversationMessages";
 
 /**

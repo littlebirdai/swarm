@@ -5,7 +5,7 @@ import {
   runThroughMessage,
   addToFlowsMessage,
 } from "../flowMessages";
-import { formatDecisionAnswer } from "@codecast/shared/contracts";
+import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 
 // A Ship press is a message to the session; whether its run started, is still to come, or will not come is read from
 // the session's messages after it (RunThroughFlow's chip and panel).

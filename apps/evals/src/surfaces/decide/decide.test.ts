@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatDecisionAnswer } from "../../../../../packages/shared/contracts/decisionAnswers";
+import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 
 import {
   answerIn,

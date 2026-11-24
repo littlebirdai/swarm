@@ -12,10 +12,10 @@ import {
 import { AGENT_SETUP_CONTINUE_MESSAGE } from "@codecast/capabilities/agentToolSetup";
 import {
   HUDDLE_FEED_DISREGARD,
-  formatDecisionAnswer,
   huddleFeedBriefing,
   transcriptChunkHeader,
 } from "@codecast/shared/contracts";
+import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import {
   formatScheduledTask,
   formatSessionMessage,

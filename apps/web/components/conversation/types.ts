@@ -1,6 +1,6 @@
 import type { GoalFrame } from "@codecast/messages/sessionGoal";
 import type { ThreadStateFields } from "@codecast/sessions/threadState";
-import type { DecisionAnswerMessage } from "@codecast/shared/contracts";
+import type { DecisionAnswerMessage } from "@codecast/decisions/decisionAnswers";
 import type { VaultReadyMessage } from "@codecast/secrets/vaultMessages";
 import type { SessionEscalationMessage } from "@codecast/messages/sessionEscalation";
 import type { SessionMessageIntent } from "@codecast/messages/machineMessages";

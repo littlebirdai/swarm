@@ -50,7 +50,7 @@ import { withCdpTunnel } from "../browser/remote.js";
 import { signInHost } from "../browser/siteGuard.js";
 import type { RemoteHost } from "../remote/session-move.js";
 import { isHttpOrigin } from "@codecast/cloud-hosts/cloudWorkspace";
-import { RUN_ON_LAPTOP, askToRun } from "@codecast/shared/contracts/commandRun";
+import { RUN_ON_LAPTOP, askToRun } from "@codecast/decisions/commandRun";
 
 // ---------------------------------------------------------------------------
 // The command's args

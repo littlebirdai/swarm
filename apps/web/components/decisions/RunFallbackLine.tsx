@@ -1,10 +1,7 @@
 // The terminal line of a permission ask (`cast decide --run`), drawn small at
 // the card's foot for whoever would rather type it. The transcript card and the
 // queue row both draw it.
-import {
-  fallbackLine,
-  type CommandRun,
-} from "@codecast/shared/contracts/commandRun";
+import { fallbackLine, type CommandRun } from "@codecast/decisions/commandRun";
 import { SquareTerminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 

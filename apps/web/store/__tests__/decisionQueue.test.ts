@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "bun:test";
-import { parseDecisionAnswer } from "@codecast/shared/contracts";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import {
   decisionQueueItems,
   findDecisionAnchorMessage,

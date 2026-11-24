@@ -5,7 +5,7 @@ import {
   formatDecisionAnswer,
   parseDecisionAnswer,
   pickAnsweredDecision,
-} from "./decisionAnswers";
+} from "../src/decisionAnswers";
 import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 
 // The answer to a `cast decide` question is one user message that both the

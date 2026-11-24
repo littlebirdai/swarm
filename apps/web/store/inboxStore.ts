@@ -4,7 +4,7 @@ import {
   requeueMigrationBatch,
 } from "./resourceOffloadActions";
 import { planSyncChange } from "@codecast/team/syncPlan";
-import { approvesCommandRun } from "@codecast/shared/contracts/commandRun";
+import { approvesCommandRun } from "@codecast/decisions/commandRun";
 import {
   GOAL_IDLE_LIMIT_MS,
   GOAL_MAX_ROUNDS,
@@ -246,7 +246,7 @@ import {
   formatDecisionAnswer,
   parseDecisionAnswer,
   decisionAnswerLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/decisions/decisionAnswers";
 import { advisoryAnswerOpen } from "@codecast/inbox/inboxMembership";
 import { isInboxRowField } from "@codecast/inbox/inboxFields";
 import { CONVERSATION_FIELD_TWINS } from "@codecast/sessions/conversationFields";
@@ -1962,7 +1962,7 @@ export type SessionDecisionItem = {
   /** A change card (the-line-end-to-end.md LE10) the decision is about. */
   card?: import("@codecast/shared/contracts/changeCard").ChangeCard;
   /** `cast decide --run`: the command the card runs on a person's Run, and how that went. */
-  run?: import("@codecast/shared/contracts/commandRun").CommandRun;
+  run?: import("@codecast/decisions/commandRun").CommandRun;
   blocking: boolean;
   default_option?: number;
   /** How much getting it answered matters, 1-5, as the asker judged it, and why (shared/contracts/decisionImpact.ts). */
