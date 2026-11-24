@@ -54,8 +54,8 @@ import {
   huddleVoiceAskHeader,
   huddleVoiceInstructions,
 } from "@codecast/shared/contracts";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
-import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
+import { characterOf } from "@codecast/org/sessionCharacter";
 import { spokenAgentLine } from "@codecast/shared/contracts/plainText";
 import { signLivekitJwt } from "./lib/livekitJwt";
 import { timingSafeEqualHex } from "./lib/hmac";

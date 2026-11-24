@@ -14,7 +14,7 @@ import { useWorkspaceFeature } from "../../lib/teamFeatures";
 import { useState } from "react";
 import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
-import { watchersLabel } from "@codecast/shared/contracts/orgLead";
+import { watchersLabel } from "@codecast/org/orgLead";
 import { useInboxStore } from "../../store/inboxStore";
 import { projectLeadScopeOutcome, windowOrgTree } from "../../store/orgSlice";
 import { cn } from "../../lib/utils";

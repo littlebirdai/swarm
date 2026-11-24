@@ -5,14 +5,14 @@
 // A scope is a set of projects and a set of plans. Scope is opt in
 // (org-staffing.md S26): empty sets name no area, and a role with no area owns
 // no work. Only the Head of People with no scope stands for the whole
-// workspace, and that rule lives in shared/contracts/orgLead.ts
+// workspace, and that rule lives in packages/org/src/orgLead.ts
 // (isWholeWorkspaceRole), never here: these functions read ids alone and say
 // nothing about who owns what. A plan belongs to a project (`plans.project_id`), so a plan is
 // inside a scope that names its project even when the plan itself is not
 // listed; `planProjectOf` carries that edge for every plan the caller touches.
 
 import { Id } from "../_generated/dataModel";
-import { keepsReportsInside } from "@codecast/shared/contracts/orgLead";
+import { keepsReportsInside } from "@codecast/org/orgLead";
 
 export type Scope = { project_ids: Id<"projects">[]; plan_ids: Id<"plans">[] };
 export type ScopeIds = { project_ids: string[]; plan_ids: string[] };

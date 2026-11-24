@@ -34,7 +34,7 @@
 // (convex/lib/identity runtimeToken). A frame that is only looked at (a
 // gallery preview, a past version) gets a watch token: it reads, and writes
 // nothing; the SDK follows the scope of the token it holds.
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
 import { runtimeTokenForSecret, type TokenScope } from "../convex/lib/identity";
 import type { ElementFields } from "../convex/lib/room";
 

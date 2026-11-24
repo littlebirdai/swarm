@@ -3,7 +3,7 @@
 // the face and the menu over these.
 import { useMemo } from "react";
 import { toast } from "sonner";
-import type { AssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
+import type { AssigneeInfo } from "@codecast/org/orgAssignee";
 import { useInboxStore } from "../../store/inboxStore";
 import { useRolesAndPeopleOptions } from "../../hooks/useRolesAndPeopleOptions";
 import { creditedTask } from "./issuesModel";

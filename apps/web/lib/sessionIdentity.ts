@@ -19,21 +19,21 @@ import {
   characterOf,
   defaultCharacterFor,
   type Character,
-} from "@codecast/shared/contracts/sessionCharacter";
+} from "@codecast/org/sessionCharacter";
 import {
   isAvatarKey,
   defaultAvatarFor,
   avatarOf,
   type AvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
+} from "@codecast/org/orgAvatars";
+import { roleIdentity } from "@codecast/org/orgIdentity";
 import {
   isRoleIcon,
   pickRoleIconAccent,
   roleMonogram,
   type RoleIcon,
   type RoleIconAccent,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 import type { SessionRoleSnapshot } from "../store/inboxStore";
 import { assistantLabel } from "./conversationBlockStyles";
 import { resolveShowCharacters } from "./uiPrefDefaults";

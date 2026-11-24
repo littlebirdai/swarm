@@ -28,7 +28,7 @@ import { HEAD_OF_PEOPLE_NAME } from "../org/orgStaffingTypes";
 import {
   EXECUTIVE_ASSISTANT_HANDLE,
   EXECUTIVE_ASSISTANT_NAME,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 import { RoleFace } from "../org/RoleFace";
 import type { HireAssistantResult } from "../../store/orgSlice";
 import {

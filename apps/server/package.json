@@ -32,6 +32,7 @@
     "@codecast/hash": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/network": "workspace:*",
+    "@codecast/org": "workspace:*",
     "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/provider-keys": "workspace:*",

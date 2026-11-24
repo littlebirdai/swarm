@@ -8,8 +8,8 @@ import {
   performViewerRoles,
 } from "./roleIcons";
 import { performCreateRole } from "./orgRoles";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 
 // Role icons (org-staffing.md S13): every write is valid geometry, a concept
 // no other live role in the boundary holds, and an accent.

@@ -10,7 +10,7 @@ import {
 } from "./CreateDialog";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { Bot, User, Search, Check, X } from "lucide-react";
-import type { AssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
+import type { AssigneeInfo } from "@codecast/org/orgAssignee";
 import { useRolesAndPeopleOptions } from "../hooks/useRolesAndPeopleOptions";
 import { AssigneeFace } from "./identity/AssigneeFace";
 

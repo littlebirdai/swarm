@@ -31,7 +31,7 @@ import {
   ORG_GOAL_KINDS,
   type OrgChangeKind,
 } from "@codecast/shared/contracts/orgProposal";
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import { byListOrder } from "../../lib/initiatives";
 import {
   countStates,

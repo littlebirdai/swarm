@@ -23,7 +23,7 @@ import { SelectBox } from "../ui/select-box";
 import { parentNodeId, parentRefOfNodeId } from "./orgLayout";
 import type { OrgTree } from "./orgTypes";
 import { OrgTemplateHire } from "./orgTemplateHire";
-import { AVATAR_KEYS, avatarOf } from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS, avatarOf } from "@codecast/org/orgAvatars";
 import {
   ORG_TENURE_THEN,
   seatSentence,

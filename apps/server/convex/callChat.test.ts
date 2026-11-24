@@ -12,7 +12,7 @@ import {
 import { setRoomTranscribeOff } from "./calls";
 import { syncAgentFeeds } from "./transcripts";
 import { makeFakeDb } from "./testDb";
-import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
+import { characterOf } from "@codecast/org/sessionCharacter";
 
 // A session fed a live huddle is a participant in the room's chat: what it
 // answers at the end of a turn shows up there, and what people type there

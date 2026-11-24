@@ -15,7 +15,7 @@ import {
   CHARACTER_NAME_MAX,
   characterNameFor,
   cleanCharacterName,
-} from "@codecast/shared/contracts/sessionCharacter";
+} from "@codecast/org/sessionCharacter";
 import {
   AVATAR_KEYS,
   AVATAR_LABELS,

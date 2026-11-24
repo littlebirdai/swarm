@@ -1,10 +1,7 @@
 // The 24 faces, from the web app's art (never copied), plus the URLs an app
 // gets in `init`. The app is a public https page, so Chrome refuses
 // http://localhost images there: a shell on http sends data: URLs instead.
-import {
-  AVATAR_KEYS,
-  type AvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS, type AvatarKey } from "@codecast/org/orgAvatars";
 import {
   AVATAR_LABELS,
   AVATAR_URLS,

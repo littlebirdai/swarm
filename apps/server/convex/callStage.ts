@@ -30,7 +30,7 @@ import { canAccessDoc } from "./lib/access";
 import { verifyApiToken } from "./apiTokens";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import { createDocAs } from "./docs";
-import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
+import { characterOf } from "@codecast/org/sessionCharacter";
 
 type PinRow = Doc<"call_stage_pins">;
 

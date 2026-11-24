@@ -11,7 +11,7 @@ import {
   ROLE_ICON_TILE,
   roleIconStroke,
   roleIconSvg,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 import { avatarLength } from "../../lib/orgAvatars";
 import type { RoleTile } from "../../lib/sessionIdentity";
 

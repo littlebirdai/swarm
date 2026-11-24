@@ -1,8 +1,5 @@
 import { useMemo } from "react";
-import {
-  projectLeadOf,
-  type ProjectLead,
-} from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf, type ProjectLead } from "@codecast/org/orgLead";
 import { useInboxStore, type ProjectItem } from "../store/inboxStore";
 import { useOrgRoles } from "./useOrgRoles";
 import type { OrgRole } from "../components/org/orgTypes";

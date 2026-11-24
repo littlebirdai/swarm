@@ -108,7 +108,7 @@ read as "simple, fast, fun, and real software", in that order.
 
 - On first visit: mint visitor id + secret, store in localStorage, register.
   Default character from `defaultCharacterFor(visitorId)`
-  (`packages/shared/contracts/sessionCharacter.ts`).
+  (`packages/org/src/sessionCharacter.ts`).
 - A small "you" chip opens a picker: choose any of the 24 animals and edit the
   name (`cleanCharacterName`). Names need not be unique; if two people in a
   room share a name, disambiguate visually with the face.
@@ -120,7 +120,7 @@ read as "simple, fast, fun, and real software", in that order.
 - `apps/playground`: Vite + React 19 app (the shell) and `convex/` (its own
   Convex deployment, project `codecast-playground`, dev deployment in
   `.env.local`). It is a workspace member and imports:
-  - `@codecast/shared/contracts/orgAvatars` and `sessionCharacter` for
+  - `@codecast/org/orgAvatars` and `sessionCharacter` for
     characters,
   - the avatar art (`apps/web/components/org/avatars/*.webp`) and the
     `RoleAvatar` component / `lib/orgAvatars.ts` pattern (import or a thin

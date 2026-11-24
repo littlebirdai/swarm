@@ -63,7 +63,7 @@ import {
   SESSION_ICON_RETRY_MS,
   isRoleIcon,
   roleMonogram,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { sessionPanePath, startPaneDrag } from "../../lib/stage";

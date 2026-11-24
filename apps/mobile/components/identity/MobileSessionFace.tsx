@@ -14,7 +14,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { AVATAR_LABELS, AVATAR_URLS } from "@codecast/web/lib/orgAvatars";
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
 import {
   faceBadgeSize,
   viewerFace,

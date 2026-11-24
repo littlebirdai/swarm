@@ -8,9 +8,9 @@ import { beforeAll, beforeEach, expect, mock, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import React from "react";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
+import { roleIdentity } from "@codecast/org/orgIdentity";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
 
 // Host components only: a face is a View, an Image, or a role's tile drawn
 // through SvgXml.
@@ -435,7 +435,7 @@ test("a stale role snapshot still draws the role's icon from the role rows", () 
 // the app root), the app's own modules and the shared packages, and nothing else.
 test("identity components bring no native library of their own", () => {
   const allowed =
-    /^(react|react-native|react-native-svg|@\/.+|@codecast\/(web|shared)\/.+|\.\/.+)$/;
+    /^(react|react-native|react-native-svg|@\/.+|@codecast\/(org|web|shared)\/.+|\.\/.+)$/;
   const offenders: string[] = [];
   for (const file of fs.readdirSync(import.meta.dir)) {
     if (!/\.tsx?$/.test(file) || /\.test\./.test(file)) continue;

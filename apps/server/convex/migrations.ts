@@ -13,7 +13,7 @@ import {
 import { performReparentSession } from "./sessionOwnership";
 import { rolesInBoundary } from "./lib/orgAccess";
 import { sessionWork } from "./lib/orgOwnership";
-import { ownsWork } from "@codecast/shared/contracts/orgLead";
+import { ownsWork } from "@codecast/org/orgLead";
 import { roleSubject, withOrgChange } from "./lib/orgChangeLog";
 import { isHandBriefing } from "./spawn";
 import { isOrphanOrSubagent } from "./inboxFilters";

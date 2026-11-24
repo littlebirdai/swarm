@@ -73,10 +73,7 @@ import {
 } from "@codecast/shared/contracts";
 import { isConvexId } from "../lib/entityLinks";
 import { activeWorkspaceKeyOf } from "../lib/workspaceScope";
-import {
-  leadScopeChange,
-  type LeadScopeChange,
-} from "@codecast/shared/contracts/orgLead";
+import { leadScopeChange, type LeadScopeChange } from "@codecast/org/orgLead";
 import type {
   OrgLogEntry,
   OrgLogRow,

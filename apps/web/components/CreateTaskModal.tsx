@@ -6,7 +6,7 @@ import { useImageUpload } from "../hooks/useImageUpload";
 import { useWorkspaceArgs } from "../hooks/useWorkspaceArgs";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { AssigneeSelect } from "./AssigneeSelect";
-import type { AssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
+import type { AssigneeInfo } from "@codecast/org/orgAssignee";
 import { Switch } from "./ui/switch";
 import {
   CreateDialog,

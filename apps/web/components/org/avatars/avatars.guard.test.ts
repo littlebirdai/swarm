@@ -1,11 +1,11 @@
 // The avatar set is a contract between two places: the key list in
-// shared/contracts/orgAvatars and the image files in this directory. This test
+// @codecast/org/orgAvatars and the image files in this directory. This test
 // keeps them agreeing: every key has a file and every file a key, and every
 // file is a real square WebP small enough to ship 24 of them.
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 
 const DIR = import.meta.dir;
 

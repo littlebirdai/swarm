@@ -8,10 +8,7 @@ import {
   rosterText,
   type RouterRoster,
 } from "../../../../../apps/server/convex/lib/orgRouter";
-import {
-  ownerOf,
-  type LeadRole,
-} from "../../../../../packages/shared/contracts/orgLead";
+import { ownerOf, type LeadRole } from "@codecast/org/orgLead";
 import { castJson } from "../../adapters/cast";
 import { apiConfig, toConvoMessages } from "../../adapters/convo";
 import { gate, type Captured, type SurfaceImpl } from "../../surface";

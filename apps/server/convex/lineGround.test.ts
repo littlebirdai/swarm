@@ -21,7 +21,7 @@ import {
   GROUND_PROJECT_FIELD,
   GROUND_PURPOSE,
 } from "@codecast/shared/contracts/goalsBrief";
-import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
+import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 import {
   admissionWait,
   LINE_RUNS_PER_RUNNER,

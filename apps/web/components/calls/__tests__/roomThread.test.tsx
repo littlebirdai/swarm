@@ -10,7 +10,7 @@
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
-import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
+import { characterOf } from "@codecast/org/sessionCharacter";
 import { clip } from "../roomThreadModel";
 import { fmtClock as fmtWallClock } from "../../triggerCadence";
 import { replaceGlobals } from "../../../test-helpers/globals";

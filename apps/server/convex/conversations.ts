@@ -72,7 +72,7 @@ import {
   forkSeedClientId,
 } from "@codecast/shared/contracts";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
-import { normalizeCharacterFields } from "@codecast/shared/contracts/sessionCharacter";
+import { normalizeCharacterFields } from "@codecast/org/sessionCharacter";
 import { isHotRow, splitRows } from "@codecast/shared/contracts/inboxSplit";
 import {
   computeBucketStale,

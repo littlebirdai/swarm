@@ -68,7 +68,7 @@ export const ORG_INIT_LABEL = "org-init";
 import {
   HEAD_OF_PEOPLE_HANDLE,
   isHeadOfPeopleRole,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 export { HEAD_OF_PEOPLE_HANDLE, isHeadOfPeopleRole };
 
 const TEAM_OPT = [

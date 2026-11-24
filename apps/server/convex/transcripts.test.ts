@@ -60,7 +60,7 @@ import {
   recordGolden,
   type GoldenCase,
 } from "./__golden__/golden.testkit";
-import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
+import { characterOf } from "@codecast/org/sessionCharacter";
 import { hashToken } from "./apiTokens";
 import { CALL_MEMBER_STALE_MS } from "@codecast/calls/callRoomKeys";
 import {

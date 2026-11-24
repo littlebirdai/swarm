@@ -1,0 +1,25 @@
+{
+  "name": "@codecast/org",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./orgAvatars": "./src/orgAvatars.ts",
+    "./roleIcon": "./src/roleIcon.ts",
+    "./roleIconExamples": "./src/roleIconExamples.ts",
+    "./sessionCharacter": "./src/sessionCharacter.ts",
+    "./orgAssignee": "./src/orgAssignee.ts",
+    "./orgLead": "./src/orgLead.ts",
+    "./orgIdentity": "./src/orgIdentity.ts",
+    "./orgRoute": "./src/orgRoute.ts",
+    "./executiveAssistantPrompt": "./src/executiveAssistantPrompt.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  }
+}

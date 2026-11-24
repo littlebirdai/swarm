@@ -4,7 +4,7 @@ import {
   avatarOf,
   defaultAvatarFor,
   isAvatarKey,
-} from "./orgAvatars";
+} from "../src/orgAvatars";
 
 describe("org avatars (org-staffing.md S13)", () => {
   test("24 distinct keys, and only those validate", () => {

@@ -8,7 +8,7 @@
 // for the zoom level, and their data is what GoalsNodeCards already draws.
 import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
 import { metricReadings } from "@codecast/shared/contracts/initiative";
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import {
   goalCloseExtra,
   goalFarHeight,

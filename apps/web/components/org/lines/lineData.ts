@@ -1,7 +1,7 @@
 // The facts a line reads, joined once (cohesive build spec §6). Pure, so the
 // company document's model, a sheet's Carried by and a hover card's summary
 // all count a project's work, its sessions and its lead by the same rule.
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import { projectTaskCounts } from "@codecast/shared/tasks";
 import type { BoardTask } from "../../../lib/initiatives";
 import { sessionsUnder, type GoalProject } from "../goalsLayout";

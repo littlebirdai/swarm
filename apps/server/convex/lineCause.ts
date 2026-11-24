@@ -17,7 +17,7 @@ import { createDataContext } from "./data";
 import { canAccessProject, canAccessTask } from "./lib/access";
 import { parseWorkspaceKey } from "./lib/accessKeys";
 import { allRolesInBoundary, userCanAccessRole } from "./lib/orgAccess";
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import { commitSignal, normalizeSignal } from "./signals";
 import { admitRoleRun, requeueForSweep, startLineRun } from "./orgLine";
 import { cancelCore, liveRunRefusal } from "./workflow_runs";

@@ -1,4 +1,4 @@
-import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
+import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 
 import { PROD_DEFAULT_MODEL } from "../../models";
 import {

@@ -1,7 +1,7 @@
 // Drawn role icons, exported from real roles (cast role ls --json). Each is the
 // validated shape list roleIconSvg draws; the page pairs them with its own
 // illustrative role titles.
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 
 export const ICONS = {
   "org chart": {

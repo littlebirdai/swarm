@@ -66,7 +66,7 @@ import {
   LEGACY_HEAD_OF_PEOPLE_HANDLE,
   isHeadOfPeopleRole,
   projectLeadOf,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 export { HEAD_OF_PEOPLE_HANDLE, isHeadOfPeopleRole };
 
 // A role ref from the CLI is "or-N" or a raw id; the web passes ids.
@@ -127,7 +127,7 @@ export async function rolesInBoundary(
 }
 
 /** Every role in the boundary, retired ones included: what the reporting
- *  chain is walked over (contracts/orgAssignee), since a retired role stays in
+ *  chain is walked over (@codecast/org/orgAssignee), since a retired role stays in
  *  the chain it reported to and what it still holds is read there. */
 export async function allRolesInBoundary(
   ctx: { db: any },

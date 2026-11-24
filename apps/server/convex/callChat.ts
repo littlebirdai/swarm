@@ -41,7 +41,7 @@ import {
   isRecRoomKey,
   isRoomlessKey,
 } from "@codecast/calls/callRoomKeys";
-import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
+import { characterOf } from "@codecast/org/sessionCharacter";
 import { authorizeRoom, canReadRoomlessCall } from "./callRooms";
 import { MAX_ATTACHMENTS } from "./chatText";
 import { chatAttachmentValidator } from "./lib/chatAttachment";

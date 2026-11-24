@@ -11,6 +11,7 @@
     "@codecast/changes": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/fence": "workspace:*",
+    "@codecast/org": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/ship": "workspace:*",

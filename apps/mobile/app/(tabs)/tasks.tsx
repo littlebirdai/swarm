@@ -47,7 +47,7 @@ import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
 import { useActiveTeam, useSwitchActiveTeam } from "@/hooks/useWorkspaceArgs";
 import { useOrgRoles } from "@codecast/web/hooks/useOrgRoles";
 import { resolveAssigneeInfo } from "@codecast/web/lib/liveEntities";
-import { sameAssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
+import { sameAssigneeInfo } from "@codecast/org/orgAssignee";
 import {
   TaskItemRow,
   STATUS_CONFIG,

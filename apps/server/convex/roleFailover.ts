@@ -21,7 +21,7 @@ import {
   deviceWakesOnUse,
   isReservedDevice,
 } from "@codecast/cloud-hosts/cloudPlacement";
-import { chainHeadOf } from "@codecast/shared/contracts/orgAssignee";
+import { chainHeadOf } from "@codecast/org/orgAssignee";
 import {
   ROLE_FAILOVER_QUIET_MS,
   moveBackRefusal,

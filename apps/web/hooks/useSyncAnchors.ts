@@ -4,8 +4,8 @@
 // entry, the inbox's marking, and chat's DM naming for personal bots. A row
 // is the seat of the workspace's root role (org-staffing.md S22): `role` is
 // that role's identity, and every surface draws the role, never the row.
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
-import type { AssistantReach } from "@codecast/shared/contracts/orgLead";
+import { roleIdentity } from "@codecast/org/orgIdentity";
+import type { AssistantReach } from "@codecast/org/orgLead";
 import { useMemo } from "react";
 import { registerKnownAgentMembers } from "../lib/chatViews";
 import { api as _api } from "@codecast/convex/convex/_generated/api";

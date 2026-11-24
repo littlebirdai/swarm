@@ -1,6 +1,6 @@
 import { ShortId } from "./ShortId";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
-import { characterNameFor } from "@codecast/shared/contracts/sessionCharacter";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
+import { characterNameFor } from "@codecast/org/sessionCharacter";
 import { AVATAR_LABELS } from "../lib/orgAvatars";
 import { RoleAvatar } from "./org/avatars";
 import { SessionGlyph, SessionIdentityLine } from "./identity";

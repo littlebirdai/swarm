@@ -48,7 +48,7 @@ import {
   taskHintBody,
   unclaimedLine,
 } from "./taskClaim.js";
-import { ASSIGNEE_MEANS } from "@codecast/shared/contracts/orgAssignee";
+import { ASSIGNEE_MEANS } from "@codecast/org/orgAssignee";
 import { usedOf } from "@codecast/shared/contracts/orgCapacity";
 import {
   chatSendOrigin,
@@ -19755,7 +19755,7 @@ roleGroup
   )
   .option(
     "--avatar <key>",
-    "A face from the set (see shared/contracts/orgAvatars); default: a stable one from the handle",
+    "A face from the set (see @codecast/org/orgAvatars); default: a stable one from the handle",
   )
   .option("--model <model>", "Model for the standing session")
   .option(

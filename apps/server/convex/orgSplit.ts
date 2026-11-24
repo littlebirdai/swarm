@@ -9,7 +9,7 @@
 import { mutation } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
+import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { requireRole } from "./lib/orgAccess";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import {

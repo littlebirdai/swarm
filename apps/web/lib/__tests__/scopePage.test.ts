@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { WorkState } from "@codecast/sessions/workState";
-import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
+import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 import {
   HAND_GROUPS,
   boundTaskOf,

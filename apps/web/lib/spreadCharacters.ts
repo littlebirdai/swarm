@@ -1,8 +1,5 @@
-import {
-  AVATAR_KEYS,
-  type AvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
-import { characterNameFor } from "@codecast/shared/contracts/sessionCharacter";
+import { AVATAR_KEYS, type AvatarKey } from "@codecast/org/orgAvatars";
+import { characterNameFor } from "@codecast/org/sessionCharacter";
 
 /** A distinct face each: walk the key list from the picked face so a squad of
  *  N gets N different animals, and give each row that face's own name. */

@@ -32,7 +32,7 @@ import { CHEAP_MODEL } from "./lib/anthropic";
 import { syncDecisionInbox } from "./lib/decisionInbox";
 import { withdrawCore } from "./sessionDecisions";
 import { allRolesInBoundary } from "./lib/orgAccess";
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import {
   AREAS_CARD_LEAVE,
   AREAS_CARD_QUESTION,

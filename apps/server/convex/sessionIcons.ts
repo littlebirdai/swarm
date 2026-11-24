@@ -25,8 +25,8 @@ import {
   SESSION_ICON_RETRY_MS,
   isRoleIcon,
   pickRoleIconAccent,
-} from "@codecast/shared/contracts/roleIcon";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
+} from "@codecast/org/roleIcon";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
 import { deploymentAsk, performViewerRoles } from "./roleIcons";
 
 type Ctx = { db: any; scheduler: any };

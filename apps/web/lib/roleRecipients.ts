@@ -2,8 +2,8 @@
 // (docs/architecture/org-roles-standing.md T6): the role's one line (face,
 // name, title, area), who it answers to, and the standing session that takes
 // the request. Reads the roles the org tree already holds; the identity words
-// come from the one reader every surface uses (shared/contracts/orgIdentity).
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
+// come from the one reader every surface uses (@codecast/org/orgIdentity).
+import { roleIdentity } from "@codecast/org/orgIdentity";
 import type { OrgRole } from "../components/org/orgTypes";
 import type { OptimisticImage } from "../store/inboxStore";
 

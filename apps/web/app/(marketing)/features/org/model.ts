@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 import { SOL } from "../../blog/blogChrome";
 import { ICONS, type IconKey } from "./icons";
 

@@ -7,7 +7,7 @@
 // a looking-only page whose writes stay quiet for the app.
 //
 //   bun scripts/verify-sdk.ts   exit 1 on any failure
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { MAX_DATA_DOC_BYTES } from "../convex/lib/limits";

@@ -19,7 +19,7 @@ import {
   type FunctionReference,
   type FunctionReturnType,
 } from "convex/server";
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
 import { api } from "../convex/_generated/api";
 import { matchesWhere, type Where } from "../convex/lib/appData";
 import type { PlaygroundErrorData } from "../convex/lib/errors";

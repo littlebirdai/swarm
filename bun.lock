@@ -49,6 +49,7 @@
         "@codecast/memory": "workspace:*",
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
+        "@codecast/org": "workspace:*",
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
@@ -104,6 +105,7 @@
         "@codecast/changes": "workspace:*",
         "@codecast/evals-api": "workspace:*",
         "@codecast/fence": "workspace:*",
+        "@codecast/org": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -135,6 +137,7 @@
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/network": "workspace:*",
+        "@codecast/org": "workspace:*",
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
@@ -219,6 +222,7 @@
     "apps/playground": {
       "name": "@codecast/playground",
       "dependencies": {
+        "@codecast/org": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@mariozechner/pi-ai": "0.73.1",
         "@platform/agent": "file:../../platform/packages/agent",
@@ -265,6 +269,7 @@
         "@codecast/hash": "workspace:*",
         "@codecast/keyboard": "workspace:*",
         "@codecast/network": "workspace:*",
+        "@codecast/org": "workspace:*",
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
@@ -344,6 +349,7 @@
         "@codecast/keyboard": "workspace:*",
         "@codecast/memory": "workspace:*",
         "@codecast/network": "workspace:*",
+        "@codecast/org": "workspace:*",
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
@@ -728,6 +734,13 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/org": {
+      "name": "@codecast/org",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/pages": {
       "name": "@codecast/pages",
       "version": "0.0.1",
@@ -799,6 +812,7 @@
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/network": "workspace:*",
+        "@codecast/org": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
@@ -1279,6 +1293,8 @@
     "@codecast/mods": ["@codecast/mods@workspace:packages/mods"],
 
     "@codecast/network": ["@codecast/network@workspace:packages/network"],
+
+    "@codecast/org": ["@codecast/org@workspace:packages/org"],
 
     "@codecast/pages": ["@codecast/pages@workspace:packages/pages"],
 

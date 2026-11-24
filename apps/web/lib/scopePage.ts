@@ -2,7 +2,7 @@
 // F3): a standing agent's state in role words, the colour a feed row's state
 // earns, which feed links the SPA does not own, and which scope a role's
 // queries read. Kept out of the components so they test without React.
-import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
+import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import type { WorkState } from "@codecast/sessions/workState";
 import type { InitiativeHealth } from "@codecast/shared/contracts/initiative";
 import { isNonTabRoute } from "./tabRoutes";
