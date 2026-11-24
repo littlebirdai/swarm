@@ -22,7 +22,7 @@
  *  - Sessions sharing one working tree push the tree once per host.
  */
 
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 import { MID_TURN_AGENT_STATUSES } from "@codecast/shared/contracts";
 import type { MoveRehearsal } from "@codecast/shared/contracts/moveRehearsal";
 

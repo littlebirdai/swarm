@@ -9,7 +9,7 @@ import {
 import { basename, join } from "node:path";
 
 import type { Command } from "commander";
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 import type { CheckResult, Score } from "@platform/evals";
 import { renderScore } from "@platform/evals/render";
 import { renderOpts } from "@platform/cli-kit/render";

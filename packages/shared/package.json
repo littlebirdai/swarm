@@ -182,7 +182,6 @@
     "./ratchet": "./ratchet/index.ts",
     "./agents": "./agents/index.ts",
     "./search": "./search/index.ts",
-    "./async": "./async/index.ts",
     "./changes": "./changes/index.ts",
     "./contracts/mods": "./contracts/mods.ts",
     "./contracts/internalHost": "./contracts/internalHost.ts",

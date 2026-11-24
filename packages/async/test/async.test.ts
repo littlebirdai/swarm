@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { mapLimit } from "./index";
+import { mapLimit } from "../src/index";
 
 describe("mapLimit", () => {
   test("keeps input order and never runs more than the limit at once", async () => {

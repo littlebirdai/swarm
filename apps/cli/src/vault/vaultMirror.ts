@@ -29,7 +29,7 @@ import * as path from "path";
 import { CachedJsonStore } from "../cachedJsonStore.js";
 import { chunkMessagesBySize } from "../syncService.js";
 import { cliFetch } from "../cliHttp.js";
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 import { parseNote } from "@codecast/shared/vault";
 import { registeredVaults } from "./vaultRegistry.js";
 import {
