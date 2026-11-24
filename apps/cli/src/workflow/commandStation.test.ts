@@ -304,23 +304,31 @@ exec ${shellQuote(Bun.which("ps")!)} "$@"
         stdout: "ignore",
         stderr: "ignore",
       });
-      strays.push(proc.pid);
-      const row = snapshotProcessTable().find((p) => p.pid === proc.pid)!;
-      expect(row.pgid === row.pid).toBe(detached);
-      const killIfSame = (identity: string) =>
-        Bun.spawnSync(
-          ["sh", "-c", KILL_IF_SAME, "sh", "0", String(proc.pid), identity],
-          { env: { ...process.env, LANG: "C", LC_ALL: "C" } },
-        );
-      const oldGroup = Number(row.pgid) + 1;
-      killIfSame(`${detached ? oldGroup : row.pgid} Thu Jan 1 00:00:00 1970`);
-      expect(alive(proc.pid)).toBe(true);
-      if (!detached) {
-        killIfSame(`${oldGroup} ${row.startedAt}`);
-        expect(alive(proc.pid)).toBe(true);
+      try {
+        const row = snapshotProcessTable().find((p) => p.pid === proc.pid)!;
+        expect(row.pgid === row.pid).toBe(detached);
+        const killIfSame = (identity: string) =>
+          Bun.spawnSync(
+            ["sh", "-c", KILL_IF_SAME, "sh", "0", String(proc.pid), identity],
+            { env: { ...process.env, LANG: "C", LC_ALL: "C" } },
+          );
+        const survivors = async () => {
+          const pids = await stillRunning([proc.pid]);
+          return proc.signalCode === null ? pids : [];
+        };
+        const oldGroup = Number(row.pgid) + 1;
+        killIfSame(`${detached ? oldGroup : row.pgid} Thu Jan 1 00:00:00 1970`);
+        expect(await survivors()).toEqual([proc.pid]);
+        if (!detached) {
+          killIfSame(`${oldGroup} ${row.startedAt}`);
+          expect(await survivors()).toEqual([proc.pid]);
+        }
+        killIfSame(`${detached ? oldGroup : row.pgid} ${row.startedAt}`);
+        expect(await proc.exited).toBe(137);
+      } finally {
+        proc.kill("SIGKILL");
+        await proc.exited;
       }
-      killIfSame(`${detached ? oldGroup : row.pgid} ${row.startedAt}`);
-      expect(await proc.exited).toBe(137);
     },
   );
 
