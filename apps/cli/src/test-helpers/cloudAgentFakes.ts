@@ -7,7 +7,7 @@ import * as path from "path";
 import {
   CLOUD_AGENT_PROVIDERS,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { CloudApiError } from "../cloudAgents/http.js";
 import { MirrorTranscript } from "../cloudAgents/transcript.js";
 import {

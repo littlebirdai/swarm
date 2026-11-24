@@ -5,17 +5,15 @@ import { mutation, query, internalQuery } from "./functions";
 import { selfUpdateBlocked } from "./lib/deviceUpdate";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type {
-  AgentClientId,
-  AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
+import type { AgentDefinitionSpec } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/shared/contracts";
 import {
-  isClosedSession,
   cloudAgentProviderOfSession,
   isCloudAgentActionName,
   isCloudAgentLoginState,
   type CloudAgentLoginStateName,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import {
   settingsAfterSnippet,
   stableModeOf,
@@ -61,6 +59,8 @@ import { navPromptField } from "./userMessagesFilter";
 import {
   localAgentTypeOf,
   findModelOption,
+} from "@codecast/agent-clients/agentClients";
+import {
   deviceDisplayName,
   formatMachineSwitchNotice,
   type DeviceNameSource,

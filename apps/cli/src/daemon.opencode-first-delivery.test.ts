@@ -9,7 +9,7 @@ import {
   classifyLivePaneFor,
   classifyTmuxLiveState,
 } from "./tmuxPaneState.js";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 
 // Real settled opencode 1.18.3 TUI (captured from a live pane, whitespace trimmed
 // for readability). No ❯/› glyph anywhere — readiness is the footer `ctrl+p

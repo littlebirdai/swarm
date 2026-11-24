@@ -5,7 +5,7 @@
 // that step's decisions; each cites the expectation it breaks and files as a
 // finding (a signal) carrying the judge's name and version and the moment.
 
-import { CHEAP_MODEL } from "./modelOptions";
+import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import {
   MOMENT_KIND,
   UNDER_JUDGMENT,

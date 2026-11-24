@@ -1,4 +1,4 @@
-import { LOCAL_AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { LOCAL_AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 
 /** Every agent CLI the daemon launches in a pane: a dormant one waits on its
  *  person and must not hold the host awake. */

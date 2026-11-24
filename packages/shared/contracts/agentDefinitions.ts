@@ -20,7 +20,7 @@ import {
   findModelOption,
   modelAgentKey,
   type AgentClientId,
-} from "./agentClients";
+} from "@codecast/agent-clients/agentClients";
 
 export const AGENT_DEFINITION_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const MAX_AGENT_DEFINITION_NAME = 40;

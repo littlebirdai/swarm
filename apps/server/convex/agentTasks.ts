@@ -44,8 +44,8 @@ import {
   getCloudWakeHostForConversation,
 } from "./cloudWake";
 import { enqueuePendingMessage, reachableRole } from "./pendingMessages";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
-  isHostedAgentType,
   normalizeThreadState,
   runOwnerWakeOf,
   runParentOf,

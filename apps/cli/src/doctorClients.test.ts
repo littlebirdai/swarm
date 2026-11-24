@@ -10,7 +10,7 @@ import { describe, expect, test } from "bun:test";
 import {
   LOCAL_AGENT_CLIENTS,
   type LocalAgentClientId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { parseTranscriptFor } from "./parser.js";
 import {
   clientFixture,

@@ -27,7 +27,7 @@ import {
 } from "./transcriptDirWatcher.js";
 import { getPosition, setPosition } from "./positionTracker.js";
 import { OPENCODE_SESSION_ID_RE } from "./resumeCommand.js";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import { rebindingStore } from "./cachedJsonStore.js";
 import { codecastPath } from "./codecastDir.js";
 import {

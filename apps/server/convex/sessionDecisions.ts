@@ -31,8 +31,8 @@ import {
   formatDecisionAnswer,
   decisionAnswerClientId,
   advisoryAnswerOpen,
-  isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { Doc, Id } from "./_generated/dataModel";
 import { emitNotification } from "./notificationRouter";
 import { nextShortId } from "./counters";

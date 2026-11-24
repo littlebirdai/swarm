@@ -138,9 +138,6 @@ import {
   snippetSection,
   type SnippetSection,
   allSnippetSlugs,
-  fromConvexAgentType,
-  toConvexAgentType,
-  LOCAL_AGENT_CLIENTS,
   type VaultInfo,
   callLinkHow,
   callAnchorHref,
@@ -151,6 +148,11 @@ import {
   fenceForeignText,
   FOREIGN_TEXT_CAPS,
 } from "@codecast/fence/fence";
+import {
+  fromConvexAgentType,
+  toConvexAgentType,
+  LOCAL_AGENT_CLIENTS,
+} from "@codecast/agent-clients/agentClients";
 import { callDisplayTitle, callLength } from "@codecast/calls/callRoomKeys";
 import { segmentAt } from "@codecast/calls/callRecordings";
 import { normalizeGuestName } from "@codecast/calls/callGuests";
@@ -267,7 +269,8 @@ import {
   triggerPrecheckMode,
   type TriggerPrecheckMode,
 } from "@codecast/triggers/triggerPrecheck";
-import { agentDisplayName, CHEAP_MODEL } from "@codecast/shared/contracts";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
+import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import { normalizeSubagentCaps } from "@codecast/agent-clients/subagentFleet";
 /** Parallel agents for plan orchestrate and autopilot when no --max is given and no subagent cap is configured (0 = no limit is not a wave size). */
 const ORCHESTRATE_DEFAULT_MAX = 3;

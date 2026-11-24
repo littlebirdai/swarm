@@ -3,7 +3,7 @@
 //
 // - The builder (builder/run.ts): Clay, the agent that changes an app.
 // - Triage (builder/triage.ts): whether an Auto message asks for a change.
-import { CHEAP_MODEL } from "@codecast/shared/contracts/modelOptions";
+import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import { ENTRY_PATH } from "./lib/files";
 import { SDK_DOCS, esmUrl } from "./lib/runtime";
 import { oneLine } from "./lib/text";

@@ -28,10 +28,12 @@ import {
   LOCAL_AGENT_CLIENTS,
   AGENT_MODEL_CONFIG,
   parseExecutionAgentClientId,
+  type AgentClientId,
+} from "@codecast/agent-clients/agentClients";
+import {
   renderChainStepPrompt,
   resolveAgentLaunch,
   type AgentChainSpec,
-  type AgentClientId,
   type AgentDefinitionSpec,
 } from "@codecast/shared/contracts";
 import { readSharedConfig } from "./config/sharedConfig.js";

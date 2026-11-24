@@ -59,10 +59,10 @@ import { visitScan, scanCanFallback } from "../workers/scanClient.js";
 import {
   AGENT_CLIENTS,
   LOCAL_AGENT_CLIENTS,
-  SNIPPET_CATALOG,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
 import { observedScopeRank } from "@codecast/capabilities/capabilities";
-import type { AgentClientId } from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 
 // Both of these are the shared contract's, re-exported so this module's existing
 // importers keep their path. They were declared here as narrower copies, and the

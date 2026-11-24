@@ -14,7 +14,7 @@ Last checked: 2026-11-14.
 
 ## Agents it works with
 
-Source: `packages/shared/contracts/agentClients.ts` (`AGENT_CLIENTS`).
+Source: `packages/agent-clients/src/agentClients.ts` (`AGENT_CLIENTS`).
 
 - Claude Code, Codex, Cursor, Gemini, OpenCode, pi and Grok Build (the support page and changelog list these).
 - Muse Code works in the app but has not been announced: leave it out of public copy until the changelog names it.

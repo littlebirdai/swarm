@@ -8,7 +8,7 @@ import { isMachineDeliveredMessage } from "../../../packages/shared/contracts/ma
 import {
   AGENT_CLIENTS,
   localAgentClient,
-} from "../../../packages/shared/contracts/agentClients";
+} from "@codecast/agent-clients/agentClients";
 import { authorizesTeardown } from "@codecast/sessions/liveness";
 import {
   isClaudeAutoContinueLine,

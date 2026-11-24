@@ -29,7 +29,10 @@ import {
 } from "./tmuxPane.js";
 import { randomUUID } from "node:crypto";
 import { Database } from "bun:sqlite";
-import { AGENT_CLIENTS, type AgentClientId } from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  type AgentClientId,
+} from "@codecast/agent-clients/agentClients";
 import {
   writeShimScript,
   cleanupShimScript,

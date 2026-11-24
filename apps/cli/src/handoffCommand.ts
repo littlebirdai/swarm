@@ -10,9 +10,9 @@ import {
   InvalidExecutionAgentTypeError,
   parseExecutionAgentClientId,
   toConvexAgentType,
-  describeAgentRun,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { describeAgentRun } from "@codecast/shared/contracts";
 
 export interface HandoffFlags {
   to?: string;

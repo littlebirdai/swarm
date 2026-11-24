@@ -5,7 +5,7 @@
 // whose page and social image draw the same stats. Pure, so the week math is
 // tested without a database.
 import { wallClock, wallTimeIn } from "@codecast/time";
-import { agentDisplayName } from "./agentClients";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;

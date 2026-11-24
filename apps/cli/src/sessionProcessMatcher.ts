@@ -1,5 +1,5 @@
-import type { AgentClientId } from "@codecast/shared/contracts";
-import { LOCAL_AGENT_CLIENTS } from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
+import { LOCAL_AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";

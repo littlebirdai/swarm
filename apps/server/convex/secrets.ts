@@ -90,8 +90,8 @@ import {
 import {
   formatVaultDeclined,
   formatVaultReady,
-  isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 
 type SecretRow = Doc<"secrets">;

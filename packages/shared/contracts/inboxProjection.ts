@@ -21,7 +21,7 @@ import {
   type LoopState,
 } from "@codecast/sessions/loopState";
 import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
-import { isHostedAgentType } from "./agentClients";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { WorkState } from "@codecast/sessions/workState";
 import {
   isNoiseTitle,

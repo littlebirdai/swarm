@@ -16,7 +16,7 @@
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as path from "path";
-import { isCloudAgentId } from "@codecast/shared/contracts";
+import { isCloudAgentId } from "@codecast/agent-clients/cloudAgents";
 import { atomicWriteFile } from "../atomicWrite.js";
 import { githubRepo } from "../cloud/gitOrigin.js";
 import { codecastPath } from "../codecastDir.js";

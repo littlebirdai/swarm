@@ -9,7 +9,7 @@ import {
   AGENT_CLIENTS,
   type AgentClientId,
   localAgentClient,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import * as fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as os from "node:os";

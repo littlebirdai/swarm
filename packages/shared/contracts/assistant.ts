@@ -10,7 +10,7 @@ import {
   type PlanCatalog,
   type PlanSpec as PlatformPlanSpec,
 } from "@platform/assistant/plans";
-import { CHEAP_MODEL } from "./modelOptions";
+import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import { APPROVAL_ANSWERS } from "@codecast/decisions/approvalAnswers";
 
 /** `conversations.agent_type` of a hosted conversation: a Convex action runs

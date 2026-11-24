@@ -12,7 +12,10 @@ import { RecursiveWatcher } from "./recursiveWatcher.js";
 import { antigravitySessionIdFromPath } from "./antigravityPaths.js";
 import { dirFilterByDepth, type WalkFile } from "./fsWalk.js";
 import { CLAUDE_UUID_RE } from "./resumeCommand.js";
-import { AGENT_CLIENTS, type AgentClientId } from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  type AgentClientId,
+} from "@codecast/agent-clients/agentClients";
 
 export interface TranscriptDirEvent {
   sessionId: string;

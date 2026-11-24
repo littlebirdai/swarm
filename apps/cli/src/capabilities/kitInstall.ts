@@ -18,7 +18,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { localAgentClient } from "@codecast/shared/contracts";
+import { localAgentClient } from "@codecast/agent-clients/agentClients";
 import { atomicWriteFile } from "../atomicWrite.js";
 import {
   allowedRoots,

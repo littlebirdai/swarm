@@ -1,7 +1,7 @@
 import { writeHarnessFile } from "./harness.js";
 import * as fs from "fs";
 import * as path from "path";
-import { findModelOption } from "@codecast/shared/contracts";
+import { findModelOption } from "@codecast/agent-clients/agentClients";
 
 // Keeps the `model` key of ~/.claude/settings.json in step with the user's
 // codecast default for claude (users.default_models.claude, delivered on every

@@ -10,7 +10,7 @@
 // askCore calls routeByArea once; the owner it names becomes the decision's
 // one person asked, and is told through noticeAreaOwner.
 import type { Doc, Id } from "./_generated/dataModel";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   areaPool,
   pickAreaOwner,

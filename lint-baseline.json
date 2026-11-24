@@ -28501,14 +28501,29 @@
   "infra/replay-player/src/worker.ts": {
     "swarm/no-comments": 51
   },
+  "packages/agent-clients/src/agentClients.ts": {
+    "swarm/no-comments": 467
+  },
+  "packages/agent-clients/src/agentPins.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/agent-clients/src/antigravityClient.ts": {
+    "swarm/no-comments": 42
+  },
   "packages/agent-clients/src/claudeBackend.ts": {
     "swarm/no-comments": 6
+  },
+  "packages/agent-clients/src/cloudAgents.ts": {
+    "swarm/no-comments": 97
   },
   "packages/agent-clients/src/cloudSessionSync.ts": {
     "swarm/no-comments": 3
   },
   "packages/agent-clients/src/harnessHooks.ts": {
     "swarm/no-comments": 28
+  },
+  "packages/agent-clients/src/modelOptions.ts": {
+    "swarm/no-comments": 113
   },
   "packages/agent-clients/src/slashCommand.ts": {
     "swarm/no-comments": 10
@@ -28519,8 +28534,17 @@
   "packages/agent-clients/src/testArtifacts.ts": {
     "swarm/no-comments": 17
   },
+  "packages/agent-clients/test/agentClients.test.ts": {
+    "swarm/no-comments": 88
+  },
+  "packages/agent-clients/test/cloudAgents.test.ts": {
+    "swarm/no-comments": 15
+  },
   "packages/agent-clients/test/harnessHooks.test.ts": {
     "swarm/no-comments": 2
+  },
+  "packages/agent-clients/test/modelOptions.test.ts": {
+    "swarm/no-comments": 28
   },
   "packages/agents/src/index.ts": {
     "swarm/no-comments": 41
@@ -29353,26 +29377,14 @@
   "packages/shared/contracts/__fixtures__/teamWorldGen.ts": {
     "swarm/no-comments": 21
   },
-  "packages/shared/contracts/agentClients.test.ts": {
-    "swarm/no-comments": 88
-  },
-  "packages/shared/contracts/agentClients.ts": {
-    "swarm/no-comments": 467
-  },
   "packages/shared/contracts/agentDefinitions.ts": {
     "swarm/no-comments": 48
   },
   "packages/shared/contracts/agentJudges.ts": {
     "swarm/no-comments": 34
   },
-  "packages/shared/contracts/agentPins.ts": {
-    "swarm/no-comments": 7
-  },
   "packages/shared/contracts/agentSwitch.ts": {
     "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/antigravityClient.ts": {
-    "swarm/no-comments": 42
   },
   "packages/shared/contracts/apiErrorBanner.autoContinue.test.ts": {
     "swarm/no-comments": 4
@@ -29454,12 +29466,6 @@
   },
   "packages/shared/contracts/closedSession.ts": {
     "swarm/no-comments": 30
-  },
-  "packages/shared/contracts/cloudAgents.test.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/cloudAgents.ts": {
-    "swarm/no-comments": 97
   },
   "packages/shared/contracts/codecastConfig.ts": {
     "swarm/no-comments": 32
@@ -29721,12 +29727,6 @@
   },
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/modelOptions.test.ts": {
-    "swarm/no-comments": 28
-  },
-  "packages/shared/contracts/modelOptions.ts": {
-    "swarm/no-comments": 114
   },
   "packages/shared/contracts/mods.ts": {
     "swarm/no-comments": 60

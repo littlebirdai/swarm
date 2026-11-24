@@ -742,6 +742,9 @@ apps/web/store/undo/policies/work.ts 1500
 apps/web/store/vaultStore.ts 1650
 apps/web/tours/guides/flowsGuide.tsx 1300
 apps/web/tours/guides/orgGuide.tsx 1600
+packages/agent-clients/src/agentClients.ts 1650
+packages/agent-clients/src/cloudAgents.ts 900
+packages/agent-clients/test/agentClients.test.ts 850
 packages/artifacts/src/boardGeometry.ts 1250
 packages/artifacts/src/boardLayout.ts 950
 packages/artifacts/src/boardVerbs.ts 850
@@ -766,13 +769,10 @@ packages/mods/src/authoring.d.ts 900
 packages/policy/src/permissionRules.ts 900
 packages/render/src/toolCall.ts 1350
 packages/render/test/render.test.ts 850
-packages/shared/contracts/agentClients.test.ts 850
-packages/shared/contracts/agentClients.ts 1650
 packages/shared/contracts/appConnector.ts 1000
 packages/shared/contracts/capabilityResolver.test.ts 1100
 packages/shared/contracts/causeHistory.ts 1400
 packages/shared/contracts/changeCard.ts 1350
-packages/shared/contracts/cloudAgents.ts 900
 packages/shared/contracts/envs.ts 900
 packages/shared/contracts/expectations.test.ts 850
 packages/shared/contracts/expectations.ts 900

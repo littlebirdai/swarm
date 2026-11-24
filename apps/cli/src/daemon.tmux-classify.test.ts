@@ -29,7 +29,7 @@ import {
   isGrokTrustDialog,
   isIdleResumeOptionRow,
 } from "./tmuxPaneState.js";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import {
   CLAUDE_BYPASS_WARNING_PANE,
   CODEX_TRUST_PANE,

@@ -37,7 +37,7 @@ import {
   type AgentClientId,
   type LocalAgentClientId,
   type AgentClientDescriptor,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { parseTranscriptFor } from "./parser.js";
 import { SessionWatcher } from "./sessionWatcher.js";
 import {

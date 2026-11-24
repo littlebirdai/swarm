@@ -1,9 +1,6 @@
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  commandsSession,
-  isClosedSession,
-  localAgentTypeOf,
-} from "@codecast/shared/contracts";
+import { commandsSession, isClosedSession } from "@codecast/shared/contracts";
+import { localAgentTypeOf } from "@codecast/agent-clients/agentClients";
 import {
   ACTIVE_AGENT_STATUSES,
   MID_TURN_AGENT_STATUSES,

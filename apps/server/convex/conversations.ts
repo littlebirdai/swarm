@@ -43,7 +43,8 @@ import {
   cloudWorkspaceValidator,
   findSharedCheckoutOccupant,
 } from "./cloudPlacement";
-import { agentTypeChangeRefusal, titleLine } from "@codecast/shared/contracts";
+import { agentTypeChangeRefusal } from "@codecast/agent-clients/agentClients";
+import { titleLine } from "@codecast/shared/contracts";
 import { cloudPlacementFor } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   checkoutInUseMessage,
@@ -155,16 +156,18 @@ import {
   fromConvexAgentType,
   localAgentTypeOf,
   toConvexAgentType,
-  normalizeThreadState,
-  parseThreadStateStatus,
-  clearedThreadStateFields,
-  THREAD_STATE_RESULT_MAX_CHARS,
-  formatAgentSwitchNotice,
   findModelOption,
   canSessionBecomeAgent,
   agentForksFromAnyMessage,
   agentForksNatively,
   isHostedAgentType,
+} from "@codecast/agent-clients/agentClients";
+import {
+  normalizeThreadState,
+  parseThreadStateStatus,
+  clearedThreadStateFields,
+  THREAD_STATE_RESULT_MAX_CHARS,
+  formatAgentSwitchNotice,
   computeConversationTaskStats,
   isTodoStatTool,
 } from "@codecast/shared/contracts";

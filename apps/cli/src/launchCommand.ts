@@ -10,17 +10,19 @@
 // TUI launch path and `cast exec` (print mode) share one mapping.
 import {
   AGENT_CLIENTS,
+  findModelOption,
+  type AgentClientId,
+  localAgentClient,
+} from "@codecast/agent-clients/agentClients";
+import {
   CLAUDE_EFFORT_LEVELS,
   CODEX_EFFORT_LEVELS,
   GROK_EFFORT_LEVELS,
   MUSE_EFFORT_LEVELS,
   ANTIGRAVITY_EFFORT_LEVELS,
   PI_EFFORT_LEVELS,
-  cloudAgentModel,
-  findModelOption,
-  type AgentClientId,
-  localAgentClient,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/modelOptions";
+import { cloudAgentModel } from "@codecast/agent-clients/cloudAgents";
 import { getAgentArgs, type Config } from "./config/types.js";
 import { stableClaudeBinary } from "./stableClaudeBinary.js";
 import { shellArg } from "./shellQuote.js";

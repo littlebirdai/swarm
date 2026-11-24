@@ -5,7 +5,7 @@
  * static graph) does not drag the codex usage cluster along. Its one import
  * is the sign-in expiry rule, itself a leaf the web shares.
  */
-import { signInExpired } from "@codecast/shared/contracts/cloudAgents";
+import { signInExpired } from "@codecast/agent-clients/cloudAgents";
 
 /** Whether the login's access token has run out (a login with no expiry has not). */
 export function codexAccessExpired(

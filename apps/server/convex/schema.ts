@@ -295,7 +295,7 @@ export default defineSchema(
       // model picker's "Set as default"; validated against findModelOption.
       default_models: v.optional(v.record(v.string(), v.string())),
       // The agent clients this user's pickers show (registry ids). Absent means
-      // the registry default (pinnedAgentIds in shared/contracts/agentClients).
+      // the registry default (pinnedAgentIds in agent-clients/src/agentClients).
       pinned_agents: v.optional(v.array(v.string())),
       // The registry ids pinned_agents was chosen from, written with it. A client
       // missing here was added later and follows its own default.

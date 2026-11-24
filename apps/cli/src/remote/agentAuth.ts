@@ -26,7 +26,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileAsync, spawnSync, whichBin } from "../proc.js";
-import { type AgentClientId } from "@codecast/shared/contracts";
+import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import { PROVIDER_KEYS } from "@codecast/provider-keys/providerKeys";
 import { MIRROR_EXCLUDED_ENV_VARS } from "../agentEnv.js";
 import { agentSpawnPath } from "../agentSpawnPath.js";

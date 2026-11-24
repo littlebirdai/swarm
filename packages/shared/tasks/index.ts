@@ -13,7 +13,7 @@
  *   of competing with it in a flat list.
  */
 
-import { isHostedAgentType } from "../contracts/agentClients";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 export * from "./statuses";
 export * from "./relatedDocs";
 export * from "./foreignText";

@@ -67,7 +67,14 @@ function git(args: string[]): string | undefined {
 function renamesSince(base: string | undefined): Array<[string, string]> {
   const ref =
     base ?? git(["merge-base", "HEAD", "origin/main"])?.trim() ?? "HEAD";
-  const out = git(["diff", "--find-renames", "--name-status", "-z", ref]);
+  const out = git([
+    "diff",
+    "--break-rewrites",
+    "--find-renames",
+    "--name-status",
+    "-z",
+    ref,
+  ]);
   if (out === undefined)
     throw new Error(`Could not read renames since ${ref}.`);
   return parseRenames(out);

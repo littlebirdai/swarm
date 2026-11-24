@@ -13,10 +13,8 @@
 // something warrants input" case, so they surface the home instead of parking
 // it. Standing loops (recurring / event) and `once` follow-ups park with
 // different strength — see ArmedTriggerHomes — so the loader keeps them apart.
-import {
-  isHostedAgentType,
-  isMachineDeliveredMessage,
-} from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
+import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
 import { isLoopFresh } from "@codecast/sessions/loopState";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";

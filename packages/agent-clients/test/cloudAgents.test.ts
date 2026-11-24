@@ -4,7 +4,7 @@ import {
   findModelOption,
   listedModels,
   modelOptionKey,
-} from "./agentClients";
+} from "../src/agentClients";
 import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentCardText,
@@ -29,13 +29,14 @@ import {
   cloudAgentPageUrl,
   isCloudAgentCredentialKind,
   CLOUD_AGENT_SETUP_KINDS,
-} from "./cloudAgents";
+  type CloudAgentProviderSpec,
+} from "../src/cloudAgents";
 import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncOn,
   cloudSessionSyncSettings,
 } from "@codecast/agent-clients/cloudSessionSync";
-import { CURSOR_MODEL_OPTIONS } from "./modelOptions";
+import { CURSOR_MODEL_OPTIONS } from "../src/modelOptions";
 
 describe("cloud agent providers", () => {
   test("a launch model key picks the provider and its model; anything else is a local launch", () => {
@@ -148,7 +149,8 @@ describe("cloud agent providers", () => {
         "sess_0db7b5af8adc9da3006abdeb61add48193a15b37aff2d5b6e5",
       )?.id,
     ).toBe("codex_api");
-    expect(CLOUD_AGENT_PROVIDERS.codex_api.agentUrl).toBeUndefined();
+    const codexApi: CloudAgentProviderSpec = CLOUD_AGENT_PROVIDERS.codex_api;
+    expect(codexApi.agentUrl).toBeUndefined();
     expect(
       cloudAgentProviderOfSession("codex", "task_e_1~assttrn_e_2")?.id,
     ).toBe("codex");

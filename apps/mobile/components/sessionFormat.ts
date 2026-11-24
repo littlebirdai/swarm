@@ -5,7 +5,7 @@ import { agentStatusAt } from "@codecast/web/lib/liveness";
 import {
   agentDisplayName,
   isHostedAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { MOBILE_AGENT_TINT } from "@codecast/render/mobileSessionStyle";
 import { conversationTitle } from "@codecast/web/components/simple/lane";
 import type { SessionData } from "@/components/SessionItem";

@@ -11,7 +11,7 @@ import type {
 import {
   agentSupportsExecutionTransport,
   parseExecutionAgentClientId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import type { RuntimeHandle } from "./types.js";
 import { ExecutionCoordinatorError } from "./types.js";
 import { atomicWriteFile } from "../atomicWrite.js";

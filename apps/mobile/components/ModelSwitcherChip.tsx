@@ -4,12 +4,14 @@ import { Text } from "@/components/Themed";
 import { Feather } from "@expo/vector-icons";
 import {
   AGENT_MODEL_CONFIG,
-  cloudAgentLaunch,
-  cloudAgentLaunchWords,
   launchRailOptions,
   liveRailOptions,
   modelAgentKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import {
+  cloudAgentLaunch,
+  cloudAgentLaunchWords,
+} from "@codecast/agent-clients/cloudAgents";
 import {
   canControlModel,
   commitModelChange,

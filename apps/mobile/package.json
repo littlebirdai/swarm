@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@bacons/apple-targets": "5.0.0",
+    "@codecast/agent-clients": "workspace:*",
     "@codecast/analytics": "workspace:*",
     "@codecast/artifacts": "workspace:*",
     "@codecast/calls": "workspace:*",

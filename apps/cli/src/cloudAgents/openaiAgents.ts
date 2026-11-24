@@ -28,7 +28,7 @@
  * ~/.codecast/openai-agents/<session id>/, synced as a codex session.
  */
 import { randomUUID } from "crypto";
-import { CLOUD_AGENT_PROVIDERS } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_PROVIDERS } from "@codecast/agent-clients/cloudAgents";
 import { threadItemToMessage, type ThreadItem } from "../codexAppServer.js";
 import { shellEscapeForSh } from "../supervision.js";
 import { CloudApiError, KeyedCloudApi, verifyCloudKey } from "./http.js";

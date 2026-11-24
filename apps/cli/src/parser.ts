@@ -1,4 +1,4 @@
-import type { AgentClientId } from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 import { extractInlineImages } from "./inlineImage.js";
 import {
   parseMirrorTranscript,

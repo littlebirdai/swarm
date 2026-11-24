@@ -30,7 +30,7 @@ import {
   classifyTmuxLiveState,
   glyphlessPromptPattern,
 } from "./tmuxPaneState.js";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import type { TranscriptTurnState } from "./daemon.js";
 import { setSlowSyncFsThresholdForTests, setSlowSyncSink } from "./slowSync.js";
 

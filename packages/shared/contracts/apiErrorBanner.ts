@@ -12,7 +12,7 @@
 // (e.g. "You've hit your usage limit on the free plan, so video generation is
 // paused…") from being mistaken for a banner.
 
-import { isCloudAgentCredentialCard } from "./cloudAgents";
+import { isCloudAgentCredentialCard } from "@codecast/agent-clients/cloudAgents";
 
 export type ApiErrorBannerKind =
   | "auth"

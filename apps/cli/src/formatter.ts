@@ -5,8 +5,8 @@ import {
   structuredPayloadKeysFromRaw,
   toolSummary,
 } from "@codecast/render/toolCall";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 import {
-  agentDisplayName,
   threadStateHeadline,
   parseThreadStateStatus,
 } from "@codecast/shared/contracts";

@@ -17,7 +17,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { Doc, Id } from "./_generated/dataModel";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   AGENT_STATUSES,
   ACTIVE_AGENT_STATUSES,

@@ -26,9 +26,8 @@ import {
   CLOUD_AGENT_BRANCH_SEPARATOR,
   CLOUD_AGENT_PROVIDERS,
   cloudAgentRootId,
-  peggedWindow,
-  planTypeLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
+import { peggedWindow, planTypeLabel } from "@codecast/shared/contracts";
 import { readActiveCodexAuth } from "../codexAccounts.js";
 import {
   codexAccessExpired,

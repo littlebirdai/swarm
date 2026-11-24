@@ -2,10 +2,10 @@
 // the single source of truth shared by the Convex backend, the Node daemon, and
 // the browser. PURE isomorphic data only — no Node or DOM APIs — so the Convex
 // runtime can import them.
-export * from "./agentClients";
-export * from "./agentPins";
+export * from "@codecast/agent-clients/agentClients";
+export * from "@codecast/agent-clients/agentPins";
 export * from "./executionBinding";
-export * from "./modelOptions";
+export * from "@codecast/agent-clients/modelOptions";
 export * from "./agentDefinitions";
 // The needs-input digest: the window, the wording and the row grouping, shared
 // by the Convex fold-up and the web bell so both name the same set.
@@ -21,7 +21,7 @@ export * from "./newSessionDefaults";
 // the ONE occupancy rule Convex, the CLI and `cast hosts ls` apply to it.
 export * from "./worktrees";
 export * from "./deviceName";
-export * from "./cloudAgents";
+export * from "@codecast/agent-clients/cloudAgents";
 export * from "./orgTemplateBind";
 export * from "./snippets";
 export * from "./featureExplainers";

@@ -8,10 +8,8 @@
 
 import { execFile } from "./proc.js";
 import crypto from "crypto";
-import {
-  AGENT_CLIENTS,
-  type DeviceModelInventory,
-} from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
+import { type DeviceModelInventory } from "@codecast/agent-clients/modelOptions";
 import { hasBin } from "./doctorClients.js";
 
 const REFRESH_MS = 6 * 60 * 60 * 1000;

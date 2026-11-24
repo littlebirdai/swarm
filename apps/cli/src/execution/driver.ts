@@ -1,5 +1,5 @@
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 import type {
-  AgentClientId,
   ReadyBinding,
   RuntimeCapability,
   RuntimeTransport,

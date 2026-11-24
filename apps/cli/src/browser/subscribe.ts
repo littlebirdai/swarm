@@ -32,7 +32,7 @@ import {
   type Subscription,
   type SubscriptionSource,
 } from "@platform/cli-kit/subscribe";
-import { CHEAP_MODEL } from "@codecast/shared/contracts/modelOptions";
+import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import type {
   ModelCallResult,
   ModelCallSpec,

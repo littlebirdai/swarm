@@ -33,7 +33,7 @@ import {
   touchesProjectCount,
 } from "./lib/projectTaskCounts";
 import { withdrawDeletedConversation } from "./lib/changesDirty";
-import { agentTypeChangeRefusal } from "@codecast/shared/contracts";
+import { agentTypeChangeRefusal } from "@codecast/agent-clients/agentClients";
 
 // One memoized POST-WRITE document read per tracked write. The sync log reads
 // it for three things (sync-log-cargo): the access-derived fan-out scopes, the

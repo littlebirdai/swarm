@@ -10,7 +10,7 @@ import {
   toInvocableList,
 } from "./inventory.js";
 import { buildFleetDiff } from "./fleetDiff.js";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 
 // One fixture tree shaped like a real machine: a HOME with user-scope skills,
 // commands, agents, plugins and MCP servers, plus a project carrying its own

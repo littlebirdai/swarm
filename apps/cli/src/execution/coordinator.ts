@@ -3,14 +3,16 @@ import { randomUUID } from "node:crypto";
 import {
   FENCED_EXECUTION_PROTOCOL_VERSION,
   FENCED_RUNTIME_CAPABILITIES,
-  agentSupportsExecutionTransport,
-  parseExecutionAgentClientId,
   readyBindingMatchesPermit,
   deliveryMatchesPermit,
   type ReadyBinding,
   type StartedDeliveryPermit,
   type StructuredFailure,
 } from "@codecast/shared/contracts";
+import {
+  agentSupportsExecutionTransport,
+  parseExecutionAgentClientId,
+} from "@codecast/agent-clients/agentClients";
 import type { ExecutionControlPlane } from "./controlPlane.js";
 import type { RuntimeDriver } from "./driver.js";
 import { RuntimeDriverRegistry } from "./driver.js";
