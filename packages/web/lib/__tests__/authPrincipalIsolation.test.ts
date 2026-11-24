@@ -221,7 +221,8 @@ describe("logout and account change across windows", () => {
     const db = new Dexie("codecast-store");
     await db.open();
     const now = Date.now();
-    await db.table("conversationMessages").put({ convId: "c1", messages: [{ _id: "m1", role: "user", content: "old account", timestamp: now }], pagination: { initialized: true, hasMore: false }, latestTimestamp: now });
+    await db.table("conversationMessageMeta").put({ convId: "c1", pagination: { initialized: true, hasMore: false }, latestTimestamp: now });
+    await db.table("conversationMessageRows").put({ convId: "c1", messageKey: "m1", position: 0, revision: "r1", message: { _id: "m1", role: "user", content: "old account", timestamp: now } });
     db.close();
     const read = ensureHydrated("c1");
     // The sibling signs out while the read is in flight.
