@@ -4,7 +4,7 @@
 # fix. Split it. A file over 800 lines is not allowed to be new, and a listed one may not grow past its 50-line step.
 #
 # Prune it (drops gone entries, lowers numbers that came down, adds nothing):
-#   cd packages/shared && RATCHET_WRITE=prune bun test ratchet/maxLines.ratchet.test.ts
+#   cd packages/ratchet && RATCHET_WRITE=prune bun test test/maxLines.ratchet.test.ts
 apps/cli/scripts/agentwatch-replay.ts 850
 apps/cli/scripts/browser-rig.ts 1150
 apps/cli/scripts/browser-stress/fuzz.ts 850

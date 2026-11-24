@@ -41,6 +41,8 @@ Run `bun run format` to format the repo with oxfmt. CI checks formatting, and `.
 
 Each package's test guidance is in its own `AGENTS.md` (`apps/web`, `apps/cli`, `apps/server`, `apps/mobile`). A flaky test is fixed or deleted within 14 days of being quarantined; the policy and the list are in `QUARANTINE.md`.
 
+CI runs the repository guards in `packages/ratchet/test`. Their baselines are `packages/ratchet/max-lines-baseline.txt` and `packages/ratchet/doc-refs-baseline.txt`. Move a baseline entry when its source file moves.
+
 ## Git history
 
 Keep history flat — rebase, never merge. Pull with `git pull --rebase` (never plain `git pull` when it would create a merge commit), and bring branches up to date with `git rebase origin/main` instead of merging main in. Merge commits from routine syncing don't belong in the log.

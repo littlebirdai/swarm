@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { checkRatchet, codeOnly } from "@codecast/shared/ratchet";
+import { checkRatchet, codeOnly } from "@codecast/ratchet";
 import { UNDO_POLICY } from "../../store/undo/policy";
 import {
   CLIENT_SYNC_REGISTRY,

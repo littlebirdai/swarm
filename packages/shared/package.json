@@ -148,7 +148,6 @@
     "./tasks": "./tasks/index.ts",
     "./tasks/resumeSources": "./tasks/resumeSources.ts",
     "./replay": "./replay/index.ts",
-    "./ratchet": "./ratchet/index.ts",
     "./search": "./search/index.ts",
     "./search/sessionQuery": "./search/sessionQuery.ts",
     "./search/tokenize": "./search/tokenize.ts",

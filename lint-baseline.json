@@ -28888,6 +28888,18 @@
   "packages/pull-requests/test/prRefs.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/ratchet/src/index.ts": {
+    "swarm/no-comments": 47
+  },
+  "packages/ratchet/test/docRefs.guard.test.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/ratchet/test/maxLines.ratchet.test.ts": {
+    "swarm/no-comments": 123
+  },
+  "packages/ratchet/test/ratchet.test.ts": {
+    "swarm/no-comments": 9
+  },
   "packages/shared/changes/__fixtures__/commit.ts": {
     "swarm/no-comments": 2
   },
@@ -29979,18 +29991,6 @@
   },
   "packages/shared/entities/orgObjects.test.ts": {
     "swarm/no-comments": 2
-  },
-  "packages/shared/ratchet/docRefs.guard.test.ts": {
-    "swarm/no-comments": 35
-  },
-  "packages/shared/ratchet/index.ts": {
-    "swarm/no-comments": 47
-  },
-  "packages/shared/ratchet/maxLines.ratchet.test.ts": {
-    "swarm/no-comments": 123
-  },
-  "packages/shared/ratchet/ratchet.test.ts": {
-    "swarm/no-comments": 9
   },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9

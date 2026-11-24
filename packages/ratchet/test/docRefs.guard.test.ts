@@ -37,7 +37,7 @@ import { join, relative } from "node:path";
 // finds Themed.tsx).
 
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
-const BASELINE = join(import.meta.dir, "doc-refs-baseline.txt");
+const BASELINE = join(import.meta.dir, "..", "doc-refs-baseline.txt");
 const DOC_DIR = "docs/architecture";
 const ROOT_DOCS = ["CLAUDE.md", "AGENTS.md"];
 const ROOTS = [
@@ -204,7 +204,7 @@ describe("doc references", () => {
     ];
     if (stale.length > 0) {
       problems.push(
-        `prune with: cd packages/shared && RATCHET_WRITE=prune bun test ratchet/docRefs.guard.test.ts`,
+        `prune with: cd packages/ratchet && RATCHET_WRITE=prune bun test test/docRefs.guard.test.ts`,
       );
     }
     expect(problems).toEqual([]);

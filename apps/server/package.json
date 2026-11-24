@@ -25,6 +25,7 @@
     "@codecast/network": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
+    "@codecast/ratchet": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
