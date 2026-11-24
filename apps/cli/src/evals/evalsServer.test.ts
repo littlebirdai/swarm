@@ -518,8 +518,8 @@ describe("agreement with the eval tool", () => {
     expect(script.split("\n").slice(0, 3)).toEqual([...EVALS_SCRIPT_HEADER]);
   });
 
-  test("the default EVALS_HOME is the one apps/..", "packages", "evals/src/paths.ts resolves", async () => {
-    const pathsFile = path.join(import.meta.dir, "..", "..", "..", "..", "apps", "..", "packages", "evals", "src", "paths.ts");
+  test("the default EVALS_HOME is the one apps/evals/src/paths.ts resolves", async () => {
+    const pathsFile = path.join(import.meta.dir, "..", "..", "..", "..", "apps", "evals", "src", "paths.ts");
     const { evalsHome } = (await import(pathsFile)) as { evalsHome: () => string };
     const saved = process.env.CODECAST_EVALS_HOME;
     try {
