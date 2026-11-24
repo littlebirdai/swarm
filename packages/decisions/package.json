@@ -10,6 +10,8 @@
   },
   "exports": {
     "./approvalAnswers": "./src/approvalAnswers.ts",
+    "./commandRun": "./src/commandRun.ts",
+    "./decisionAnswers": "./src/decisionAnswers.ts",
     "./decisionAreas": "./src/decisionAreas.ts",
     "./decisionCategory": "./src/decisionCategory.ts",
     "./decisionEscalation": "./src/decisionEscalation.ts",
@@ -18,5 +20,10 @@
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/daemon": "workspace:*",
+    "@codecast/messages": "workspace:*",
+    "@codecast/secrets": "workspace:*"
   }
 }

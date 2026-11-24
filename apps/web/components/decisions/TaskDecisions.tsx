@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ChevronDown, ChevronRight } from "lucide-react";
-import { decisionAnswerLabel } from "@codecast/shared/contracts";
+import { decisionAnswerLabel } from "@codecast/decisions/decisionAnswers";
 import { useCollectionRows } from "../../hooks/useCollectionRows";
 import {
   useTrackedStore,

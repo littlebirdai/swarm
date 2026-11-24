@@ -8,7 +8,7 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../test-helpers/globals";
 import { closeDomWindow } from "../test-helpers/domGlobals";
 import { APPROVE_FOR_SESSION, DENY } from "@codecast/secrets/secrets";
-import { RUN_OPTIONS } from "@codecast/shared/contracts/commandRun";
+import { RUN_OPTIONS } from "@codecast/decisions/commandRun";
 import { getFunctionName } from "convex/server";
 import { ConvexProvider } from "convex/react";
 import { AGENT_TAB_EVENT, AGENT_TAB_KEY } from "./desktopHandoff";

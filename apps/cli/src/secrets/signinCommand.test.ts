@@ -1,7 +1,7 @@
 // Who may read the person's own Chrome, and that the web's daemon path reads as nobody's session.
 import { describe, expect, test } from "bun:test";
 import { sessionIdFromEnv } from "../sessionIdentity";
-import { parseRunCommand } from "@codecast/shared/contracts/commandRun";
+import { parseRunCommand } from "@codecast/decisions/commandRun";
 import {
   NO_SESSION_ENV,
   chromeReadRefusal,

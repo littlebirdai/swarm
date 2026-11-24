@@ -1,7 +1,5 @@
-import {
-  isRecoveryContinueClientId,
-  isTaggedDecisionAnswer,
-} from "@codecast/shared/contracts";
+import { isRecoveryContinueClientId } from "@codecast/shared/contracts";
+import { isTaggedDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { isInterruptControlMessage } from "./inboxOverlays";
 
 export type PendingMessage = {

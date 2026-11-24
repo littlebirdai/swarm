@@ -23,13 +23,13 @@ import {
   classifyApiErrorBanner,
   isNoResponseStub,
   CLIENT_ERROR_BANNER_PREFIX,
-  parseDecisionAnswer,
   isAgentSwitchNotice,
   parseAgentSwitchNotice,
   isModelSwitchCommandName,
   isModelSwitchStdout,
   modelSwitchStdoutLabel,
 } from "@codecast/shared/contracts";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { parseVaultReady } from "@codecast/secrets/vaultMessages";
 import { isSessionEscalationMessage } from "@codecast/messages/machineMessages";
 import { parseSessionEscalation } from "@codecast/messages/sessionEscalation";

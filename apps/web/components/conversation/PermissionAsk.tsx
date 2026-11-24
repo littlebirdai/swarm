@@ -1,4 +1,4 @@
-// A permission ask (`cast decide --run`, shared/contracts/commandRun.ts) in
+// A permission ask (`cast decide --run`, decisions/src/commandRun.ts) in
 // the conversation, from the ask to its record. While it waits it is a card
 // at the end of the transcript: the agent's question and Yes / Not now, Yes
 // marked with the fingerprint it confirms with. Once answered it shrinks to
@@ -18,8 +18,8 @@ import {
 import {
   permissionRecord,
   type PermissionOutcome,
-} from "@codecast/shared/contracts/commandRun";
-import type { DecisionAnswerMessage } from "@codecast/shared/contracts";
+} from "@codecast/decisions/commandRun";
+import type { DecisionAnswerMessage } from "@codecast/decisions/decisionAnswers";
 import { HostedApprovalBody } from "./HostedApprovalCard";
 import { RunFallbackLine } from "../decisions/RunFallbackLine";
 import { useDecisionAnswer } from "../../hooks/useDecisionAnswer";

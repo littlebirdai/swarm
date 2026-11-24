@@ -5,7 +5,7 @@ import {
   mayBeTyped,
   typedPart,
 } from "../../../../../apps/server/convex/lib/messageProvenance";
-import { parseDecisionAnswer } from "../../../../../packages/shared/contracts";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { normalizeQuote } from "../../../../../apps/server/convex/lib/originatorChain";
 import { parseJsonBlock } from "../../../../../apps/server/convex/lib/anthropic";
 import { blindDiff } from "../../../../../apps/cli/src/workflow/blindChange";

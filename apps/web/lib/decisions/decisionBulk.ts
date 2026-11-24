@@ -4,7 +4,7 @@
 // the store's own decision actions, one row at a time, so each paints at once
 // and rides the same dispatch a single row's press does.
 
-import { approvesPersonsAct } from "@codecast/shared/contracts/commandRun";
+import { approvesPersonsAct } from "@codecast/decisions/commandRun";
 import {
   useInboxStore,
   type SessionDecisionItem,

@@ -8,7 +8,7 @@ import {
   type MessageRow,
   type Tool,
 } from "@platform/agent";
-import { formatDecisionAnswer } from "@codecast/shared/contracts";
+import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { triggerRunFrame } from "@codecast/triggers/triggerLifecycle";
 import { CHEAP_MODEL, modelCost } from "../../lib/anthropic";
 import {

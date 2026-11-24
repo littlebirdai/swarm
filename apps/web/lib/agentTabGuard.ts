@@ -4,7 +4,7 @@
 // theirs: the controls that open an Ask first secret, approve its read, or
 // take the guard off stay disabled here, saying who does it.
 
-import { approvesPersonsAct } from "@codecast/shared/contracts/commandRun";
+import { approvesPersonsAct } from "@codecast/decisions/commandRun";
 import {
   createContext,
   useCallback,

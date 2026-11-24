@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { approvesPersonsAct } from "@codecast/shared/contracts/commandRun";
+import { approvesPersonsAct } from "@codecast/decisions/commandRun";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -42,7 +42,7 @@ import {
   AnswerControls,
   appAnswerLook,
 } from "@/components/decisions/AnswerControls";
-import { decisionAnswerLabel } from "@codecast/shared/contracts";
+import { decisionAnswerLabel } from "@codecast/decisions/decisionAnswers";
 
 import { DecisionThread } from "@/components/decisions/DecisionThread";
 import { useDecisionAnswer } from "@/components/decisions/DecisionCard";

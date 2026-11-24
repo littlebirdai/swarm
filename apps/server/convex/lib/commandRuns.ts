@@ -1,4 +1,4 @@
-// `cast decide --run` (shared/contracts/commandRun.ts): a decision whose card
+// `cast decide --run` (decisions/src/commandRun.ts): a decision whose card
 // shows a cast command. A signed-in person's Run sends it to the asking
 // session's machine (daemon run_cast), which runs it outside the session and
 // reports back; the result is delivered to the session as the answer. A leaf:
@@ -12,11 +12,11 @@ import {
   commandLine,
   runResultText,
   type CommandRun,
-} from "@codecast/shared/contracts/commandRun";
+} from "@codecast/decisions/commandRun";
 import {
   decisionAnswerClientId,
   parseDecisionAnswer,
-} from "@codecast/shared/contracts/decisionAnswers";
+} from "@codecast/decisions/decisionAnswers";
 import type { Doc, Id } from "../_generated/dataModel";
 import { consumePresence, presenceRefusal } from "./presence";
 import { isSessionOwner } from "../sessionOwners";

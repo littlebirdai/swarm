@@ -17,7 +17,6 @@ export * from "./capabilityResolver";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.
-export * from "./decisionAnswers";
 // The cross-entity review queue row — one shape for "what is waiting on a
 // human", fed by comment threads, page comments, and workflow gates alike.
 // Not re-exported here, imported by path: orgProposal (the fenced block

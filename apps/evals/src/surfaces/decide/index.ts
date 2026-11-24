@@ -13,7 +13,7 @@ import {
   toRows,
   type MessageRow,
 } from "../../adapters/convo";
-import { parseDecisionAnswer } from "../../../../../packages/shared/contracts/decisionAnswers";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { JUDGE_MODEL } from "../../models";
 import { gate, type SurfaceImpl, type SurfaceRequest } from "../../surface";
 import { describeTurn } from "../roleWake/world";

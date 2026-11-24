@@ -49,7 +49,7 @@ import {
   type BridgeState,
 } from "../browser/bridge/host.js";
 import { hashHostToken } from "../browser/bridge/hostClients.js";
-import { askToRun } from "@codecast/shared/contracts/commandRun";
+import { askToRun } from "@codecast/decisions/commandRun";
 import {
   LAPTOP_LINK_CLOSED_FILE,
   LAPTOP_LINK_FILE,

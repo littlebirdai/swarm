@@ -5,7 +5,7 @@
 // (sessionDecisions:listForUser), so its feeder writes the store the way the
 // server's rows do. Mobile's Metro reaches this file, so imports stay relative.
 
-import { formatDecisionAnswer } from "@codecast/shared/contracts/decisionAnswers";
+import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import type { AcmePart } from "./parts";
 import { MIN, PEOPLE, TEAM_ID, WORKSPACE, cid, session } from "./world";
 

@@ -1,4 +1,4 @@
-// `cast decide --run` (shared/contracts/commandRun.ts): the card carries the
+// `cast decide --run` (decisions/src/commandRun.ts): the card carries the
 // command; only the session's person, signed in and confirmed with Touch ID,
 // can press Run; Run sends it to the session's machine; the machine's report
 // delivers the answer with the output; Don't run sends nothing to the machine.
@@ -9,11 +9,11 @@ import schema from "./schema";
 import { hashToken } from "./apiTokens";
 import { allModules } from "./testModules.testkit";
 import { seedPresence } from "./passkeys.testkit";
-import { RUN_OPTION, SKIP_OPTION } from "@codecast/shared/contracts/commandRun";
+import { RUN_OPTION, SKIP_OPTION } from "@codecast/decisions/commandRun";
 import {
   formatDecisionAnswer,
   parseDecisionAnswer,
-} from "@codecast/shared/contracts";
+} from "@codecast/decisions/decisionAnswers";
 import { isHumanOnlyCategory } from "./lib/decisionCategory";
 
 setDefaultTimeout(60_000);
