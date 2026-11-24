@@ -17,7 +17,7 @@ import {
   isCompletedStandaloneCodexReview,
   isCompletedNativeCodexReviewChild,
 } from "./codexSessionMeta.js";
-import { classifyApiErrorBanner } from "@codecast/shared/contracts";
+import { classifyApiErrorBanner } from "@codecast/agent-clients/apiErrorBanner";
 
 describe("Parser malformed JSON handling", () => {
   test("parseSessionLine logs warning and returns null for malformed JSON", () => {

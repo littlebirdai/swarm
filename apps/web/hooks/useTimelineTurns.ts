@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { isHiddenSystemNotice } from "../lib/conversationProcessor";
-import { isRecoveryContinueClientId } from "@codecast/shared/contracts";
+import { isRecoveryContinueClientId } from "@codecast/agent-clients/apiErrorBanner";
 import {
   foldNudgeRuns,
   nudgeLabel,

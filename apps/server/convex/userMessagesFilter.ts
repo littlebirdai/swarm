@@ -9,7 +9,7 @@
 // be returned here. Keeping that invariant at the source means no client has to
 // re-filter by role (a guard that has been silently dropped by refactors twice).
 
-import { AGENT_SWITCH_NOTICE_PREFIX } from "@codecast/shared/contracts";
+import { AGENT_SWITCH_NOTICE_PREFIX } from "@codecast/agent-clients/agentSwitch";
 import {
   isAgentContextMessage,
   isBootstrapPrompt,

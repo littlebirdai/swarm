@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { resolveCapabilities } from "@codecast/shared/contracts";
+import { resolveCapabilities } from "@codecast/agent-clients/capabilityResolver";
 import { applyBuiltins, builtinEntries } from "./builtinDriver.js";
 import { reconcileFromHeartbeat } from "./reconcile.js";
 import {

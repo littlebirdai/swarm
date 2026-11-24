@@ -275,7 +275,7 @@ import {
   parseDecisionAnswer,
   DECISION_ANSWER_TAG_RE,
 } from "@codecast/decisions/decisionAnswers";
-import { SAFETY_BLOCK_HINT } from "@codecast/shared/contracts";
+import { SAFETY_BLOCK_HINT } from "@codecast/agent-clients/apiErrorBanner";
 import { type VaultReadyMessage } from "@codecast/secrets/vaultMessages";
 import {
   parseScheduledTask,

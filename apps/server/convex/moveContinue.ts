@@ -1,5 +1,5 @@
 import { MOVE_INTERRUPT_MESSAGE } from "@codecast/messages/machineMessages";
-import { moveContinueClientId } from "@codecast/shared/contracts";
+import { moveContinueClientId } from "@codecast/agent-clients/apiErrorBanner";
 import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import type { Id } from "./_generated/dataModel";
 import { enqueuePendingMessage } from "./pendingMessages";

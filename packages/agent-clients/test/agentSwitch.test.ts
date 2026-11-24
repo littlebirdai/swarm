@@ -8,7 +8,7 @@ import {
   modelDisplayLabel,
   modelSwitchStdoutLabel,
   parseAgentSwitchNotice,
-} from "./agentSwitch";
+} from "../src/agentSwitch";
 import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 
 describe("agent switch notice", () => {

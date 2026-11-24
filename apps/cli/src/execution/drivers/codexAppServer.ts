@@ -1,7 +1,7 @@
 import {
   FENCED_RUNTIME_CAPABILITIES,
   type RuntimeCapability,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import { assertRuntimeDeliveryFence, type RuntimeDriver } from "../driver.js";
 import type {
   DriverDeliveryResult,

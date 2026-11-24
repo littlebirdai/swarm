@@ -30,7 +30,7 @@
 // whatever its score, so blocked-and-reachable always leads (sd-3584).
 // Among equal scores the oldest leads: a parked agent's cost grows with its
 // age, so oldest-first minimizes fleet idle time.
-import { BLOCKED_BANNER_KINDS } from "@codecast/shared/contracts";
+import { BLOCKED_BANNER_KINDS } from "@codecast/agent-clients/apiErrorBanner";
 import { isStackedAsk } from "@codecast/inbox/inboxMembership";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { APPROVAL_ANSWERS } from "@codecast/hosted-assistant/assistant";

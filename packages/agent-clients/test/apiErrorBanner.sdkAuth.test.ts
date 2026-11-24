@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { BLOCKED_BANNER_KINDS, classifyApiErrorBanner } from "./apiErrorBanner";
+import {
+  BLOCKED_BANNER_KINDS,
+  classifyApiErrorBanner,
+} from "../src/apiErrorBanner";
 
 // What the headless SDK writes when a turn ends on authentication_failed, as
 // the Union line hosts' daemon logs recorded it on 2026-11-13.

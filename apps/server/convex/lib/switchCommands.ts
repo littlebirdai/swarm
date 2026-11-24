@@ -16,7 +16,7 @@ import {
   runsOwnFleet,
 } from "../ccAccountsShared";
 import { fleetHostFollowsSwitch } from "../ccSwitchAhead";
-import { withSafetyBlock } from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/agent-clients/apiErrorBanner";
 
 export async function hasUndeliveredContinue(
   ctx: { db: any },

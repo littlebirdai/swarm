@@ -105,7 +105,7 @@ import {
   rollupParentIdOf,
   isStackedAsk,
 } from "@codecast/inbox/inboxMembership";
-import { BLOCKED_BANNER_KINDS } from "@codecast/shared/contracts";
+import { BLOCKED_BANNER_KINDS } from "@codecast/agent-clients/apiErrorBanner";
 import { isClosedSession } from "@codecast/inbox/closedSession";
 import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
@@ -162,7 +162,7 @@ import {
   agentForksNatively,
   isHostedAgentType,
 } from "@codecast/agent-clients/agentClients";
-import { formatAgentSwitchNotice } from "@codecast/shared/contracts";
+import { formatAgentSwitchNotice } from "@codecast/agent-clients/agentSwitch";
 import {
   normalizeThreadState,
   parseThreadStateStatus,

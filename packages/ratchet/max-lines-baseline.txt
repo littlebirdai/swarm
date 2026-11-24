@@ -745,6 +745,7 @@ apps/web/tours/guides/orgGuide.tsx 1600
 packages/agent-clients/src/agentClients.ts 1650
 packages/agent-clients/src/cloudAgents.ts 900
 packages/agent-clients/test/agentClients.test.ts 850
+packages/agent-clients/test/capabilityResolver.test.ts 1100
 packages/artifacts/src/boardGeometry.ts 1250
 packages/artifacts/src/boardLayout.ts 950
 packages/artifacts/src/boardVerbs.ts 850
@@ -792,7 +793,6 @@ packages/replay/src/rrweb.ts 850
 packages/replay/test/replay.test.ts 1350
 packages/secrets/src/secrets.ts 1300
 packages/secrets/test/secrets.test.ts 850
-packages/shared/contracts/capabilityResolver.test.ts 1100
 packages/shared/contracts/causeHistory.ts 1400
 packages/shared/contracts/changeCard.ts 1350
 packages/shared/contracts/expectations.test.ts 850

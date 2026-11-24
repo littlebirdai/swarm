@@ -22,7 +22,7 @@ import {
 import {
   CLIENT_ERROR_BANNER_PREFIX,
   classifyApiErrorBanner,
-} from "./apiErrorBanner";
+} from "../src/apiErrorBanner";
 
 describe("cloud agent providers", () => {
   test("the Agents API lane: its own launch keys and models beside Codex Cloud's, and its own cards", () => {

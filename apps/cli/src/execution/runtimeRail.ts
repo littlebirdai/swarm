@@ -7,7 +7,7 @@ import {
   type Delivery,
   type ReadyBinding,
   type RuntimeCapability,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import {
   agentSupportsExecutionTransport,
   parseExecutionAgentClientId,

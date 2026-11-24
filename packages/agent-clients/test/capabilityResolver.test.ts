@@ -14,11 +14,11 @@ import {
   withAvailability,
   withConsent,
   compareDottedVersions,
-} from "./capabilityResolver";
+} from "../src/capabilityResolver";
 import {
   GOLDEN_CASES,
   projectDesiredState,
-} from "./__fixtures__/capabilityResolverGolden";
+} from "../src/__fixtures__/capabilityResolverGolden";
 
 const USER = "user_ashot";
 const TEAM = "team_codecast";

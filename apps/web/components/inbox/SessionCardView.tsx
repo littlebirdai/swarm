@@ -4,9 +4,10 @@ import { SessionTaskChip } from "../work/SessionTaskChip";
 import { Pin, Star, Clock, EyeOff, Square, Workflow } from "lucide-react";
 import { runHref } from "../../lib/decisionLinks";
 import Link from "next/link";
-import { withSafetyBlock } from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/agent-clients/apiErrorBanner";
 import { isClosedSession } from "@codecast/inbox/closedSession";
-import { isStashHidden, type UserRest } from "@codecast/inbox/inboxProjection";
+import { isStashHidden } from "@codecast/inbox/inboxProjection";
+import type { UserRest } from "@codecast/inbox/inboxProjection";
 import { NOTICE_DOT, NOTICE_ROW_WORD } from "../../lib/hostedNotice";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {

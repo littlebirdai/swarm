@@ -7,7 +7,7 @@
 // acme-linux, a fresh account). Mobile's Metro reaches this file, so imports
 // stay relative.
 
-import { LIMIT_BANNER_PREFIX } from "@codecast/shared/contracts";
+import { LIMIT_BANNER_PREFIX } from "@codecast/agent-clients/apiErrorBanner";
 import { agentSetupMarker } from "@codecast/capabilities/agentToolSetup";
 import { inboxCrawlWsKey, syncMetaKey } from "../../hooks/syncMetaKeys";
 import { useInboxStore } from "../../store/inboxStore";

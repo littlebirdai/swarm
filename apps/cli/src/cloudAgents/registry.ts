@@ -8,7 +8,7 @@
  * header's actions on the agent (act), what keeps this machine from reading
  * a provider (setupBlocks), and boot (startWatchers).
  */
-import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/shared/contracts";
+import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/agent-clients/apiErrorBanner";
 import {
   CLOUD_AGENT_ACTION_SUBTYPE,
   CLOUD_AGENT_ACTIONS,

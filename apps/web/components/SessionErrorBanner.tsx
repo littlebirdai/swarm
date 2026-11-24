@@ -19,7 +19,7 @@ import { deviceSeesPath } from "../lib/machinePicker";
 import {
   classifyApiErrorBanner,
   SAFETY_BLOCK_HINT,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import { useInboxStore } from "../store/inboxStore";
 import { AddCloudHost } from "./settings/AddCloudHost";
 

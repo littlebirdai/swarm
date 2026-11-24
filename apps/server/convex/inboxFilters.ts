@@ -228,13 +228,13 @@ export {
   blockedContinueClientId,
   BLOCKED_BANNER_KINDS,
   CONTINUE_BANNER_KINDS,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import {
   isApiErrorBanner as isApiErrorBannerFn,
   classifyApiErrorBanner,
   isLocalCommandLine,
   isNoResponseStub,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 
 // Decides what an addMessages batch should do about stale API-error banners.
 //   - "supersede": a real turn arrived; delete banner(s) that precede it and

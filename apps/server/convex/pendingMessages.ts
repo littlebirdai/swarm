@@ -60,7 +60,7 @@ import {
   SESSION_MESSAGE_OPEN_TAG,
   type SessionMessageIntent,
 } from "@codecast/messages/machineMessages";
-import { isReviveClientId } from "@codecast/shared/contracts";
+import { isReviveClientId } from "@codecast/agent-clients/apiErrorBanner";
 import { isStashHidden } from "@codecast/inbox/inboxProjection";
 import { sendArrival, type SendArrival } from "@codecast/messages/sendArrival";
 import {

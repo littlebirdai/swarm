@@ -4,7 +4,7 @@ import {
   type ExecutionTargetSpec,
   type RuntimeCapability,
   type RuntimeConfiguration,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import { assertRuntimeDeliveryFence, type RuntimeDriver } from "../driver.js";
 import type {
