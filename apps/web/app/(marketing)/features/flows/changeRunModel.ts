@@ -7,8 +7,8 @@ import { BACK, BAD, GOOD, LINE, PERSON, TEXT } from "./base";
 import { CHANGE } from "./story";
 
 // A .ts module has no JSX, and KeyCap types children as a required prop.
-// eslint-disable-next-line react/no-children-prop
 const keyMeta = (k: string) =>
+  // eslint-disable-next-line react/no-children-prop
   createElement(KeyCap, { size: "xs", children: k });
 
 // ---------- Steps, ways out, ways back ----------

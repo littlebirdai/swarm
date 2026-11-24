@@ -340,14 +340,6 @@ const ROWS_ALLOWED = new Map<string, string>([
 const TEAM_ENUM_ALLOWED = new Map<string, string>([
   ["store/chatSlice.ts", "owns the chat collections and scopes by channel"],
   [
-    "components/chat/SlackPeopleDialog.tsx",
-    "filters Slack people by team_id in the enumeration chain",
-  ],
-  [
-    "components/expectations/CitationRef.tsx",
-    "finds one channel by name and active team",
-  ],
-  [
     "components/chat/SlackChannelBrowser.tsx",
     "keys links by Slack id for lookup, and filters channels by team_id",
   ],
@@ -375,7 +367,7 @@ function offenders(
   roots: Array<[string, string[]]>,
   token: RegExp,
   allowed: Map<string, string>,
-  lineOk: (line: string) => boolean = () => false,
+  lineOk: (line: string, continuation: string) => boolean = () => false,
 ): string[] {
   const out: string[] = [];
   for (const [root, dirs] of roots) {
@@ -384,8 +376,13 @@ function offenders(
         const rel = file.slice(root.length + 1);
         if ((root === ROOT && allowed.has(rel)) || rel.includes("__fixtures__"))
           continue;
-        for (const { line, n } of codeLines(readFileSync(file, "utf8"))) {
-          if (token.test(line) && !lineOk(line))
+        const source = readFileSync(file, "utf8");
+        const lines = source.split("\n");
+        for (const { line, n } of codeLines(source)) {
+          if (
+            token.test(line) &&
+            !lineOk(line, lines.slice(n, n + 7).join("\n"))
+          )
             out.push(
               `${root === ROOT ? "" : "mobile/"}${rel}:${n}: ${line.trim().slice(0, 120)}`,
             );
@@ -424,8 +421,16 @@ describe("scoped slots read only through their selectors", () => {
 
   test("no Object.values over a team collection without its team on the line", () => {
     expect(
-      offenders(ROOTS, TEAM_ENUM, TEAM_ENUM_ALLOWED, (l) =>
-        /team_id|teamId/.test(l),
+      offenders(
+        ROOTS,
+        TEAM_ENUM,
+        TEAM_ENUM_ALLOWED,
+        (line, continuation) =>
+          /\b(?:team_id|teamId)\b/.test(line) ||
+          /^\s*\.filter\(\(p\) => p\.team_id === teamId\)/.test(continuation) ||
+          /^\s*_id: string;\s*name\?: string;\s*team_id\?: string;\s*\}>\s*\)\.find\(\s*\(ch\) =>\s*ch\.name === chat\[1\] && String\(ch\.team_id\) === activeTeamIdOf\(s\)/.test(
+            continuation,
+          ),
       ),
     ).toEqual([]);
   }, 120_000);

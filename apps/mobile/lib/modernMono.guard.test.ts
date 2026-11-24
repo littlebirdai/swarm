@@ -62,7 +62,7 @@ const LINES: Record<
   "app/session/[id].tsx": [
     [
       "the branch chip",
-      /style=\{\[styles\.metaChipText, codeFont\]\} numberOfLines=\{1\}>\s*\{conversation\.git_branch\}/g,
+      /style=\{\[styles\.metaChipText, codeFont\]\} numberOfLines=\{1\}\s*>\s*\{conversation\.git_branch\}/g,
     ],
     ["a vault secret's name", /style=\{\[styles\.vaultReadyText, codeFont,/g],
     [

@@ -302,7 +302,9 @@ describe("INVARIANT 1 — access reads workspace, never team_id", () => {
     // The list's access filter goes through the layer's own evaluators.
     const listStart = src.indexOf("if (needsAccessFilter) {");
     const listBody = src.slice(listStart, src.indexOf("\n  }\n", listStart));
-    expect(listBody).toMatch(/authorizedFor\(accessStampFromDoc\("tasks", t\)/);
+    expect(listBody).toMatch(
+      /authorizedFor\(\s*accessStampFromDoc\("tasks", t\)/,
+    );
     expect(listBody).toMatch(/canAccessTask\(ctx, auth\.userId, t\)/);
     expect(listBody.includes("team_id")).toBe(false);
   });

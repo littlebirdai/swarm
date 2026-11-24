@@ -525,9 +525,8 @@ async function verify() {
   assert.equal(q("[data-split-readiness]")!.textContent, "Place 3 more areas");
   const place = async (title: string, side: 0 | 1) => {
     await act(async () => {
-      q(`[data-split-area="${title}"]`)!
-        .querySelectorAll<HTMLButtonElement>("button")
-        [side].click();
+      const area = q(`[data-split-area="${title}"]`)!;
+      area.querySelectorAll<HTMLButtonElement>("button")[side].click();
     });
   };
   await place("Website", 0);

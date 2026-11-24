@@ -78,7 +78,7 @@ describe("_watchdog pass", () => {
     const action = source.slice(at, source.indexOf("\nprogram", at));
     const waitAt = action.indexOf("if (autoUpdateInstalling) await settled");
     expect(waitAt).toBeGreaterThan(-1);
-    expect(action.indexOf("Promise.race([settled")).toBeGreaterThan(-1);
+    expect(action).toMatch(/Promise\.race\(\[\s*settled/);
     expect(waitAt).toBeLessThan(action.indexOf("process.exit(code)"));
     expect(source).toContain("autoUpdateSettled = checkForUpdates()");
     expect(source.indexOf("autoUpdateInstalling = true")).toBeLessThan(

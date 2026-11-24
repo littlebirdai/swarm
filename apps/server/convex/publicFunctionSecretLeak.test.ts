@@ -107,7 +107,7 @@ describe("the compile-time guard covers every public function", () => {
       join(import.meta.dir, "publicFunctionSecretLeak.guard.ts"),
       "utf8",
     );
-    expect(guard).toContain("NoneOf<PublicSecretReturns<typeof api>>");
+    expect(guard).toMatch(/NoneOf<\s*PublicSecretReturns<typeof api>\s*>/);
     expect(guard).toContain("GuardSelfTest");
     const tsconfig = ts.parseConfigFileTextToJson(
       "tsconfig.json",

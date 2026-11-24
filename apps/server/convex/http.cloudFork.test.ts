@@ -31,7 +31,7 @@ test("a cloud fork's row is stamped isolated beside its seed (the worktree is th
   expect(insert).toContain(
     '...(args.cloud_worktree ? { cloud_workspace: "isolated" as const } : {})',
   );
-  expect(insert).toContain(
-    "...(args.cloud_seed ? { cloud_seed: { ...args.cloud_seed, at: now } } : {})",
+  expect(insert).toMatch(
+    /\.\.\.\(args\.cloud_seed\s*\?\s*\{ cloud_seed: \{ \.\.\.args\.cloud_seed, at: now \} \}\s*:\s*\{\}\)/,
   );
 });

@@ -237,8 +237,8 @@ describe("Codex history import routing", () => {
       new URL("./daemon.ts", import.meta.url),
       "utf8",
     );
-    const start = source.indexOf(
-      'if (resumeAgentType === "codex" && (parsed.fork === true || forceReconstitute) && conversationId)',
+    const start = source.search(
+      /if \(\s*resumeAgentType === "codex" &&\s*\(parsed\.fork === true \|\| forceReconstitute\) &&\s*conversationId\s*\)/,
     );
     // The Codex branch ends where the registry-driven native fork branch begins
     // (grok forks through its own resume flags there, via autoResumeSession).
@@ -264,12 +264,12 @@ describe("Codex history import routing", () => {
       new URL("./daemon.ts", import.meta.url),
       "utf8",
     );
-    expect(source).toContain(
-      'parsed.switch_agent === true && conversationId && resumeAgentType !== "codex"',
+    expect(source).toMatch(
+      /parsed\.switch_agent === true &&\s*conversationId &&\s*resumeAgentType !== "codex"/,
     );
 
-    const start = source.indexOf(
-      'if (resumeAgentType === "codex" && (parsed.fork === true || forceReconstitute) && conversationId)',
+    const start = source.search(
+      /if \(\s*resumeAgentType === "codex" &&\s*\(parsed\.fork === true \|\| forceReconstitute\) &&\s*conversationId\s*\)/,
     );
     // The Codex branch ends where the registry-driven native fork branch begins
     // (grok forks through its own resume flags there, via autoResumeSession).
@@ -281,7 +281,7 @@ describe("Codex history import routing", () => {
 
     expect(branch).toContain("activeCodexAppServer.threadFork");
     expect(branch).toContain("threadForkTimeoutMsForBytes(importBytes)");
-    expect(branch).toContain("}, forkTimeoutMs)");
+    expect(branch).toMatch(/\},\s*forkTimeoutMs,?\s*\)/);
     expect(branch).toContain(
       "switchingAgent ? { switched: true } : { forked: true }",
     );
@@ -339,14 +339,16 @@ describe("Codex history import routing", () => {
       new URL("./daemon.ts", import.meta.url),
       "utf8",
     );
-    const start = source.indexOf(
-      'if (parsed.switch_agent === true && conversationId && resumeAgentType !== "codex")',
+    const start = source.search(
+      /if \(\s*parsed\.switch_agent === true &&\s*conversationId &&\s*resumeAgentType !== "codex"\s*\)/,
     );
     const end = source.indexOf("// opencode API fork.", start);
     const branch = source.slice(start, end);
     expect(start).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(start);
-    expect(branch).toContain("teardownConversationBackendsLive(conversationId");
+    expect(branch).toMatch(
+      /teardownConversationBackendsLive\(\s*conversationId/,
+    );
     expect(branch).not.toContain("removeAppServerThreadRegistration");
     expect(branch).not.toContain("forgetPersistedAppServerConversation");
   });
@@ -454,8 +456,8 @@ describe("one conversation, one agent", () => {
       "sessionFileStaleForAgent(sessionFile?.agentType, agentTypeHint)",
     );
 
-    expect(source).toContain(
-      "rawAgent ? fromConvexAgentType(rawAgent) : undefined",
+    expect(source).toMatch(
+      /rawAgent\s*\?\s*fromConvexAgentType\(rawAgent\)\s*:\s*undefined/,
     );
     expect(source).toContain("agentTypeHint ?? detectedType");
   });

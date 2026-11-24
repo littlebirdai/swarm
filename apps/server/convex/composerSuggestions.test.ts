@@ -895,8 +895,8 @@ describe("suggest request seams", () => {
       source.indexOf('cliRoute("/cli/suggestion-profile"'),
     );
     const call = route.slice(0, route.indexOf(");\n") + 2);
-    expect(call).toContain(
-      "internal.composerSuggestions.getOwnSuggestionProfile, { api_token: String(body?.api_token",
+    expect(call).toMatch(
+      /internal\.composerSuggestions\.getOwnSuggestionProfile, \{\s*api_token: String\(body\?\.api_token/,
     );
     expect(call).not.toContain("user_id");
     expect(call).not.toContain("...body");

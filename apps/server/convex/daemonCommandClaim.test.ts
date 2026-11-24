@@ -199,7 +199,7 @@ describe("the claim endpoint is a normal CLI route", () => {
   const http = fs.readFileSync(path.join(import.meta.dir, "http.ts"), "utf-8");
 
   test("it is registered through cliRoute, and forwards the device", () => {
-    const at = http.indexOf('cliRoute("/cli/command-claim"');
+    const at = http.search(/cliRoute\(\s*"\/cli\/command-claim"/);
     expect(at).toBeGreaterThan(-1);
     const block = http.slice(at, at + 600);
     expect(block).toContain("api.users.claimDaemonCommand");

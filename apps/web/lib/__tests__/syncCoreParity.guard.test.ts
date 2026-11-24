@@ -104,10 +104,8 @@ describe("useSyncCore owns the full feeder mount set", () => {
     // call is either the constant or the constant + probe token.
     for (const src of [live, syncSrc]) {
       for (const line of codeLines(src)
-        .map(({ line }) => line)
         .join("\n")
         .match(/[^\n]*listInboxSessions,\s*[^\n]*/g) ?? []) {
-        if (!line.includes("listInboxSessions,")) continue;
         expect(line.includes("LIST_INBOX_SESSIONS_ARGS")).toBe(true);
       }
     }

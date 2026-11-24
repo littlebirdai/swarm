@@ -184,8 +184,8 @@ describe("the daemon's reach removal", () => {
       path.resolve(import.meta.dir, "../daemon.ts"),
       "utf-8",
     );
-    expect(src).toContain(
-      'if (host?.address && !host.reach?.some((f) => f.path === folder) && dialsWithoutWaking(host)) {\n        spawn("ssh", reachRemoveArgs(',
+    expect(src).toMatch(
+      /if \(\s*host\?\.address &&\s*!host\.reach\?\.some\(\(f\) => f\.path === folder\) &&\s*dialsWithoutWaking\(host\)\s*\) \{\s*spawn\("ssh", reachRemoveArgs\(/,
     );
   });
 });

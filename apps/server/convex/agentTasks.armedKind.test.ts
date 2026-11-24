@@ -312,7 +312,7 @@ describe("every agent_tasks writer restamps the home (exhaustive)", () => {
   test("the patchTask chokepoint exists and restamps", () => {
     expect(src).toContain("async function patchTask");
     expect(src).toMatch(
-      /await ctx\.db\.patch\(task\._id, patch\);\s*\n\s*if \(task\.originating_conversation_id\) await refreshArmedTriggerKind\(ctx, task\.originating_conversation_id\);/,
+      /await ctx\.db\.patch\(task\._id, patch\);\s*\n\s*if \(task\.originating_conversation_id\)\s*await refreshArmedTriggerKind\(\s*ctx,\s*task\.originating_conversation_id,?\s*\);/,
     );
   });
 
@@ -353,13 +353,13 @@ describe("every agent_tasks writer restamps the home (exhaustive)", () => {
     // One insert site (insertTask), restamped right after by its caller path.
     expect(src.match(/\.insert\("agent_tasks"/g)?.length).toBe(1);
     expect(src).toMatch(
-      /await refreshArmedTriggerKind\(ctx, args\.originating_conversation_id as Id<"conversations">\);/,
+      /await refreshArmedTriggerKind\(\s*ctx,\s*args\.originating_conversation_id as Id<"conversations">,?\s*\);/,
     );
     // One delete site (deleteTaskCascade), restamping the old home.
     const deleteSites = src.match(/ctx\.db\.delete\(task\._id\)/g) ?? [];
     expect(deleteSites.length).toBe(1);
     expect(src).toMatch(
-      /await ctx\.db\.delete\(task\._id\);\s*\n\s*if \(task\.originating_conversation_id\) await refreshArmedTriggerKind\(ctx, task\.originating_conversation_id\);/,
+      /await ctx\.db\.delete\(task\._id\);\s*\n\s*if \(task\.originating_conversation_id\)\s*await refreshArmedTriggerKind\(\s*ctx,\s*task\.originating_conversation_id,?\s*\);/,
     );
     // webDelete routes through the cascade.
     expect(src).toMatch(

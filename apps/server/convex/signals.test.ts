@@ -2392,7 +2392,7 @@ describe("signals.publishProfile", () => {
       `${import.meta.dir}/http.ts`,
       "utf-8",
     );
-    const at = http.indexOf('cliRoute("/cli/line/profile/publish"');
+    const at = http.search(/cliRoute\(\s*"\/cli\/line\/profile\/publish"/);
     expect(at).toBeGreaterThan(-1);
     expect(http.slice(at, at + 300)).toContain("{ forwardDeviceId: true }");
   });
