@@ -202,6 +202,7 @@
         "@codecast/chat": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
+        "@codecast/docs": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
@@ -246,6 +247,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@codecast/analytics": "workspace:*",
+        "@codecast/chat": "workspace:*",
         "@codecast/chat": "workspace:*",
         "@codecast/convex": "workspace:*",
         "@codecast/diff": "workspace:*",
