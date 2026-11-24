@@ -276,7 +276,7 @@ const signals = [];
 const kill = process.kill;
 const start = new Date(2020, 0, 1).getTime();
 const clock = performance.now();
-Date.now = () => start + (existsSync("stopped") ? 4_000 + performance.now() - clock : 2_000);
+Date.now = () => start + (existsSync("stopped") ? 4_000 + Math.floor(performance.now() - clock) : 2_000);
 writeFileSync("parent", String(process.pid));
 process.kill = (pid, signal) => {
   if (pid < 0 && signal === "SIGTERM") writeFileSync("stopped", "");
@@ -355,7 +355,7 @@ process.kill = (pid, signal) => {
 };
 const start = new Date(2020, 0, 1).getTime();
 const clock = performance.now();
-Date.now = () => start + (existsSync("stop") ? 4_000 + performance.now() - clock : 2_000);
+Date.now = () => start + (existsSync("stop") ? 4_000 + Math.floor(performance.now() - clock) : 2_000);
 writeFileSync("parent", String(process.pid));
 const running = step(${JSON.stringify(command)});
 await waitFor("ready");
