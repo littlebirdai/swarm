@@ -346,6 +346,7 @@ describe("typecheck", () => {
   ).run;
 
   test("covers every program in .codecast/check.toml", () => {
+    const packages = new Set<string>();
     for (const [name, tsconfig] of Object.entries(checkToml.projects)) {
       if (NOT_IN_TYPECHECK_JOB.includes(name)) continue;
       const pkgDir = tsconfig.split("/").slice(0, 2).join("/");
@@ -355,9 +356,7 @@ describe("typecheck", () => {
           "utf8",
         ),
       );
-      expect(typecheckRun, `${name}: ${pkg.name} filtered`).toContain(
-        `--filter=${pkg.name}`,
-      );
+      packages.add(pkg.name);
       const rel = tsconfig.slice(pkgDir.length + 1);
       const script: string = pkg.scripts?.typecheck ?? "";
       const runsIt =
@@ -367,6 +366,10 @@ describe("typecheck", () => {
         true,
       );
     }
+    const filters = [...typecheckRun.matchAll(/--filter=(\S+)/g)].map(
+      ([, pkg]) => pkg,
+    );
+    expect(new Set(filters)).toEqual(packages);
   });
 });
 

@@ -360,6 +360,13 @@
         "workbox-window": "^7.4.1",
       },
     },
+    "packages/edge-contract": {
+      "name": "@codecast/edge-contract",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/shared": {
       "name": "@codecast/shared",
       "version": "0.0.1",
@@ -731,6 +738,8 @@
     "@codecast/cli": ["@codecast/cli@workspace:apps/cli"],
 
     "@codecast/convex": ["@codecast/convex@workspace:apps/server"],
+
+    "@codecast/edge-contract": ["@codecast/edge-contract@workspace:packages/edge-contract"],
 
     "@codecast/electron": ["@codecast/electron@workspace:apps/desktop"],
 

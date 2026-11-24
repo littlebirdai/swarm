@@ -1,7 +1,7 @@
 # codecast edge/v1
 
 This is the JSON contract between the codecast daemon and server. Import it from
-`@codecast/shared/contracts/edge/v1`. Each verb has request and response parsers.
+`@codecast/edge-contract`. Each verb has request and response parsers.
 They return the parsed value or an `EdgeParseError` with a field path and code.
 
 ## Versions and compatibility
