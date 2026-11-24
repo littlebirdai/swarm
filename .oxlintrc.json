@@ -26,7 +26,9 @@
     "apps/web/build/**",
     "apps/web/out/**",
     "apps/web/public/**",
-    "**/_generated/**"
+    "**/_generated/**",
+    "convex/**",
+    "platform/**"
   ],
   "overrides": [
     {
