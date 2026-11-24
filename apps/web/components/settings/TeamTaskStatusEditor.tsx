@@ -9,7 +9,7 @@
  *
  * The whole list saves wholesale through teams.updateTaskStatuses — it is
  * tiny, edited rarely, and the shared normalizer
- * (@codecast/shared/tasks normalizeTeamTaskStatuses) is the one validation
+ * (@codecast/tasks normalizeTeamTaskStatuses) is the one validation
  * authority for both this form and the mutation. Renaming a default keeps
  * its id (= the category name), so every existing task re-labels instantly
  * with zero task writes.
@@ -23,12 +23,12 @@ import { Input } from "../ui/input";
 import {
   TASK_STATUS_CATEGORIES,
   TASK_STATUS_COLORS,
-  isActiveTask,
   normalizeTeamTaskStatuses,
   teamTaskStatuses,
   type TaskStatusCategory,
   type TeamTaskStatus,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
+import { isActiveTask } from "@codecast/tasks";
 import {
   STATUS_COLOR_CLASSES,
   statusVisual,

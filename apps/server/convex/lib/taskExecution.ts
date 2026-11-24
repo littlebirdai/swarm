@@ -4,7 +4,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import { TASK_EFFORTS } from "@codecast/shared/tasks";
+import { TASK_EFFORTS } from "@codecast/tasks/statuses";
 
 type ReadCtx = Pick<QueryCtx, "db">;
 

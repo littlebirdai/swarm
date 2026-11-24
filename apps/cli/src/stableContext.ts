@@ -22,7 +22,7 @@ import type { PushedPoolRow } from "./workflow/flowPool.js";
 import { fetchMappedProjects, teamForDirectory } from "./directoryTeam.js";
 import { orgContextBlock, type OrgWhere } from "@codecast/messages/orgWhere";
 import { fitProjectContextBlock } from "@codecast/projects/projectContext";
-import { restoresTaskContext } from "@codecast/shared/tasks/resumeSources";
+import { restoresTaskContext } from "@codecast/tasks/resumeSources";
 import { formatModGuide } from "./mods/guide.js";
 import { defaultConfigDir } from "./config/configDir.js";
 import { resolveCastInvocation } from "./castInvocation.js";

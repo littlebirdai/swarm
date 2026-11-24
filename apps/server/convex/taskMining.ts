@@ -17,7 +17,7 @@ import {
 } from "./lib/access";
 import { inboxVisibilityFields } from "./inboxProjection";
 import { liveConversationIdSet } from "./lib/liveSessions";
-import { docRelatesToTask } from "@codecast/shared/tasks";
+import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
 import { graphNeighbors } from "./lib/taskGraph";
 import { TASKS_PER_CONVERSATION_LIMIT } from "./tasks";
 

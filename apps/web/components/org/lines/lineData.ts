@@ -2,7 +2,7 @@
 // company document's model, a sheet's Carried by and a hover card's summary
 // all count a project's work, its sessions and its lead by the same rule.
 import { projectLeadOf } from "@codecast/org/orgLead";
-import { projectTaskCounts } from "@codecast/shared/tasks";
+import { projectTaskCounts } from "@codecast/tasks";
 import type { BoardTask } from "../../../lib/initiatives";
 import { sessionsUnder, type GoalProject } from "../goalsLayout";
 import {

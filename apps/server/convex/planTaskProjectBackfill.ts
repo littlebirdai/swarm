@@ -10,7 +10,7 @@ import { internal } from "./_generated/api";
 import { internalMutation } from "./functions";
 import { workspaceForResource } from "./lib/access";
 import { workspaceKey } from "./lib/accessKeys";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 
 export type PlanTaskBackfillPage = {
   dryRun: boolean;

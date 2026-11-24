@@ -4,7 +4,7 @@
 
 import { execFileSync } from "./proc.js";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
-import { prWords, type WaitLabelOptions } from "@codecast/shared/tasks";
+import { prWords, type WaitLabelOptions } from "@codecast/tasks/graph";
 
 /** This checkout's repository (`owner/name`), or null outside one. */
 export function checkoutRepository(cwd: string): string | null {

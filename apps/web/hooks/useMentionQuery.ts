@@ -3,7 +3,7 @@ import { useQueryNoThrow } from "./useQueryNoThrow";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { MentionItem } from "../lib/mentionItem";
 import { matchHandle, memberHandle } from "@codecast/chat";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { useInboxStore, convBucketMap, isConvexId } from "../store/inboxStore";
 import { agentStatusAt, sessionAwakeAt } from "../lib/liveness";
 import type { BucketItem, BucketAssignmentItem } from "../store/inboxStore";

@@ -1,7 +1,7 @@
 // Which of a plan's tasks can start now, for `cast plan orchestrate`,
 // `autopilot`, `status`, `wave` and the workflow runner's `ready_tasks`.
 // Readiness itself is graph.ts's (task-graph.md TG1), the same rule `cast task
-// ready` applies on the server, judged by shared/tasks planVerdicts, which the
+// ready` applies on the server, judged by @codecast/tasks planVerdicts, which the
 // plan's fenced task list reads too.
 //
 // Backlog counts as `open` (work not started) but is never ready: TG1 readies
@@ -11,15 +11,14 @@ import {
   failedWaitAdvice,
   isFailedWait,
   notReadyLabel,
-  planVerdicts,
   UNKNOWN_BLOCKER_STATUS,
   type Blocker,
-  type GraphOutside,
   type GraphTask,
   type Readiness,
   type StatusOf,
   type WaitLabelOptions,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { planVerdicts, type GraphOutside } from "@codecast/tasks/planVerdicts";
 
 export interface PlanReadiness<T> {
   statusOf: StatusOf;

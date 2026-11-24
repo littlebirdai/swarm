@@ -51,8 +51,8 @@ import {
   verdictOfRow,
   type Verdict,
 } from "./sessionDecisions";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import {
-  isTerminalTaskStatus,
   isUnblocked,
   failedWaitAdvice,
   isWaitId,
@@ -75,7 +75,7 @@ import {
   type TaskWait,
   type WaitLabelOptions,
   type WaitTarget,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
 import { inlineForeignText } from "@codecast/fence/fence";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { normalizeRepository } from "@codecast/pull-requests/prRefs";
@@ -519,7 +519,7 @@ export async function addWaitCore(
   if (existing)
     return { wait: existing, met: existing.state === "met", existing: true };
   if (id && !isWaitId(id))
-    throw new Error(`"${id}" is not a wait id (shared/tasks newWaitId)`);
+    throw new Error(`"${id}" is not a wait id (@codecast/tasks newWaitId)`);
 
   const check = await checkTarget(ctx, userId, task, target, now);
   const wait: TaskWait = {

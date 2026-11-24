@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { derivePlanState, PLAN_MOVING_MS, type PlanMember } from "./planState";
+import {
+  derivePlanState,
+  PLAN_MOVING_MS,
+  type PlanMember,
+} from "../src/planState";
 
 const NOW = 10 * 24 * 3600_000;
 const H = 3600_000;

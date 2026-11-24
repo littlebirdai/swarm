@@ -9,11 +9,9 @@
  */
 import { inlineForeignText } from "@codecast/fence/fence";
 import { resolveMessagingPolicy } from "@codecast/messages/messagingPolicy";
-import {
-  renderFencedPlanRecord,
-  renderFencedTaskRecord,
-  type TaskEffort,
-} from "@codecast/shared/tasks";
+import { renderFencedPlanRecord } from "@codecast/tasks/planForeignText";
+import { renderFencedTaskRecord } from "@codecast/tasks/foreignText";
+import type { TaskEffort } from "@codecast/tasks/statuses";
 
 // --- Model Stylesheet Types & Resolution ---
 

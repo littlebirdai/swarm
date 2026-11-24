@@ -30,7 +30,7 @@ import {
   DEFAULT_TASK_STATUS_NAMES,
   TASK_STATUS_CATEGORIES,
   isTaskStatusCategory,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 
 const THROTTLE_MS = 20_000;
 const DEFAULT_LIMIT = 300;

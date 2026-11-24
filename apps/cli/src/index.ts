@@ -179,21 +179,22 @@ import type {
   SearchPartial,
   SessionPresence,
 } from "./formatter.js";
+import { buildTaskTree } from "@codecast/tasks";
 import {
-  buildTaskTree,
   referenceGuidance,
-  renderFencedTaskRecord,
   foreignProse,
   renderFencedPlanRecord,
   renderFencedPlanTasks,
+} from "@codecast/tasks/planForeignText";
+import { renderFencedTaskRecord } from "@codecast/tasks/foreignText";
+import {
   isTerminalTaskStatus,
-  openBlockerLabels,
-  parkingLine,
-  READY_MEANS,
-  STALE_TASK_DAYS,
-  STALE_TASK_WORDS,
   TASK_PRIORITIES,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
+import { openBlockerLabels } from "@codecast/tasks/planVerdicts";
+import { parkingLine } from "@codecast/tasks/resume";
+import { READY_MEANS } from "@codecast/tasks/graph";
+import { STALE_TASK_DAYS, STALE_TASK_WORDS } from "@codecast/tasks/frontier";
 import { buildEventFilter, narrowingWithoutOn } from "./triggerEventFilter.js";
 import {
   describeDatesFull,
@@ -318,8 +319,8 @@ import {
   writerOf,
   type GraphDeps,
 } from "./taskGraphCommands.js";
-import type { PlanStep } from "@codecast/shared/tasks";
-import { TASK_STATUS_CATEGORIES } from "@codecast/shared/tasks";
+import type { PlanStep } from "@codecast/tasks/planSteps";
+import { TASK_STATUS_CATEGORIES } from "@codecast/tasks/statuses";
 import {
   ensureTmux,
   tryInstallTmux,
@@ -26058,7 +26059,7 @@ work
       // A server older than the status aliases refuses `cancelled` whole; send the category it means.
       const message = err instanceof Error ? err.message : String(err);
       const { taskStatusAlias, invalidTaskStatusMessage } =
-        await import("@codecast/shared/tasks");
+        await import("@codecast/tasks/statuses");
       const refused = body.status && /Invalid task status/.test(message);
       const alias = refused ? taskStatusAlias(body.status) : undefined;
       if (!alias) {

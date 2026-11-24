@@ -20,7 +20,7 @@ Two read only surveys of the codebase were run before the chapters were finalise
 
 ## Work primitives
 
-- Tasks at `schema.ts:3181`: acceptance criteria, verification evidence, execution status, `agent_session_id`, `conversation_ids`, `blocked_by`, `source`, `promoted`. Status categories in `packages/shared/tasks/statuses.ts:14`. Depth cap `MAX_TASK_DEPTH = 2` (`packages/shared/tasks/index.ts:331`) enforced by `tasks.ts:469 resolveParentTask`. Close guard `tasks.ts:565`. Ready rules `tasks.ts:1285`. Comment types progress, blocker, review, note (`schema.ts:3407`); decision is a plan and doc entry type, not a task comment type.
+- Tasks at `schema.ts:3181`: acceptance criteria, verification evidence, execution status, `agent_session_id`, `conversation_ids`, `blocked_by`, `source`, `promoted`. Status categories in `packages/tasks/src/statuses.ts:14`. Depth cap `MAX_TASK_DEPTH = 2` (`packages/tasks/src/index.ts:331`) enforced by `tasks.ts:469 resolveParentTask`. Close guard `tasks.ts:565`. Ready rules `tasks.ts:1285`. Comment types progress, blocker, review, note (`schema.ts:3407`); decision is a plan and doc entry type, not a task comment type.
 - `spawnSessionForTask` (`tasks.ts:2977`) is the one spawn for the board, `cast task start --spawn` and issue sync; it nests the worker under the session that created the task's plan through `resolveWorkerParentConversation` (`tasks.ts:65`).
 - An `agent:` assignee grants no read access: `packages/convex/convex/lib/access.ts:56 isUserGrant`.
 - Plans at `schema.ts:3024`: `entries[]` with decision and rationale, `join_policy`, `orchestration_metadata`; bind at `plans.ts:569`; `plans.snippet` at `:1090` and `cast plan context` at `packages/cli/src/index.ts:15341`.

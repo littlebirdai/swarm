@@ -7,7 +7,7 @@ import {
   isActiveTask,
   subtaskProgressOf,
   taskDepth,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks";
 import { useInboxStore, type TaskDetail } from "../../store/inboxStore";
 import { taskChildren } from "../../lib/subtaskTally";
 import { closeTaskWithGuard, createTaskAndAdopt } from "../../lib/taskActions";

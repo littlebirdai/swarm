@@ -40,7 +40,7 @@ import { docSourceForPlanSource } from "@codecast/docs";
 import {
   renderFencedPlanRecord,
   renderFencedPlanTasks,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/planForeignText";
 import { inlineForeignText } from "@codecast/fence/fence";
 import {
   listLiveManagedSessions,

@@ -10,10 +10,7 @@ import type {
   InitiativeRow,
   InitiativeStatus,
 } from "@codecast/goals/initiative";
-import {
-  projectTaskCounts,
-  type ProjectProgress,
-} from "@codecast/shared/tasks";
+import { projectTaskCounts, type ProjectProgress } from "@codecast/tasks/index";
 
 export type Progress = ProjectProgress;
 /** What the board rule reads off a task. */

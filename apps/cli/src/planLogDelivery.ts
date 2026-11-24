@@ -14,7 +14,7 @@ import {
   fenceForeignText,
   inlineForeignText,
 } from "@codecast/fence/fence";
-import { foreignProse } from "@codecast/shared/tasks";
+import { foreignProse } from "@codecast/tasks/planForeignText";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { fmt } from "./colors.js";
 import { execFileSync } from "./proc.js";

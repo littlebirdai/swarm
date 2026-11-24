@@ -17,9 +17,8 @@ import {
   directChildren,
   isActiveTask,
   subtaskProgressOf,
-  waitTone,
-  type WaitTone,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks";
+import { waitTone, type WaitTone } from "@codecast/tasks/graph";
 import {
   createTaskAndAdopt,
   openSubtasksOf,

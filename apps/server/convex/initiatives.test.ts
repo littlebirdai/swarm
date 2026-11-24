@@ -739,7 +739,7 @@ describe("initiatives: projects", () => {
       project_ids: [P, Q],
     });
     const [row] = await run(list, db, { status: "active" });
-    // Growth counts the rows its board shows (shared/tasks projectTaskCounts):
+    // Growth counts the rows its board shows (@codecast/tasks projectTaskCounts):
     // one open and one done. The plan only task, the dropped one, the agent's
     // suggestion and the stranger's private one are not counted.
     expect(row.projects.map((p: any) => [p.title, p.task_counts])).toEqual([

@@ -17,7 +17,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Ionicons } from "@expo/vector-icons";
 import { teamFeatureEnabled } from "@codecast/policy/teamFeatures";
 import { personRefOf } from "@codecast/entities";
-import { isActiveTask } from "@codecast/shared/tasks";
+import { isActiveTask } from "@codecast/tasks";
 import {
   useInboxStore,
   useTrackedStore,

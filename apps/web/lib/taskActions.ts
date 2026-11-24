@@ -8,7 +8,7 @@ import {
   isCountableSubtask,
   taskDepth,
   wouldCreateTaskCycle,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks";
 import { undoGroup } from "@platform/engine";
 import { counted, undoAsOne } from "../store/undo/labels";
 import { taskEditLabel } from "../store/undo/policies/work";

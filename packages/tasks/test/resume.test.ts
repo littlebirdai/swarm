@@ -5,7 +5,7 @@ import {
   restoresTaskContext,
   TASK_RESUME_MAX_LINES,
   type TaskResumeContext,
-} from "./resume";
+} from "../src/resume";
 
 const NOW = Date.UTC(2026, 9, 8, 12, 0);
 const N = "0a1b2c3d";

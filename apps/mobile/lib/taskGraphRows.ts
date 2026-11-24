@@ -6,7 +6,6 @@ import {
   blockerEntriesOf,
   blockerStateLabel,
   isCleared,
-  isTerminalTaskStatus,
   isUnblocked,
   waitLabel,
   waitStateWord,
@@ -15,7 +14,8 @@ import {
   type StatusOf,
   type WaitKind,
   type WaitState,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { findEntityInStore, lookup } from "@codecast/web/lib/liveEntities";
 import { storeStatusOf, type BoardTask } from "@codecast/web/lib/taskBlockers";
 

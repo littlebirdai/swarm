@@ -2,7 +2,7 @@ import {
   directChildren,
   subtaskProgressOf,
   type ProgressInput,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks";
 
 const cache = new WeakMap<
   object,

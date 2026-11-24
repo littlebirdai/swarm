@@ -49,7 +49,7 @@ import {
 import {
   DEFAULT_TASK_STATUSES,
   type TeamTaskStatus,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 import { resolveAssigneeInfo, assigneeLabelOf } from "./liveEntities";
 import { arrangeChain, type ChainNode } from "./taskChain";
 import { AssigneeFace } from "../components/identity/AssigneeFace";

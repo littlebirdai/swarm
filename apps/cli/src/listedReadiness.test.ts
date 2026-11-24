@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatWaitTime, prWords, type Blocker } from "@codecast/shared/tasks";
+import { formatWaitTime, prWords, type Blocker } from "@codecast/tasks/graph";
 import { listedBlockers, listedReady } from "./listedReadiness";
 
 const ct1: Blocker = { kind: "task", ref: "ct-1", status: "open" };

@@ -4,7 +4,7 @@
 
 import { collapseSameTitle, matchScore } from "./mentionRanking";
 import { inActiveWorkspace } from "./workspaceScope";
-import { isActiveTask, isOnHumanBoard } from "@codecast/shared/tasks";
+import { isActiveTask, isOnHumanBoard } from "@codecast/tasks";
 
 // One matcher for tasks/docs/plans over the globally-synced mention index.
 // Reuses matchScore() (exact > prefix > substring, every typed word required

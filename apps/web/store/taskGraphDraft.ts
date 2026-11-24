@@ -12,7 +12,7 @@ import {
   waitIsReplaceable,
   type TaskWait,
   type WaitTarget,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
 
 type Rows = Record<string, any>;
 

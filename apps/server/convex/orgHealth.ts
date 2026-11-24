@@ -72,7 +72,7 @@ import {
   type ActivityCommit,
   type ActivitySession,
 } from "./lib/orgActivity";
-import { isActiveTask } from "@codecast/shared/tasks";
+import { isActiveTask } from "@codecast/tasks";
 import {
   approxMessageBytes,
   isNavigableUserMessage,
@@ -312,7 +312,7 @@ export async function readTurnsSince(
   return out;
 }
 
-/** The statuses a task is still open under (shared/tasks TASK_STATUS_CATEGORIES minus done and dropped). */
+/** The statuses a task is still open under (@codecast/tasks TASK_STATUS_CATEGORIES minus done and dropped). */
 export const WORK_STATUSES = [
   "backlog",
   "open",
@@ -337,7 +337,7 @@ export type WorkTasks = {
  *  read is the wrong shape for this: on a large workspace the newest rows are
  *  mined suggestions and closes, and the older open rows, the ones a stale
  *  detector exists for, fall out of the cap. Mined suggestions and dismissed
- *  rows are left out (shared/tasks isActiveTask): they are not claims anyone
+ *  rows are left out (@codecast/tasks isActiveTask): they are not claims anyone
  *  filed, so they are neither ledger, nor load, nor a record to bring in line.
  *  Shared by org.health and the analyzer inputs so both count the same rows. */
 export async function readWorkTasks(

@@ -1,7 +1,7 @@
 import { afterAll, expect, test } from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
-import { MAX_TASK_DEPTH } from "@codecast/shared/tasks";
+import { MAX_TASK_DEPTH } from "@codecast/tasks";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { useInboxStore } from "../../store/inboxStore";

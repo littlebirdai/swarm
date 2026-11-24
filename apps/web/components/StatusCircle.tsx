@@ -8,7 +8,7 @@
  * (`currentColor`), so callers style it exactly like a lucide icon.
  */
 import { forwardRef, type SVGProps } from "react";
-import type { TaskStatusCategory } from "@codecast/shared/tasks";
+import type { TaskStatusCategory } from "@codecast/tasks/statuses";
 
 export type StatusCircleProps = Omit<SVGProps<SVGSVGElement>, "fill"> & {
   category: TaskStatusCategory;

@@ -11,8 +11,6 @@ import {
   blockerRefs,
   blockersHoldingBack,
   dependencyLoopChecker,
-  frontierOrder,
-  isTerminalTaskStatus,
   parentStatusLookup,
   parseBlockerRef,
   readinessOf,
@@ -22,7 +20,9 @@ import {
   type NotReadyReason,
   type ReadinessOptions,
   type StatusOf,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { frontierOrder } from "@codecast/tasks/frontier";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import {
   canAccessTask,
   isSameWorkspace,

@@ -1,7 +1,7 @@
 /**
  * Doc provenance — the shared rule behind the web docs list, mobile's docs
  * segment, and the convex write paths, so the three never drift. Mirrors
- * @codecast/shared/tasks, which owns the same question for tasks.
+ * @codecast/tasks, which owns the same question for tasks.
  *
  * ORIGIN answers "did a person write this doc, or did a machine file it".
  * The complaint that started this (Aug 26) was the docs list drowning in

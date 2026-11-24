@@ -5,7 +5,7 @@ import {
   planTail,
   stepsFromWaves,
   templateSteps,
-} from "./planSteps";
+} from "../src/planSteps";
 
 /** The parsed steps' text alone. */
 const stepTexts = (text: string) =>

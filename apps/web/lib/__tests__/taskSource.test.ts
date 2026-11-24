@@ -3,7 +3,7 @@
 // Source (tasksForSource "") run over one fixture and agree row for row.
 // Run: bun test lib/__tests__/taskSource.test.ts
 import { describe, expect, it } from "bun:test";
-import { projectTaskCounts } from "@codecast/shared/tasks";
+import { projectTaskCounts } from "@codecast/tasks";
 import { tasksForSource } from "../taskSource";
 
 const P = "proj-1";

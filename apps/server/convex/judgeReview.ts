@@ -46,7 +46,7 @@ import {
   type SignalInput,
 } from "./signals";
 import { runModelCall } from "./modelCalls";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { isExpectationId } from "@codecast/shared/contracts/expectations";
 import { latestExpectations } from "./lib/expectationsApply";
 import { leadRoleOf } from "./lineCause";

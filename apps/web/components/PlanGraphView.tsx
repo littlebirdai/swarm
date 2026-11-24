@@ -2,14 +2,14 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   blockerGatesPickup,
-  isTerminalTaskStatus,
   topoLayers,
   waitLabel,
   waitLine,
   waitMetLabel,
   waitTone,
   type TaskWait,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { WAIT_TONE_STYLE } from "../lib/taskBlockers";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 

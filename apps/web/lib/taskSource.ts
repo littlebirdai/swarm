@@ -1,4 +1,4 @@
-import { isActiveTask, isOnHumanBoard } from "@codecast/shared/tasks";
+import { isActiveTask, isOnHumanBoard } from "@codecast/tasks";
 
 /** The Source value of the Huddles view: tasks pulled from a call. */
 export const CALLS_SOURCE = "calls";

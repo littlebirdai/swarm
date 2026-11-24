@@ -16,7 +16,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { isSilentAgentRow } from "@codecast/chat";
 import { commentThreadRootKey } from "@codecast/comments";
-import { isHumanOrigin } from "@codecast/shared/tasks";
+import { isHumanOrigin } from "@codecast/tasks";
 
 export type ThreadKind =
   | "chat"

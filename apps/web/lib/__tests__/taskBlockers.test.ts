@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { blockersHoldingBack, type TaskWait } from "@codecast/shared/tasks";
+import { blockersHoldingBack, type TaskWait } from "@codecast/tasks/graph";
 import {
   blockedMark,
   blockerStatusSig,

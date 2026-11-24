@@ -107,7 +107,7 @@ const rows = {
       plan_id: "fixture-plan-seo",
     },
     // No project of its own: the project's board would not show it, so the
-    // project does not count it (shared/tasks isOnProjectBoard); its plan does.
+    // project does not count it (@codecast/tasks isOnProjectBoard); its plan does.
     { _id: "t5", status: "open", plan_id: "fixture-plan-ads" },
     // Agent bookkeeping is off the board too.
     {

@@ -29,7 +29,7 @@ import {
   parseRepoObjectId,
   type EntityType,
 } from "@codecast/entities";
-import { docRelatesToTask } from "@codecast/shared/tasks";
+import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
 import {
   roleAssigneeInfo,
   sameAssigneeInfo,

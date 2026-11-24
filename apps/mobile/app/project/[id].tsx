@@ -26,7 +26,7 @@ import {
 import { projectDefaultSessionOf } from "@codecast/web/lib/projectDefaultSession";
 import { sessionsUnder } from "@codecast/web/components/org/goalsLayout";
 import type { OrgTree } from "@codecast/web/components/org/orgTypes";
-import { isOnProjectBoard } from "@codecast/shared/tasks";
+import { isOnProjectBoard } from "@codecast/tasks";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
 import { TaskItemRow, showTaskActions } from "@/components/TaskItem";
 import { PlanItemRow } from "@/components/PlanItem";

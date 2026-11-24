@@ -14,8 +14,8 @@ import {
   FOREIGN_PLAN_CAPS,
   foreignProse,
   referenceGuidance,
-  foreignTaskSource,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/planForeignText";
+import { foreignTaskSource } from "@codecast/tasks/foreignText";
 import type { RegisteredQuery } from "convex/server";
 import { resolveActor } from "./lib/actor";
 import { afterRoleDocWrite } from "./orgRoles";

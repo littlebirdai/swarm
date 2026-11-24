@@ -55,13 +55,13 @@ import {
   tellReleased,
   unblockBy,
 } from "./taskWaits";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
+import { parseStoredList } from "@codecast/tasks/graphHistory";
 import {
-  isTerminalTaskStatus,
-  parseStoredList,
   taskBlockerEntries,
   type StatusOf,
   type TitledTaskBlocker,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
 
 /** A linked task as every surface prints it. */
 export type LinkRef = { short_id: string; title: string; status: string };

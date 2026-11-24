@@ -4,7 +4,7 @@ import { boardOrderedStatuses } from "../taskStatuses";
 import {
   DEFAULT_TASK_STATUSES,
   type TeamTaskStatus,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 
 // A team list with custom statuses sprinkled through, deliberately shuffled so
 // nothing passes by accident of input order.

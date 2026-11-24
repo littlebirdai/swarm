@@ -16,7 +16,7 @@ import {
   workspaceForResource,
 } from "./lib/access";
 import { notFound } from "./lib/auth";
-import { templateSteps } from "@codecast/shared/tasks";
+import { templateSteps } from "@codecast/tasks/planSteps";
 
 /** Template names match in any case, everywhere they are looked up. */
 const sameTemplateName = (a: string, b: string) =>

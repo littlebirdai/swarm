@@ -20,7 +20,7 @@ import { createWorkContext } from "./data";
 import { placeSignal, scopeProject } from "./lib/signalPlacement";
 import { embedText, embeddingWorstCase } from "./lib/embeddings";
 import { vendorAllowedFor } from "./lib/vendorGuard";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { runModelCall, withinBudget, type CallScope } from "./modelCalls";
 import { attachJudgeRequest, parseAttachJudgeReply } from "./lib/attachJudge";
 import type { SignalInput } from "./signals";

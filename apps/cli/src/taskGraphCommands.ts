@@ -7,18 +7,11 @@ import type { Command } from "commander";
 import {
   holdsBack,
   isPrWaitTarget,
-  isTerminalTaskStatus,
   isWaitId,
   notReadyLabel,
-  numberedWaveError,
-  parkingLine,
   parseBlockerRef,
-  parseStepLines,
-  planTail,
-  stepsFromWaves,
   taskBlockerLine,
   taskRefLine,
-  templateSteps,
   topologicalOrder,
   UNKNOWN_BLOCKER_STATUS,
   waitingOnLabel,
@@ -28,11 +21,20 @@ import {
   type Blocker,
   type GraphTask,
   type NotReadyReason,
-  type PlanStep,
   type TaskWait,
   type TitledTaskBlocker,
   type WaitLabelOptions,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
+import {
+  numberedWaveError,
+  parseStepLines,
+  planTail,
+  stepsFromWaves,
+  templateSteps,
+  type PlanStep,
+} from "@codecast/tasks/planSteps";
+import { parkingLine } from "@codecast/tasks/resume";
 import { localTimeZone } from "@codecast/time";
 import { checkoutRepository, checkoutWords } from "./checkoutWords.js";
 import { c, fmt } from "./colors.js";
@@ -61,7 +63,6 @@ export type GraphDeps = {
 
 // ---------------------------------------------------------------------------
 // Blocker refs (TG3)
-// ---------------------------------------------------------------------------
 
 /** A ref routed to its route: a task edge, a wait, or (removal only) a wait by id. */
 export type RoutedRef =

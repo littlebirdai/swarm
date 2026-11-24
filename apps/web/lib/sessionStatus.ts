@@ -33,7 +33,7 @@ import {
   isExitAfterDone,
 } from "@codecast/inbox/inboxProjection";
 import { type WorkState } from "@codecast/sessions/workState";
-import type { PlanState } from "@codecast/shared/tasks";
+import type { PlanState } from "@codecast/tasks/planState";
 import { agentStatusAt, liveFactsOf } from "./liveness";
 import { apiErrorBadge } from "./apiErrorBadge";
 import { sessionStartupState } from "./sessionLifecycle";

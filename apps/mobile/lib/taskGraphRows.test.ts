@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { TaskWait } from "@codecast/shared/tasks";
+import type { TaskWait } from "@codecast/tasks/graph";
 import { taskGraphView } from "./taskGraphRows";
 
 const tasks = Object.fromEntries(

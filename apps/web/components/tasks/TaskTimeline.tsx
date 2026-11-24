@@ -41,13 +41,12 @@ import {
 } from "./TaskCommentStream";
 import type { TaskLinkedSession } from "./TaskSessionList";
 import { EntityIdPill } from "../EntityIdPill";
+import { findStoredWaitTime, formatWaitTime } from "@codecast/tasks/graph";
 import {
-  findStoredWaitTime,
-  formatWaitTime,
   graphChange,
   type GraphChange,
   type GraphTone,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graphHistory";
 
 type Person = { name: string; image?: string; github_username?: string };
 

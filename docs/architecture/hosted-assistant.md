@@ -1166,7 +1166,7 @@ isAssistantTask`: no project or plan, made by hand or in an assistant
 - **Where it arrives.** `ROUTINE_SHOWS_UP` promises only the inbox; the card
   says when this device's notifications are off and offers to turn them on
   (`RoutineNotifyLine`).
-- **One rule for to-dos.** `isAssistantTask` lives in `@codecast/shared/tasks`;
+- **One rule for to-dos.** `isAssistantTask` lives in `@codecast/tasks`;
   `list_tasks` reads it, so the assistant and the To-dos page agree.
 - **Search finds your own work.** The palette and /search match the store's
   tasks and docs over the mention index (`universalSearch.ts searchIndexOf`,

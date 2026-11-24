@@ -32,7 +32,7 @@ import {
   type MetricReading,
   type MetricStanding,
 } from "@codecast/goals/initiative";
-import { isOnProjectBoard } from "@codecast/shared/tasks";
+import { isOnProjectBoard } from "@codecast/tasks";
 import { openPlansOf } from "@codecast/goals/openPlans";
 import { isClosedPlan, type ActivityArea } from "./orgActivity";
 

@@ -23,7 +23,7 @@ import {
   useTeamTaskStatusList,
 } from "../../lib/taskStatuses";
 import { getLabelColor } from "../../lib/labelColors";
-import { taskOrigin } from "@codecast/shared/tasks";
+import { taskOrigin } from "@codecast/tasks";
 import {
   Link2,
   X,

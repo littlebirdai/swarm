@@ -15,7 +15,7 @@ import {
 } from "./tasks";
 import { get as getPlan, webGet as webGetPlan } from "./plans";
 import { readinessLookups, stampGraphStatus } from "./lib/taskGraph";
-import { isUnblocked } from "@codecast/shared/tasks";
+import { isUnblocked } from "@codecast/tasks/graph";
 import { hashToken } from "./apiTokens";
 
 const USER = "u_user";

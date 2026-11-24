@@ -10,7 +10,7 @@ true answer, and a person looking at a task can see why it is not moving.
 
 ## TG1. One readiness function
 
-`packages/shared/tasks/graph.ts` owns the definition. Convex (`tasks.list`,
+`packages/tasks/src/graph.ts` owns the definition. Convex (`tasks.list`,
 `tasks.webList`, `tasks.getReadyTasks`), the CLI (`planReadiness.ts`) and the
 web all call it; none keeps its own copy.
 
@@ -48,7 +48,7 @@ typed entries (`{kind: "task", ref}` or the wait itself). Readiness, the
 CLI's "blocked by" lines, the row tooltip and the task page all render from
 that one list; `blockerEntriesOf` is the whole Blocked by, cleared and
 missing entries included, for a surface that lists history. A plan's tasks
-are judged together by `planVerdicts` (`shared/tasks/planVerdicts.ts`),
+are judged together by `planVerdicts` (`@codecast/tasks/planVerdicts.ts`),
 which the CLI's plan commands and the plan's fenced task list share.
 
 "Ready" in the CLI matches `cast task ready`. The web says **unblocked**,
@@ -141,7 +141,7 @@ way, because someone has to re-plan.
 
 ## TG3. One grammar for blocker refs
 
-`parseBlockerRef` in `packages/shared/tasks/graph.ts`, used by the CLI flags,
+`parseBlockerRef` in `packages/tasks/src/graph.ts`, used by the CLI flags,
 the web's add-blocker palette and the server:
 
 | input                                      | means                       |
@@ -298,7 +298,7 @@ also use. Edge and mirror writes go through `writeEdges` (`lib/taskGraph.ts`)
 and wait writes through `writeWaits`, which both call it; `tasks.update`
 records a `blocked_by` overwrite with the other fields it patches. History stores a wait
 being set as "Waiting on PR #42"; the task timeline renders each change as
-a clause after who made it (`graphChange` in `@codecast/shared/tasks`):
+a clause after who made it (`graphChange` in `@codecast/tasks`):
 "made it wait on PR #42", "found it while working on ct-12". A met wait that
 unblocks the task posts the comment "Unblocked: PR #42 merged". Stored text about a time wait (the
 history line, the "Unblocked" comment) is written with `absolute: true`,
