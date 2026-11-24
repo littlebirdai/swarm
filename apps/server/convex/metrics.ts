@@ -50,7 +50,7 @@ import {
   READER_LIVE_SLACK_MS,
   WATCH_KINDS_BY_PROVIDER,
   watchProblem,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   watchDirectionValidator as directionValidator,
   watchKindValidator,
@@ -80,14 +80,14 @@ import {
   notifyProblem,
   promoteFor,
   renotifyDue,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import { deliverWatchAlert } from "./metricAlerts";
 import {
   parseVolumeQuery,
   volumeHistory,
   volumeValue,
   type VolumeInput,
-} from "@codecast/shared/contracts/volumeWatch";
+} from "@codecast/ingest/volumeWatch";
 
 // The watch check is the contract's, shared with the web form.
 export { WATCH_KINDS_BY_PROVIDER, watchProblem };
@@ -147,7 +147,7 @@ export const createWatch = mutation({
     direction: v.optional(directionValidator),
     unit: v.optional(v.string()),
     interval_ms: v.optional(v.number()),
-    /** The monitor (contracts/metricMonitor.ts). */
+    /** The monitor (packages/ingest/src/metricMonitor.ts). */
     eval_reads: v.optional(v.number()),
     warn: v.optional(v.number()),
     no_data_after: v.optional(v.number()),
@@ -223,7 +223,7 @@ export const updateWatch = mutation({
     unit: v.optional(v.union(v.string(), v.null())),
     interval_ms: v.optional(v.number()),
     status: v.optional(v.union(v.literal("active"), v.literal("paused"))),
-    /** The monitor (contracts/metricMonitor.ts); null takes a setting off. */
+    /** The monitor (packages/ingest/src/metricMonitor.ts); null takes a setting off. */
     eval_reads: v.optional(v.union(v.number(), v.null())),
     warn: v.optional(v.union(v.number(), v.null())),
     no_data_after: v.optional(v.union(v.number(), v.null())),
@@ -233,7 +233,7 @@ export const updateWatch = mutation({
     on_alert: v.optional(
       v.union(v.literal("task"), v.literal("timeline"), v.null()),
     ),
-    /** Who else the alert reaches and what more it does (contracts/metricMonitor AlertNotify); null clears it. The caller becomes its `by`. */
+    /** Who else the alert reaches and what more it does (packages/ingest/src/metricMonitor AlertNotify); null clears it. The caller becomes its `by`. */
     notify: v.optional(
       v.union(
         v.null(),
@@ -713,7 +713,7 @@ const VOLUME_GROUPS_MAX = 2000;
 const VOLUME_DAYS = 30;
 
 /**
- * What a volume watch reads (contracts/volumeWatch): its source's hour
+ * What a volume watch reads (packages/ingest/src/volumeWatch): its source's hour
  * counters and the groups it saw in the last 30 days, from codecast's own
  * tables. `history` adds the past those reach.
  */
@@ -863,7 +863,7 @@ export const recordPoint = internalMutation({
     series: v.optional(
       v.array(v.object({ at: v.number(), value: v.number() })),
     ),
-    /** The definition version the reader answered (contracts/ingest MetricReaderAnswer). */
+    /** The definition version the reader answered (packages/ingest/src/ingest MetricReaderAnswer). */
     version: v.optional(v.string()),
   },
   handler: async (ctx, args) => {

@@ -21,7 +21,7 @@ import {
   isGroupedLogLevel,
   LOG_LEVELS,
   type IngestItem,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 
 // @platform/analytics may not import codecast, so its recorder and sink spell
 // the replay event types, the ingest item types, the batch caps and the

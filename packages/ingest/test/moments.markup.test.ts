@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { receivedWords, stripMomentMarkup } from "./moments";
+import { receivedWords, stripMomentMarkup } from "../src/moments";
 
 test("an extractor's match tag, window marker and cut never read as words Union sent (tc-24, tc-25)", () => {
   expect(

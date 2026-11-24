@@ -16,7 +16,7 @@ import {
   INGEST_SHORT_ID_PREFIX,
   type IngestItem,
   type SourceProvider,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   REPLAY_DOM_LIMITS,
   REPLAY_STYLE_LIMITS,

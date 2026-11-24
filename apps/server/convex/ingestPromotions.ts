@@ -13,7 +13,7 @@ import {
   KIND_TRANSITIONS,
   transitionSignalKind,
   type Transition,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 
 /** A scheduled promotion that has not settled after this long is taken as failed and scheduled again. */
 export const PROMOTE_RETRY_MS = 10 * 60_000;

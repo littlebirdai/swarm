@@ -5,8 +5,8 @@
 // show, the Overview tab wears and the sidebar badge reads. A source's health
 // is always the one reading in sourceHealth.ts, never a second rule here. Pure: no React, no store, so every rule here is
 // tested on its own.
-import { bucketSeries } from "@codecast/shared/contracts/ingest";
-import type { SourceProvider } from "@codecast/shared/contracts/ingest";
+import { bucketSeries } from "@codecast/ingest/ingest";
+import type { SourceProvider } from "@codecast/ingest/ingest";
 import type { SwitchLedger } from "../consequential/ConsequentialSwitch";
 import type { OpsGroup, OpsReplay, OpsSource, OpsWatch } from "./opsTypes";
 import { SOURCE_PROVIDER_LABEL } from "./parts";

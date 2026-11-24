@@ -18,6 +18,7 @@ const SCANNED = [
   "packages/replay/src",
   "packages/calls/src",
   "packages/entities/src",
+  "packages/ingest/src",
   "packages/shared/contracts",
   "apps/server/convex",
 ];

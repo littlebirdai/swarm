@@ -47,6 +47,7 @@
         "@codecast/fence": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/flows": "workspace:*",
+        "@codecast/ingest": "workspace:*",
         "@codecast/keyboard": "workspace:*",
         "@codecast/machines": "workspace:*",
         "@codecast/memory": "workspace:*",
@@ -148,6 +149,7 @@
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
+        "@codecast/ingest": "workspace:*",
         "@codecast/machines": "workspace:*",
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
@@ -289,6 +291,7 @@
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
+        "@codecast/ingest": "workspace:*",
         "@codecast/keyboard": "workspace:*",
         "@codecast/machines": "workspace:*",
         "@codecast/mods": "workspace:*",
@@ -377,6 +380,7 @@
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
+        "@codecast/ingest": "workspace:*",
         "@codecast/keyboard": "workspace:*",
         "@codecast/machines": "workspace:*",
         "@codecast/memory": "workspace:*",
@@ -778,6 +782,18 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/ingest": {
+      "name": "@codecast/ingest",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/replay": "workspace:*",
+        "@codecast/signals": "workspace:*",
+        "@codecast/triggers": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/keyboard": {
       "name": "@codecast/keyboard",
       "version": "0.0.1",
@@ -935,6 +951,7 @@
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
+        "@codecast/ingest": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/org": "workspace:*",
         "@codecast/policy": "workspace:*",
@@ -1431,6 +1448,8 @@
     "@codecast/hash": ["@codecast/hash@workspace:packages/hash"],
 
     "@codecast/hosted-assistant": ["@codecast/hosted-assistant@workspace:packages/hosted-assistant"],
+
+    "@codecast/ingest": ["@codecast/ingest@workspace:packages/ingest"],
 
     "@codecast/keyboard": ["@codecast/keyboard@workspace:packages/keyboard"],
 

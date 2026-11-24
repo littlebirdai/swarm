@@ -44,7 +44,7 @@ import {
   eventNameRows,
   KEYED_SOURCE_PROVIDERS,
   sourceConfigProblem,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import { ConnectSheet, type SheetKind } from "./ConnectSheet";
 import { openIssueCount } from "./issuesModel";
 import { eventsLast24h, settingsAnchor } from "./sourceViewModel";

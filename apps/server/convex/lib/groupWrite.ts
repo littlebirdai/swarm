@@ -20,7 +20,7 @@ import {
   transitionTriggerEvent,
   type GroupKind,
   type Transition,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import { groupFingerprint } from "@codecast/signals/signalFingerprint";
 import {
   HOUR_MS,

@@ -29131,6 +29131,24 @@
   "packages/hosted-assistant/test/assistant.replyAsks.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/ingest/src/ingest.ts": {
+    "swarm/no-comments": 80
+  },
+  "packages/ingest/src/metricMonitor.ts": {
+    "swarm/no-comments": 23
+  },
+  "packages/ingest/src/moments.ts": {
+    "swarm/no-comments": 55
+  },
+  "packages/ingest/src/sanitizeText.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/ingest/src/volumeWatch.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/ingest/test/volumeWatch.test.ts": {
+    "swarm/no-comments": 3
+  },
   "packages/keyboard/src/keyBindings.ts": {
     "swarm/no-comments": 44
   },
@@ -29776,9 +29794,6 @@
   "packages/shared/contracts/index.ts": {
     "swarm/no-comments": 35
   },
-  "packages/shared/contracts/ingest.ts": {
-    "swarm/no-comments": 80
-  },
   "packages/shared/contracts/initiative.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29869,9 +29884,6 @@
   "packages/shared/contracts/messagingPolicy.ts": {
     "swarm/no-comments": 13
   },
-  "packages/shared/contracts/metricMonitor.ts": {
-    "swarm/no-comments": 23
-  },
   "packages/shared/contracts/metricSeries.test.ts": {
     "swarm/no-comments": 1
   },
@@ -29883,9 +29895,6 @@
   },
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/moments.ts": {
-    "swarm/no-comments": 55
   },
   "packages/shared/contracts/openPlans.ts": {
     "swarm/no-comments": 7
@@ -29992,9 +30001,6 @@
   "packages/shared/contracts/runEnd.test.ts": {
     "swarm/no-comments": 7
   },
-  "packages/shared/contracts/sanitizeText.ts": {
-    "swarm/no-comments": 13
-  },
   "packages/shared/contracts/secretRules.ts": {
     "swarm/no-comments": 24
   },
@@ -30054,12 +30060,6 @@
   },
   "packages/shared/contracts/vaultProtocol.ts": {
     "swarm/no-comments": 58
-  },
-  "packages/shared/contracts/volumeWatch.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/volumeWatch.ts": {
-    "swarm/no-comments": 31
   },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9

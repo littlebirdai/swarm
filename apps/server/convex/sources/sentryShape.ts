@@ -7,7 +7,7 @@ import { SENTRY_SLUG, type TokenConfig } from "../tokenConnectors";
 import type { MirroredGroup } from "../lib/groupWrite";
 import { HOUR_MS, hourStart, type Bucket } from "../lib/ingestGroups";
 import { sentryIssueFingerprint } from "@codecast/signals/signalFingerprint";
-import type { GroupStatus } from "@codecast/shared/contracts/ingest";
+import type { GroupStatus } from "@codecast/ingest/ingest";
 
 /** What one poll may read: 3 pages of 100 issues, and 10 issues re-read by id. */
 export const SENTRY_POLL = {

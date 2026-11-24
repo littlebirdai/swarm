@@ -3,7 +3,7 @@ import { getFunctionName } from "convex/server";
 import { gzipSync, strFromU8, strToU8 } from "fflate";
 import schema from "../schema";
 import { makeFakeDb, schemaIndexes } from "../testDb";
-import { PASSTHROUGH_MAX_BYTES } from "@codecast/shared/contracts/ingest";
+import { PASSTHROUGH_MAX_BYTES } from "@codecast/ingest/ingest";
 import { VENDOR_CONVERTER_VERSION } from "@codecast/replay/replay";
 import { fromRrweb } from "@codecast/replay/rrweb";
 import { createSource } from "../ingest";

@@ -1,6 +1,6 @@
 // Where a fix for an issue stands: its stage, its task, the sessions on it.
 // No React, no store.
-import { GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES } from "@codecast/ingest/ingest";
 import type { OpsGroup } from "./opsTypes";
 import { DAY, HOUR, type Resolver, resolverOf } from "./issueState";
 

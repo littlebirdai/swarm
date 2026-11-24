@@ -34,6 +34,7 @@
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/hosted-assistant": "workspace:*",
+    "@codecast/ingest": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",
     "@codecast/mods": "workspace:*",

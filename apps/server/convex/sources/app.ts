@@ -58,10 +58,7 @@ import { resolveSessionConversation } from "../lib/access";
 import { forbidden, invalidScope, requireUser } from "../lib/auth";
 import { siteUrl } from "../lib/siteUrl";
 import { sha256Hex } from "../lib/hash";
-import {
-  INGEST_LIMITS,
-  validateIngestBatch,
-} from "@codecast/shared/contracts/ingest";
+import { INGEST_LIMITS, validateIngestBatch } from "@codecast/ingest/ingest";
 import { parseDuration } from "@codecast/time";
 import {
   APP_LIMITS,

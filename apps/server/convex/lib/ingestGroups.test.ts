@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  GROUP_RULES,
-  type IngestItem,
-} from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES, type IngestItem } from "@codecast/ingest/ingest";
 import {
   FLAP_WINDOW_MS,
   HOUR_MS,

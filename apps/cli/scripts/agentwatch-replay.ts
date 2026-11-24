@@ -70,8 +70,8 @@ import { spawnSync } from "node:child_process";
 import {
   DEFAULT_QUIET_MS,
   parseExtractorHeader,
-} from "@codecast/shared/contracts/moments";
-import { INGEST_LIMITS } from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/moments";
+import { INGEST_LIMITS } from "@codecast/ingest/ingest";
 
 const { values: a } = parseArgs({
   options: {

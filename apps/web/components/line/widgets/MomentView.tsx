@@ -18,10 +18,7 @@ import {
 } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import type {
-  MomentBlock,
-  MomentRecord,
-} from "@codecast/shared/contracts/moments";
+import type { MomentBlock, MomentRecord } from "@codecast/ingest/moments";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";

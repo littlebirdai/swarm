@@ -16,7 +16,7 @@ import {
   type IngestUser,
   type Transition,
   errorTitle,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   checkFingerprint,
   errorCulprit,
@@ -1030,7 +1030,7 @@ export function planMetric(
   },
   value: number,
   at: number,
-  /** The monitor's verdict (contracts/metricMonitor nextMonitorState) when it is more than this one value, and the sample's words when there is no value (missing data). */
+  /** The monitor's verdict (packages/ingest/src/metricMonitor nextMonitorState) when it is more than this one value, and the sample's words when there is no value (missing data). */
   opts: { ok?: boolean; message?: string } = {},
 ): Extract<ItemPlan, { type: "group" }> {
   const crossed =

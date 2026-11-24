@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { matchTaskTriggers, nextArmingAfterRun } from "./agentTasks";
-import { PENDING_EVENTS_CAP } from "@codecast/shared/contracts/ingest";
+import { PENDING_EVENTS_CAP } from "@codecast/ingest/ingest";
 
 function trigger(_id: string, event_filter: any, status = "scheduled") {
   return {

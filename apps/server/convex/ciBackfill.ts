@@ -12,13 +12,13 @@ import { internalAction, internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { workspaceKey as makeWorkspaceKey } from "./lib/accessKeys";
-import { GITHUB_CI_SOURCE_NAME } from "@codecast/shared/contracts/ingest";
+import { GITHUB_CI_SOURCE_NAME } from "@codecast/ingest/ingest";
 import {
   CI_RUNS_DAYS,
   CI_RUNS_KEPT,
   withCiRuns,
   type CiRunFact,
-} from "@codecast/shared/contracts/volumeWatch";
+} from "@codecast/ingest/volumeWatch";
 import { normalizeRepository } from "./lib/gitRefs";
 import { defaultBranchCiRun } from "./githubWebhooks";
 import { patchSourceStats } from "./lib/sourceStats";

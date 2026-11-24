@@ -64,7 +64,7 @@ import type { SourceHealth } from "./sourceHealth";
 import { IssueStepper, OpsFreshness, TabMore } from "./OpsShellParts";
 import { useForeignItemWorkspace, useTabFit } from "./opsShellHooks";
 import { issueOrigin } from "./issueNav";
-import { WATCH_KINDS_BY_PROVIDER } from "@codecast/shared/contracts/ingest";
+import { WATCH_KINDS_BY_PROVIDER } from "@codecast/ingest/ingest";
 import type { OpsSource } from "./opsTypes";
 import { PageHeader } from "../ui/page-header";
 import "./ops.css";

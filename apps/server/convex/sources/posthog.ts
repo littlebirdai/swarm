@@ -51,7 +51,7 @@ import {
   PASSTHROUGH_MAX_BYTES,
   POSTHOG_PROJECT_ID,
   validWatchQuery,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import type { RrwebEvent } from "@codecast/replay/rrweb";
 import { cleanUrl } from "@codecast/replay/replay";
 

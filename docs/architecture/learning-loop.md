@@ -190,7 +190,7 @@ same door errors and deploys use, `POST /cli/ingest/<key>`):
   sender, body and delivery state; facts as label and value; free text) and
   refs back to the product's rows. Its opening comment lines set its quiet
   window and timeout (`// quiet: 10m`, `// timeout: 90s`). The shape and the
-  checks are `shared/contracts/moments.ts`.
+  checks are `packages/ingest/src/moments.ts`.
 - **It runs where it was published.** `cast line moments publish --source
 <name>` sends a checkout's extractors and judges, each at its file's git
   blob sha, and names this machine as the one that runs them. Its daemon

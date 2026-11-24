@@ -605,7 +605,7 @@ apps/web/components/ops/ReplaysTab.tsx 1700
 apps/web/components/ops/SourceOverview.tsx 1350
 apps/web/components/ops/SourcesSection.tsx 1000
 apps/web/components/ops/TimelineTab.tsx 1700
-apps/web/components/ops/WatchEditor.tsx 1300
+apps/web/components/ops/WatchEditor.tsx 1250
 apps/web/components/ops/__tests__/opsHome.mount.test.tsx 900
 apps/web/components/ops/__tests__/replayPlayer.mount.test.tsx 1150
 apps/web/components/ops/appsModel.ts 900
@@ -765,6 +765,7 @@ packages/capabilities/src/fleetDiff.ts 900
 packages/capabilities/test/fleetDiff.test.ts 1200
 packages/docs/src/drafting.ts 950
 packages/entities/src/index.ts 1650
+packages/ingest/src/ingest.ts 1100
 packages/keyboard/src/shortcutCatalog.ts 1550
 packages/mods/src/authoring.d.ts 900
 packages/mods/src/mods.ts 900
@@ -783,7 +784,6 @@ packages/shared/contracts/expectations.test.ts 850
 packages/shared/contracts/expectations.ts 900
 packages/shared/contracts/inboxProjection.test.ts 1700
 packages/shared/contracts/inboxProjection.ts 1900
-packages/shared/contracts/ingest.ts 1100
 packages/shared/contracts/initiative.ts 1450
 packages/shared/contracts/initiativeRecord.test.ts 900
 packages/shared/contracts/judges.test.ts 1050

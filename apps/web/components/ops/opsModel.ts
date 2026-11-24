@@ -7,7 +7,7 @@ import {
   bucketSeries,
   kindTriggerEvents,
   sourceFilterAdmits,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import { parseStackFrame } from "@codecast/signals/signalFingerprint";
 import {
   capForeignText,

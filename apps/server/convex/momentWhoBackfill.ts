@@ -1,4 +1,4 @@
-// Names the moments read before a moment carried `who` (contracts/moments
+// Names the moments read before a moment carried `who` (packages/ingest/src/moments
 // momentWho): each ready moment whose body codecast keeps is read once from
 // R2 and its row takes the name. A body kept on the host, or past its 30
 // days, has nothing to read, and its row stays unnamed. One page per run;
@@ -8,7 +8,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { momentWho } from "@codecast/shared/contracts/moments";
+import { momentWho } from "@codecast/ingest/moments";
 import { liveBodyKey, readKeptBody } from "./lib/momentBody";
 
 const PAGE = 40;

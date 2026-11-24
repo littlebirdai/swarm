@@ -14,10 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, findOnPath, TOOL_PATH, execFileAsync } from "./proc.js";
 import { codecastPath } from "./codecastDir.js";
-import {
-  MOMENT_LIMITS,
-  type ExtractorInput,
-} from "@codecast/shared/contracts/moments";
+import { MOMENT_LIMITS, type ExtractorInput } from "@codecast/ingest/moments";
 import type { JudgeHandoff } from "@codecast/shared/contracts/judges";
 import type {
   ModelCallResult,

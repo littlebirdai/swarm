@@ -5,7 +5,7 @@
 // these queries directly.
 import { useMemo, useState } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES } from "@codecast/ingest/ingest";
 import { isConvexId, useInboxStore } from "../store/inboxStore";
 import type { SyncOpts } from "../store/inboxStore";
 import {

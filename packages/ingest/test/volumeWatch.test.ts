@@ -9,8 +9,8 @@ import {
   volumeUnit,
   volumeValue,
   withCiRun,
-} from "./volumeWatch";
-import { watchProblem } from "./ingest";
+} from "../src/volumeWatch";
+import { watchProblem } from "../src/ingest";
 
 const H = 3600_000;
 const D = 24 * H;

@@ -9,7 +9,7 @@ import {
   parseReaderQuery,
   WATCH_KINDS_BY_PROVIDER,
   type WatchKind,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import { useOpsGroups } from "../../hooks/useSyncOps";
 import type { SwitchLedger } from "../consequential/ConsequentialSwitch";
 import { spanLabel, type Pt } from "./metricModel";

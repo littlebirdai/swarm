@@ -13,7 +13,7 @@ import {
   alertRoute,
   type AlertNotifyInput,
   type AlertRoute,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import { useInboxStore } from "../../store/inboxStore";
 import { ConsequentialSwitch } from "../consequential/ConsequentialSwitch";
 import { AssigneeFace } from "../identity/AssigneeFace";

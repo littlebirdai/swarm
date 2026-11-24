@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseReaderQuery, readMetricAnswer } from "./ingest";
+import { parseReaderQuery, readMetricAnswer } from "@codecast/ingest/ingest";
 import {
   formatSeriesValue,
   metricLine,

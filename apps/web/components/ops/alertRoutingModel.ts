@@ -7,7 +7,7 @@ import {
   type AlertDelivery,
   type AlertNotify,
   type AlertNotifyInput,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import type { OwnerOption } from "./issueAssign";
 import { spanLabel } from "./metricModel";
 import type { TransitionRow } from "./metricEvents";

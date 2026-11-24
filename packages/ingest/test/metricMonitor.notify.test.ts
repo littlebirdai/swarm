@@ -6,7 +6,7 @@ import {
   normalizeNotify,
   notifyProblem,
   renotifyDue,
-} from "./metricMonitor";
+} from "../src/metricMonitor";
 
 describe("alert notify", () => {
   test("one stored shape: ids unique and sorted, empty parts dropped, nothing when it reaches no one", () => {

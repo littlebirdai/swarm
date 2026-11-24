@@ -34,10 +34,7 @@ import {
 import { repoBlobHref } from "./repoView";
 import type { ExternalEventRecord } from "./externalEventRecord";
 import { opsHref } from "../components/ops/opsPaths";
-import {
-  SOURCE_PROVIDERS,
-  type SourceProvider,
-} from "@codecast/shared/contracts/ingest";
+import { SOURCE_PROVIDERS, type SourceProvider } from "@codecast/ingest/ingest";
 
 export type ExternalEventSource =
   | "github"

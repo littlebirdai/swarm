@@ -12,7 +12,7 @@
 
 import { firstSentence, type JudgeFinding } from "./judges";
 import { parseJsonBlock } from "./modelCall";
-import { renderMoment, type MomentRecord } from "./moments";
+import { renderMoment, type MomentRecord } from "@codecast/ingest/moments";
 
 /** How an agent judge's session runs, from its header. */
 export interface AgentJudgeSpec {

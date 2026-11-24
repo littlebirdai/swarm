@@ -5,7 +5,7 @@
 import {
   nextMonitorState,
   type MonitorDirection,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import type { Pt } from "./metricModel";
 
 export type AlertRuleDraft = {

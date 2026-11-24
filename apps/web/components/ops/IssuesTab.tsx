@@ -26,7 +26,7 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import type { GroupKind } from "@codecast/shared/contracts/ingest";
+import type { GroupKind } from "@codecast/ingest/ingest";
 import { isRecordNotIssue } from "@codecast/signals/signalFingerprint";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {

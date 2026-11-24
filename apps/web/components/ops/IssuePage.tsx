@@ -34,10 +34,7 @@ import { hasOpenModal, isEditableTarget } from "../../shortcuts";
 import { commitPath } from "../../lib/externalEvents";
 import { formatRelative, relTimeShort } from "../../lib/utils";
 import { formatReplayTime } from "@codecast/replay/events";
-import {
-  kindTriggerEvents,
-  type GroupStatus,
-} from "@codecast/shared/contracts/ingest";
+import { kindTriggerEvents, type GroupStatus } from "@codecast/ingest/ingest";
 import { EntityIdPill } from "../EntityIdPill";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { replayPlace, topInAppFrame, triggersOnGroup } from "./opsModel";
