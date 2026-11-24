@@ -7,7 +7,7 @@ import {
   isCommandMessage,
   initialSubagentPromptId,
 } from "./conversationProcessor";
-import { isModelSwitchStdout } from "@codecast/shared/contracts";
+import { isModelSwitchStdout } from "@codecast/agent-clients/agentSwitch";
 import {
   isToolResultCarrier,
   stripInjectionNoise,

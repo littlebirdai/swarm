@@ -4,7 +4,7 @@ import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { toast } from "sonner";
-import { withSafetyBlock } from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/agent-clients/apiErrorBanner";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { hostedStopOf } from "../../lib/hostedNotice";
 import { imageBytes } from "../../lib/imageByteCache";

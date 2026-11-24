@@ -3,11 +3,11 @@ import type {
   ReadyBinding,
   RuntimeCapability,
   RuntimeTransport,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import {
   deliveryMatchesPermit,
   readyBindingMatchesPermit,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import type {
   DriverDeliveryResult,
   RuntimeAdoptionRequest,

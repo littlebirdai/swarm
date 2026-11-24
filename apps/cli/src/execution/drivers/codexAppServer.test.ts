@@ -3,7 +3,7 @@ import {
   FENCED_RUNTIME_CAPABILITIES,
   parseStartedDeliveryPermit,
   type ReadyBinding,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import type { RuntimeStartRequest } from "../types.js";
 import {
   CodexAppServerRuntimeDriver,

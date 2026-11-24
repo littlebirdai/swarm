@@ -8,7 +8,7 @@ import {
   codexErrorKind,
   isCodexSafetyError,
   withSafetyBlock,
-} from "./apiErrorBanner";
+} from "../src/apiErrorBanner";
 
 const message =
   "This request was blocked by our safety systems. Reason: Potentially unintended activity.";

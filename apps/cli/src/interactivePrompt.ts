@@ -3,7 +3,7 @@
 // the two limit dialogs that are parks rather than questions, and the prose the
 // assistant wrote above a pending question. Pure functions over pane text; the
 // daemon captures the pane and acts on what these return.
-import { isUsageLimitDialog } from "@codecast/shared/contracts";
+import { isUsageLimitDialog } from "@codecast/agent-clients/apiErrorBanner";
 
 // `unnumbered`: the menu's rows carry no digits, so an answer must move the
 // highlight (selectHighlightedOption) rather than press a digit. `detail`: the

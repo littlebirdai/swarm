@@ -2,7 +2,7 @@ import type {
   ReadyBinding,
   StartedDeliveryPermit,
   StructuredFailure,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import type { DeliveryOutcome, EnsureBindingRequest } from "./types.js";
 import { ExecutionCoordinatorError } from "./types.js";
 

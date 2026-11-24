@@ -5,7 +5,8 @@ import {
   readyBindingMatchesPermit,
   type Delivery,
   type ReadyBinding,
-} from "./executionBinding";
+  type StartedDeliveryPermitWire,
+} from "../src/executionBinding";
 
 const wirePermit = {
   state: "delivery-started",
@@ -23,7 +24,9 @@ const wirePermit = {
 
 describe("parseStartedDeliveryPermit", () => {
   it("brands a complete delivery-started server response", () => {
-    expect(parseStartedDeliveryPermit(wirePermit)).toEqual(wirePermit);
+    expect<StartedDeliveryPermitWire>(
+      parseStartedDeliveryPermit(wirePermit),
+    ).toEqual(wirePermit);
   });
 
   it("rejects a merely claimed permit and malformed fence fields", () => {

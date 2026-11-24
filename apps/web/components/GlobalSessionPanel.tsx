@@ -117,7 +117,7 @@ import {
   restartReloadsContext,
 } from "@codecast/convex/convex/wakeCost";
 import { isClosedSession } from "@codecast/inbox/closedSession";
-import { withSafetyBlock } from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/agent-clients/apiErrorBanner";
 import { contextWindowTokens } from "@codecast/agent-clients/agentClients";
 import {
   restartShareOfRemaining,

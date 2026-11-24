@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/shared/contracts";
+import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/agent-clients/apiErrorBanner";
 import { cloudAgentCardOf } from "@codecast/agent-clients/cloudAgents";
 import { parseMirrorTranscriptFile } from "../parser.js";
 import { cloudApiErrorOf, CloudApiError } from "./http.js";

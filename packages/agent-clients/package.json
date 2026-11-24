@@ -9,12 +9,17 @@
     "typecheck": "tsc --noEmit"
   },
   "exports": {
+    "./__fixtures__/capabilityResolverGolden": "./src/__fixtures__/capabilityResolverGolden.ts",
     "./agentClients": "./src/agentClients.ts",
     "./agentPins": "./src/agentPins.ts",
+    "./agentSwitch": "./src/agentSwitch.ts",
     "./antigravityClient": "./src/antigravityClient.ts",
+    "./apiErrorBanner": "./src/apiErrorBanner.ts",
+    "./capabilityResolver": "./src/capabilityResolver.ts",
     "./claudeBackend": "./src/claudeBackend.ts",
     "./cloudAgents": "./src/cloudAgents.ts",
     "./cloudSessionSync": "./src/cloudSessionSync.ts",
+    "./executionBinding": "./src/executionBinding.ts",
     "./harnessHooks": "./src/harnessHooks.ts",
     "./modelOptions": "./src/modelOptions.ts",
     "./slashCommand": "./src/slashCommand.ts",

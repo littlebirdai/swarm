@@ -5,7 +5,7 @@ import * as path from "path";
 import { spawn, type ChildProcess } from "./proc.js";
 import * as readline from "readline";
 import { STABLE_ENV_MODE } from "@codecast/snippets/stableContext";
-import { type CodexTurnError } from "@codecast/shared/contracts";
+import { type CodexTurnError } from "@codecast/agent-clients/apiErrorBanner";
 import { codexTurnErrorMessage } from "./codexTurnError.js";
 import { agentSpawnPath } from "./agentSpawnPath.js";
 import { extractInlineImages } from "./inlineImage.js";

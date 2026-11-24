@@ -169,7 +169,7 @@ import {
   type DesiredState,
   type ExecutionSurface,
 } from "@codecast/capabilities/capabilities";
-import { resolveCapabilities } from "@codecast/shared/contracts";
+import { resolveCapabilities } from "@codecast/agent-clients/capabilityResolver";
 import { applyBuiltins } from "./builtinDriver.js";
 import { deviceId as localDeviceId } from "../remote/device.js";
 import { currentProjectScopeKey } from "./equip.js";

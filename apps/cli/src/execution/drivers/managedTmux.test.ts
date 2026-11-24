@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FENCED_RUNTIME_CAPABILITIES } from "@codecast/shared/contracts";
+import { FENCED_RUNTIME_CAPABILITIES } from "@codecast/agent-clients/executionBinding";
 import type { RuntimeAdoptionRequest, RuntimeStartRequest } from "../types.js";
 import {
   buildFencedTmuxTags,

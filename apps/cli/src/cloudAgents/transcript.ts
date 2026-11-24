@@ -22,7 +22,7 @@
  */
 import * as fs from "fs";
 import * as path from "path";
-import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/shared/contracts";
+import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/agent-clients/apiErrorBanner";
 import type {
   ImageBlock,
   ParsedMessage,

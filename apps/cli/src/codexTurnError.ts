@@ -8,7 +8,7 @@ import {
   limitBannerContent,
   throttleBannerContent,
   type CodexTurnError,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import type { ParsedMessage } from "./parser.js";
 
 // Why: the turn error's structured `codex_error_info` code is visible ONLY

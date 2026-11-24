@@ -4,7 +4,7 @@ import {
   parseStartedDeliveryPermit,
   type ReadyBinding,
   type RuntimeTransport,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import {
   DormantExecutionControlPlane,

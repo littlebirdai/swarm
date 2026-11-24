@@ -14,13 +14,13 @@ import { buildThreadHandoff } from "@codecast/convex/convex/chatWakePrompts";
 import { RUN_OPTION, runResultText } from "@codecast/decisions/commandRun";
 import { formatGoalMessage } from "@codecast/messages/sessionGoal";
 import { composeContextRecoveryPrompt } from "@codecast/messages/handoffPrompt";
+import { formatAgentSwitchNotice } from "@codecast/agent-clients/agentSwitch";
 import {
-  formatAgentSwitchNotice,
   LIMIT_BANNER_PREFIX,
   SAFETY_BANNER_PREFIX,
   THROTTLE_BANNER_PREFIX,
   CLIENT_ERROR_BANNER_PREFIX,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { formatVaultReady } from "@codecast/secrets/vaultMessages";
 import {

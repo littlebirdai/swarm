@@ -5,7 +5,7 @@ import { parseOpencodeSessionFile, parseTranscriptFor } from "./parser";
 import {
   CLIENT_ERROR_BANNER_PREFIX,
   classifyApiErrorBanner,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 
 // Fixtures are `opencode export --sanitize` output of FRESH synthetic sessions I
 // created in throwaway dirs (a one-word reply, and a trivial `cat` tool use). The

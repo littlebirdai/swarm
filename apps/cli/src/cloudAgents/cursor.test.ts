@@ -19,7 +19,7 @@ import { classifyMirrorTranscriptTail } from "./transcript.js";
 import {
   CLIENT_ERROR_BANNER_PREFIX,
   classifyApiErrorBanner,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentCardOf,
