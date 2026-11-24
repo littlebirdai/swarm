@@ -390,6 +390,90 @@ describe("shutDown", () => {
     { timeout: 30_000 },
   );
 
+  test.each(["active", "hang"])(
+    "exits after TERM when the lease release case is %s",
+    (leaseCase) => {
+      const r = repo();
+      const ready = join(r.root, "ready");
+      try {
+        const script = join(r.root, "lease.ts");
+        writeFileSync(
+          script,
+          `
+import { acquiredTree, trackStep } from ${JSON.stringify(join(import.meta.dir, "mergeScratch.ts"))};
+import { runShell } from ${JSON.stringify(join(import.meta.dir, "../land/shipCheckout.ts"))};
+import { pollUntil } from ${JSON.stringify(join(import.meta.dir, "../test-helpers/pollUntil.ts"))};
+import { existsSync } from "node:fs";
+const leaseCase = ${JSON.stringify(leaseCase)};
+await acquiredTree(${JSON.stringify(r.root)}, "HEAD", async () => {
+  console.log("release lease");
+  if (leaseCase === "hang") await new Promise(() => {});
+});
+if (leaseCase === "active") {
+  const ready = ${JSON.stringify(ready)};
+  void runShell("trap '' TERM; echo $$ > ready; exec sleep 30", ${JSON.stringify(r.root)}, () => {}, {}, trackStep);
+  await pollUntil(() => existsSync(ready), "the TERM-ignoring step starting");
+  const kill = process.kill;
+  const clock = Date.now;
+  process.kill = (pid, signal) => {
+    const result = kill(pid, signal);
+    if (pid < 0 && signal === "SIGTERM") {
+      let reads = 0;
+      Date.now = () => {
+        const now = clock() + ++reads * 60_000;
+        if (reads === 3) Date.now = clock;
+        return now;
+      };
+    }
+    return result;
+  };
+}
+process.kill(process.pid, "SIGTERM");
+await pollUntil(() => false, "the station exiting");
+`,
+        );
+        const child = spawnSync("bun", [script], {
+          encoding: "utf-8",
+          timeout: 10_000,
+          killSignal: "SIGKILL",
+        });
+        expect({ status: child.status, output: child.stdout.trim() }).toEqual({
+          status: 143,
+          output: leaseCase === "active" ? "" : "release lease",
+        });
+      } finally {
+        if (existsSync(ready)) {
+          const pid = Number(readFileSync(ready, "utf-8"));
+          if (pid > 1) {
+            try {
+              process.kill(pid, "SIGKILL");
+            } catch {}
+          }
+        }
+        r.done();
+      }
+    },
+    30_000,
+  );
+
+  test("releases the lease of a stopped step if tree release rejects", async () => {
+    const failure = new Error("tree release failed");
+    let leaseReleased = false;
+    const error = await shutDown(
+      async () => {
+        throw failure;
+      },
+      500,
+      () => {
+        leaseReleased = true;
+      },
+    ).catch((err) => err);
+    expect({ error, leaseReleased }).toEqual({
+      error: failure,
+      leaseReleased: true,
+    });
+  });
+
   test(
     "a station stopped after its merge landed releases its tree and says the sha with exit 0, not 'not merged'",
     async () => {

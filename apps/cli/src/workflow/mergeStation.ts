@@ -694,7 +694,7 @@ async function mergeStation(
     }
     return await recordLanded(args, url, landed.sha, outcomes);
   } finally {
-    await releaseLease();
+    await (tree?.stopping ?? releaseLease());
     if (tree) await tree.release();
     unlock();
   }

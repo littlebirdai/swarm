@@ -33,6 +33,7 @@ const SCRATCH_PREFIX = "merge-scratch-";
 export const SCRATCH_STALE_MS = 3 * 3_600_000;
 /** How long a step gets to stop after SIGTERM before its tree is left for the sweep instead. */
 const STOP_GRACE_MS = 60_000;
+const LEASE_RELEASE_MS = 1_000;
 
 // EPERM: the process lives but belongs to someone else; only "no such process" is dead.
 const alive = (pid: number) => {
@@ -260,10 +261,28 @@ export function noteRestoring(what: string | null): void {
 export async function shutDown(
   release: () => Promise<void>,
   graceMs = STOP_GRACE_MS,
+  afterStop?: () => void | Promise<void>,
 ): Promise<boolean> {
   if (!(await stopSteps(graceMs))) return false;
-  await release();
-  return true;
+  try {
+    await release();
+    return true;
+  } finally {
+    if (afterStop) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          Promise.resolve().then(afterStop),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, LEASE_RELEASE_MS);
+          }),
+        ]);
+      } catch {
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
 }
 
 /** A worktree acquired the way a run's is (`cast ws`), marked as the station's own, without its setup until `setup`
@@ -306,15 +325,13 @@ export async function acquiredTree(
       console.log(
         `stopped while ${restoring}: production may run a backend the default branch lacks until the next merge or deploy`,
       );
-    stopping = shutDown(release)
-      .finally(afterStop)
-      .finally(() => {
-        if (landedAs) {
-          console.log(landedAs);
-          process.exit(0);
-        }
-        process.exit(sig === "SIGINT" ? 130 : 143);
-      });
+    stopping = shutDown(release, STOP_GRACE_MS, afterStop).finally(() => {
+      if (landedAs) {
+        console.log(landedAs);
+        process.exit(0);
+      }
+      process.exit(sig === "SIGINT" ? 130 : 143);
+    });
   }
   for (const sig of ["SIGTERM", "SIGINT"] as const) process.once(sig, onSignal);
   let setUp = false;
