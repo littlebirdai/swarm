@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../useWatchEffect";
 import { afterAll, expect, test } from "bun:test";
 import { act, useRef } from "react";
 import { JSDOM } from "jsdom";
@@ -64,7 +65,10 @@ function Doc({ height, hidden = false }: { height: number; hidden?: boolean }) {
 }
 
 function Leader() {
-  seen = useLeaderView(true);
+  const view = useLeaderView(true);
+  useWatchEffect(() => {
+    seen = view;
+  });
   return null;
 }
 

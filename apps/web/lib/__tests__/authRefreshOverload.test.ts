@@ -10,6 +10,7 @@
 // The window here is the real one every codecast page mounts (CodecastAuthRoot
 // over the durable storage); only the network is fake. Each test scripts what
 // Convex answers to successive auth:signIn calls.
+import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
   afterAll,
   afterEach,
@@ -186,7 +187,10 @@ function fakeClient() {
 
 let shownToken: string | null = null;
 function Probe() {
-  shownToken = useAuthToken();
+  const token = useAuthToken();
+  useWatchEffect(() => {
+    shownToken = token;
+  });
   return null;
 }
 

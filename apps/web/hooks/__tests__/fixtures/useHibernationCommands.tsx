@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../../useWatchEffect";
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
@@ -42,7 +43,10 @@ function DispatchBinding() {
   return null;
 }
 function Probe() {
-  hook = useHibernationCommands();
+  const commands = useHibernationCommands();
+  useWatchEffect(() => {
+    hook = commands;
+  });
   return null;
 }
 const view = (visible = true) => (

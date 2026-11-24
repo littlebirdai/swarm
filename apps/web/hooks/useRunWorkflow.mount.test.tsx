@@ -3,6 +3,7 @@
 // backend from before the pinned-graph query, whose refusal must not leave
 // the card loading forever.
 // Run: bun test hooks/useRunWorkflow.mount.test.tsx
+import { useWatchEffect } from "./useWatchEffect";
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 import { JSDOM } from "jsdom";
 
@@ -67,7 +68,10 @@ const PINNED = {
 
 let seen: any = "unset";
 function Probe() {
-  seen = useRunWorkflow(RUN);
+  const workflow = useRunWorkflow(RUN);
+  useWatchEffect(() => {
+    seen = workflow;
+  });
   return null;
 }
 async function draw() {

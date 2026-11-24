@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../hooks/useWatchEffect";
 import { replaceGlobals } from "../test-helpers/globals";
 import { afterAll, test, expect } from "bun:test";
 import { JSDOM } from "jsdom";
@@ -34,7 +35,9 @@ function Buckets({ project, tick }: { project: string; tick: number }) {
   const [open, setOpen] = useHiddenBucketsOpen(
     JSON.stringify([[{ id: project }], []]),
   );
-  openStashed = () => setOpen((o) => ({ ...o, stashed: true }));
+  useWatchEffect(() => {
+    openStashed = () => setOpen((o) => ({ ...o, stashed: true }));
+  });
   return <span data-tick={tick}>{open.stashed ? "open" : "closed"}</span>;
 }
 

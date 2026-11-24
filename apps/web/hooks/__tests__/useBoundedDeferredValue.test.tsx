@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../useWatchEffect";
 import { test, expect } from "bun:test";
 import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
@@ -71,8 +72,10 @@ function BoundedPane({ live }: { live: string }) {
   return <Body id={useBoundedDeferredValue(live, 500)} />;
 }
 function App() {
-  const [id, s] = useState("A");
-  setId = s;
+  const [id, updateId] = useState("A");
+  useWatchEffect(() => {
+    setId = updateId;
+  }, [updateId]);
   const Pane = bounded ? BoundedPane : PlainPane;
   return (
     <>

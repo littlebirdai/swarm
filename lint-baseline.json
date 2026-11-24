@@ -14692,7 +14692,6 @@
     "swarm/no-raw-resize-observer": 1
   },
   "apps/web/components/GlobalSessionPanel.bucketsFilter.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 7
   },
   "apps/web/components/GlobalSessionPanel.tsx": {
@@ -21516,11 +21515,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/hooks/__tests__/fixtures/undoWalkKeys.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 46
-  },
-  "apps/web/hooks/__tests__/fixtures/useHibernationCommands.tsx": {
-    "react/globals": 1
   },
   "apps/web/hooks/__tests__/fixtures/usePRDetails.tsx": {
     "swarm/no-comments": 2
@@ -21577,7 +21572,6 @@
     "swarm/no-comments": 5
   },
   "apps/web/hooks/__tests__/roomThreadAlerts.mount.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 7
   },
   "apps/web/hooks/__tests__/seekCallMedia.test.ts": {
@@ -21590,7 +21584,6 @@
     "swarm/no-comments": 7
   },
   "apps/web/hooks/__tests__/shareZoom.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 6
   },
   "apps/web/hooks/__tests__/squeezeToFit.test.ts": {
@@ -21618,15 +21611,12 @@
     "swarm/no-comments": 6
   },
   "apps/web/hooks/__tests__/useBoundedDeferredValue.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 2
   },
   "apps/web/hooks/__tests__/useConversationFileDrop.mount.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 3
   },
   "apps/web/hooks/__tests__/useConversationMessages.jump.mount.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 18
   },
   "apps/web/hooks/__tests__/useConversationMessages.test.ts": {
@@ -21645,11 +21635,9 @@
     "swarm/no-comments": 4
   },
   "apps/web/hooks/__tests__/useFaceRow.mount.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 5
   },
   "apps/web/hooks/__tests__/useFollowSurface.mount.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 7
   },
   "apps/web/hooks/__tests__/useFrameTheme.test.ts": {
@@ -21662,7 +21650,6 @@
     "swarm/no-comments": 7
   },
   "apps/web/hooks/__tests__/useJumpToDecisionAsk.test.tsx": {
-    "react/globals": 2,
     "swarm/no-comments": 9
   },
   "apps/web/hooks/__tests__/useLiveInboxSessions.error.test.tsx": {
@@ -21684,7 +21671,6 @@
     "swarm/no-comments": 6
   },
   "apps/web/hooks/__tests__/useOpenSessionOutsideShell.test.tsx": {
-    "react/globals": 2,
     "swarm/no-comments": 8
   },
   "apps/web/hooks/__tests__/useOverflows.test.tsx": {
@@ -22614,7 +22600,6 @@
     "swarm/no-comments": 1
   },
   "apps/web/hooks/useRunWorkflow.mount.test.tsx": {
-    "react/globals": 1,
     "swarm/no-comments": 6
   },
   "apps/web/hooks/useRunnerSilence.ts": {
@@ -23186,7 +23171,6 @@
     "swarm/no-comments": 29
   },
   "apps/web/lib/__tests__/authRefreshOverload.test.ts": {
-    "react/globals": 1,
     "swarm/no-comments": 27
   },
   "apps/web/lib/__tests__/authReturn.test.ts": {
