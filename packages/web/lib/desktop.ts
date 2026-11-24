@@ -185,7 +185,7 @@ declare global {
       onShellProcessGone?: (cb: (report: ShellProcessGone) => void) => void;
       // Edit > Undo/Redo (or its ⌘Z) with focus outside a text field: the
       // menu takes the key before the page, so the shell hands the press to
-      // the app's undo (packages/electron/editUndo.js). Absent on older builds.
+      // the app's undo (apps/desktop/editUndo.js). Absent on older builds.
       onAppEditCommand?: (cb: (command: "undo" | "redo") => void) => () => void;
       // The menu bar's accelerators, following the person's key bindings.
       setMenuKeys?: (keys: DesktopMenuKeys | null) => void;
@@ -1718,7 +1718,7 @@ export function installIdleAnimationPause(): void {
 }
 
 // ---------------------------------------------------------------------------
-// The browser pane's native view (packages/electron/browserPanes.js).
+// The browser pane's native view (apps/desktop/browserPanes.js).
 //
 // A pane on the stage can show a page in an iframe anywhere, but a site that
 // refuses to be framed needs a real browser view, and only the desktop shell

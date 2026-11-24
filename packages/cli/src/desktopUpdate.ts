@@ -18,7 +18,7 @@ import { execFileAsync, execFileSync, spawnSync } from "./proc.js";
 import { isDevMode } from "./update.js";
 // The desktop app's own updater rules (zip name, version floor), shared so
 // this out-of-band path accepts exactly what the app would.
-import { bundleRefusal, parseFeed } from "../../electron/updatePolicy.js";
+import { bundleRefusal, parseFeed } from "../../../apps/desktop/updatePolicy.js";
 
 const DESKTOP_FEED = "https://dl.codecast.sh/desktop/latest-mac.yml";
 const DESKTOP_BASE = "https://dl.codecast.sh/desktop";

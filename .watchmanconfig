@@ -18,7 +18,7 @@
     "packages/cli/dist",
     "apps/browser-extension/dist",
     "apps/vscode-extension/dist",
-    "packages/electron/dist",
+    "apps/desktop/dist",
     "packages/convex/.conductor",
     "packages/mobile/.conductor",
     "packages/mobile/android/.gradle",

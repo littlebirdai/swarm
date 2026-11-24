@@ -13,7 +13,7 @@ import { publicKeyToBase64, signManifest } from "@platform/cli-kit/update";
 import { DARWIN_SIGNING_TEAM, RELEASE_BASE_URL, RELEASE_MANIFEST_SIGNING } from "./releaseTrust.js";
 import { buildWatchdogShellScript, shellEscapeForSh } from "./supervision.js";
 import { VERSION_FLOOR_SH } from "./releaseTrust.js";
-import { cmpVersions } from "../../electron/updatePolicy.js";
+import { cmpVersions } from "../../../apps/desktop/updatePolicy.js";
 
 // run_pass polls each pass once a second, so one fallback run takes a few seconds.
 setDefaultTimeout(30_000);

@@ -332,7 +332,7 @@ The desktop app is an Electron shell that loads your web dashboard with native O
 ### Build for local use
 
 ```bash
-cd packages/electron
+cd apps/desktop
 bun install
 
 # Unsigned build (no Apple Developer account needed)
@@ -348,7 +348,7 @@ The app loads whatever URL is in `CODECAST_URL` (defaults to `https://codecast.s
 CODECAST_URL=https://yourdomain.com npx electron .
 ```
 
-A packaged build takes the same variable at launch; to change its built-in default, edit `PROD_URL` in `packages/electron/main.js`.
+A packaged build takes the same variable at launch; to change its built-in default, edit `PROD_URL` in `apps/desktop/main.js`.
 
 ### Build for distribution
 
@@ -369,16 +369,16 @@ npm run build
 APPLE_ID=you@example.com APPLE_PASSWORD=xxxx-xxxx-xxxx-xxxx APPLE_TEAM_ID=XXXXXXXXXX npx electron-builder -m
 ```
 
-The hosted app releases through `packages/electron/scripts/release.sh`, which builds, notarizes and publishes in one step.
+The hosted app releases through `apps/desktop/scripts/release.sh`, which builds, notarizes and publishes in one step.
 
-Output: `packages/electron/dist/Codecast-{version}-arm64.dmg`
+Output: `apps/desktop/dist/Codecast-{version}-arm64.dmg`
 
 ### Auto-update
 
 The desktop app checks `https://dl.codecast.sh/desktop` for updates on startup. To host your own update server:
 
 1. Upload the `.zip` and `latest-mac.yml` from `dist/` to your S3 bucket under a `/desktop/` prefix
-2. Update the `publish` URL in `packages/electron/package.json` to point at your bucket
+2. Update the `publish` URL in `apps/desktop/package.json` to point at your bucket
 
 ---
 

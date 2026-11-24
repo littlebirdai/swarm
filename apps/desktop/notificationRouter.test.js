@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/notificationRouter.test.js
+// Run: node --test apps/desktop/notificationRouter.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {

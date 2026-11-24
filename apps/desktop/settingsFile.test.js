@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/settingsFile.test.js
+// Run: node --test apps/desktop/settingsFile.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");

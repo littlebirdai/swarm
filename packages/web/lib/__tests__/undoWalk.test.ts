@@ -340,7 +340,7 @@ describe("text-editing controls", () => {
   });
 
   test("the desktop app's probe gives the same answer for every control", () => {
-    const { EDITABLE_PROBE } = require("../../../electron/editUndo.js");
+    const { EDITABLE_PROBE } = require("../../../../apps/desktop/editUndo.js");
     for (const [name, el] of cases) {
       const doc = { activeElement: el, body: {} };
       const probe = new Function("document", `return ${EDITABLE_PROBE}`)(doc);

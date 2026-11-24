@@ -1,7 +1,7 @@
 # Prepares the environment for electron-builder's DMG step, which breaks in
 # bare (non-login) shells. Source this, then run the build with
 # PATH="$DMG_BUILD_PATH". Used by
-# packages/electron/scripts/release.sh.
+# apps/desktop/scripts/release.sh.
 #
 # Two failure modes both surface as a misleading "Command failed: which python"
 # (dmg-builder runs vendored dmgbuild/core.py, and when that throws it falls

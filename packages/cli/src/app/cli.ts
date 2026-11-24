@@ -147,7 +147,7 @@ async function desktopTarget(o: TargetOpts): Promise<AppTarget> {
   if (!alive) {
     die(
       `no desktop app answers on 127.0.0.1:${port}`,
-      "run it from source (cd packages/electron && bun run dev) or set CODECAST_CDP_PORT on a packaged build",
+      "run it from source (cd apps/desktop && bun run dev) or set CODECAST_CDP_PORT on a packaged build",
     );
   }
   const first = await pick();

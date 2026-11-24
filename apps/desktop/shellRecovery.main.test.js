@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/shellRecovery.main.test.js
+// Run: node --test apps/desktop/shellRecovery.main.test.js
 //
 // A main window that cannot draw the app shows the recovery page and its
 // Reload button, never the bare window background.

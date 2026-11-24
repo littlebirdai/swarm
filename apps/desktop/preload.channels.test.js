@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/preload.channels.test.js
+// Run: node --test apps/desktop/preload.channels.test.js
 //
 // Every method the preload exposes must reach a handler in this shell.
 //

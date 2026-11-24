@@ -12,7 +12,7 @@ A CLI daemon watches the history files coding agents write (Claude Code, Codex, 
 | `packages/convex` | Backend: schema, queries, mutations, auth, HTTP routes |
 | `packages/web` | React + Vite web app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff) |
-| `packages/electron` | Desktop app (Electron wrapper around the web app) |
+| `apps/desktop` | Desktop app (Electron wrapper around the web app) |
 | `packages/mobile` | iOS app (Expo / React Native) |
 | `apps/browser-extension` | Chrome extension behind `cast browser` |
 | `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |
@@ -92,7 +92,7 @@ EOF
 
 ### Optional: desktop app against your local web
 
-The desktop app reads no `.env` file. Pass the origin on the command line; `bun run dev` in `packages/electron` already does (`CODECAST_URL=https://local.codecast.sh electron .`). The desktop app's origin must be https, and the proxy from step 4 serves http only until you add TLS: follow the comment in `nginx.dev.conf.example` (a mkcert certificate and a 443 server block). Use one scheme consistently, because http and https are different localStorage origins.
+The desktop app reads no `.env` file. Pass the origin on the command line; `bun run dev` in `apps/desktop` already does (`CODECAST_URL=https://local.codecast.sh electron .`). The desktop app's origin must be https, and the proxy from step 4 serves http only until you add TLS: follow the comment in `nginx.dev.conf.example` (a mkcert certificate and a 443 server block). Use one scheme consistently, because http and https are different localStorage origins.
 
 A from-source run (`electron .`) also opens a Chrome DevTools Protocol port on `127.0.0.1:9333` so `cast app` and the perf harness can drive it. Set `CODECAST_CDP_PORT` to move it, or to open one on a packaged build.
 
@@ -359,7 +359,7 @@ CONVEX_CLOUD_URL       # alias for CONVEX_CLOUD_ORIGIN
 | `./dev.sh N` | Multi-instance (port 3200+N) |
 | `sudo ./setup-hosts.sh` | Add local domains to `/etc/hosts` and run nginx (already installed) as a launchd service |
 | `packages/convex/deploy.sh` | The only way to deploy Convex: refuses a tree behind `codecast-sh/codecast`'s main |
-| `./scripts/deploy-all.sh` | Full release in order: Convex, push (Railway builds web), CLI cut in CI, mobile OTA, desktop when `packages/electron` changed, then waits for Railway |
+| `./scripts/deploy-all.sh` | Full release in order: Convex, push (Railway builds web), CLI cut in CI, mobile OTA, desktop when `apps/desktop` changed, then waits for Railway |
 | `scripts/vendor-platform.sh` | Refresh the `platform/packages/` mirror of `~/src/platform` (`--check` reports drift) |
 
 ## Troubleshooting

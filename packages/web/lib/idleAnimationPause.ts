@@ -1,6 +1,6 @@
 // Park the endless CSS animations while a desktop window is in the background.
 //
-// The desktop app runs with backgroundThrottling disabled (electron/main.js)
+// The desktop app runs with backgroundThrottling disabled (apps/desktop/main.js)
 // so the live-query socket keeps delivering while a window is hidden. The side
 // effect is that Chromium keeps compositing every endless animation (the
 // per-session pulse, ping and spin dots) at the display's refresh rate behind

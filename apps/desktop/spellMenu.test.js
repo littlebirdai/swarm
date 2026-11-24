@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/spellMenu.test.js
+// Run: node --test apps/desktop/spellMenu.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { contextMenuTemplate, MAX_SUGGESTIONS } = require("./spellMenu");

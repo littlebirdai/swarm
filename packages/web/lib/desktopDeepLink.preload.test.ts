@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
-// Exercises the REAL electron preload (packages/electron/preload.js) under a
+// Exercises the REAL electron preload (apps/desktop/preload.js) under a
 // mocked `electron` module. The bug this guards: a codecast:// deep link that
 // arrives during cold start — before the page's React onDeepLink handler has
 // mounted — used to hit a not-yet-registered listener and vanish, stranding the
@@ -31,7 +31,7 @@ function loadPreload(): LoadedPreload {
     },
     webFrame: { setZoomFactor: () => {} },
   });
-  const resolved = require.resolve("../../electron/preload.js");
+  const resolved = require.resolve("../../../apps/desktop/preload.js");
   const preloadRequire = createRequire(resolved);
   runInNewContext(readFileSync(resolved, "utf8"), {
     require: (id: string) => id === "electron" ? electronMock() : preloadRequire(id),

@@ -52,7 +52,7 @@ Codecast is a Bun monorepo with these packages:
 | `packages/cli` | `cast` CLI and daemon that watches coding sessions and syncs to Convex |
 | `packages/convex` | Convex backend: schema, queries, mutations, auth |
 | `packages/web` | React + Vite web app |
-| `packages/electron` | Electron desktop app |
+| `apps/desktop` | Electron desktop app |
 | `packages/mobile` | Expo/React Native iOS app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
 | `apps/browser-extension` | Chrome extension behind `cast browser` |

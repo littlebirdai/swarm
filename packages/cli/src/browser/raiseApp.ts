@@ -14,7 +14,7 @@
  * app stays behind whatever the human is in. So the focus route also returns
  * the pid, and the desktop app, active because the human just clicked in it,
  * repeats the raise from its own process (the "raise-app" verb in
- * packages/electron/main.js).
+ * apps/desktop/main.js).
  *
  * Used in both directions: the web's "open tab" link raises the driven Chrome
  * (focusHttp.ts), and the focus guard raises the app the human was in when an

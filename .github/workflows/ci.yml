@@ -523,7 +523,7 @@ jobs:
           fi
 
       - name: Unit tests (electron package)
-        working-directory: packages/electron
+        working-directory: apps/desktop
         run: xvfb-run -a bun run test
 
   # `cast computer` needs a Mac, a Swift toolchain and a real signed bundle, so

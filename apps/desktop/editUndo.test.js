@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/editUndo.test.js
+// Run: node --test apps/desktop/editUndo.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");

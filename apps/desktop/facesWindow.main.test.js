@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/facesWindow.main.test.js
+// Run: node --test apps/desktop/facesWindow.main.test.js
 //
 // The float, exercised through main.js itself: the face row as see-through
 // glass over the work, a SHAPE of the voice window rather than a window of

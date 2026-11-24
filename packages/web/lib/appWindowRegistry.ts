@@ -22,7 +22,7 @@
 //
 // Pure module: no React, no store. The role tracker in lib/desktop is the
 // model for the snapshot and its watchers.
-import { isDesktopApp } from "../../electron/appWindows.mjs";
+import { isDesktopApp } from "../../../apps/desktop/appWindows.mjs";
 import type { DesktopApp } from "./desktopApps";
 
 const CHANNEL = "codecast-app-windows";

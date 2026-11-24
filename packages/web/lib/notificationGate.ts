@@ -1,7 +1,7 @@
 // Whether an OS banner goes up in a plain browser tab (ct-49551).
 //
 // On the desktop the shell owns this decision — it is the one process that sees
-// every window — and its copy of the policy lives in packages/electron/
+// every window — and its copy of the policy lives in apps/desktop/
 // notificationRouter.js. A browser tab has no shell, so it applies the same
 // three rules to itself. The two cannot share a file: the shell is a CommonJS
 // module inside the Electron asar, this one is bundled into the web app.

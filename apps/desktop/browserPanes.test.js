@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/browserPanes.test.js
+// Run: node --test apps/desktop/browserPanes.test.js
 //
 // The native browser pane, without an Electron process. Everything the manager
 // touches is injected (createBrowserPanes), so these tests drive the real

@@ -166,9 +166,9 @@ sed -i '' -E "s|MAC_DMG_VERSION = \"[0-9]+\\.[0-9]+\\.[0-9]+\"|MAC_DMG_VERSION =
 
 cd "$REPO_ROOT"
 if [ "$NO_GIT" = "1" ]; then
-  echo "  --no-git: commit packages/electron/package.json and the MAC_DMG lines of packages/web/server/index.ts, then push"
+  echo "  --no-git: commit apps/desktop/package.json and the MAC_DMG lines of packages/web/server/index.ts, then push"
 else
-  git add packages/electron/package.json packages/web/server/index.ts
+  git add apps/desktop/package.json packages/web/server/index.ts
   git commit -m "chore(electron): bump desktop to v${NEW_VERSION}"
   git push origin main
 fi
