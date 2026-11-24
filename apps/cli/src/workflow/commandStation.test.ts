@@ -13,6 +13,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { pollUntil } from "../test-helpers/pollUntil.js";
 import { stillRunning } from "../test-helpers/processLiveness.js";
+import { shellQuote } from "../shellQuote.js";
 import {
   isolateCodecastDir,
   type IsolatedCodecastDir,
@@ -182,7 +183,7 @@ describe("a station that will not end on its own", () => {
 });
 
 describe("a station whose runner goes", () => {
-  const runnerScript = (node: WorkflowNode) => {
+  const runnerScript = (node: WorkflowNode, env: NodeJS.ProcessEnv = {}) => {
     const file = path.join(tmp, "runner.ts");
     fs.writeFileSync(
       file,
@@ -197,7 +198,7 @@ describe("a station whose runner goes", () => {
       cwd: tmp,
       stdout: "ignore",
       stderr: "ignore",
-      env: { ...process.env },
+      env: { ...process.env, ...env },
     });
   };
 
@@ -248,6 +249,46 @@ describe("a station whose runner goes", () => {
         "the detached child ending",
       );
       expect(fs.existsSync(path.join(tmp, "detached"))).toBe(true);
+    } finally {
+      runner.kill();
+      await runner.exited;
+    }
+  }, 60_000);
+
+  test("keeps the station record for the next runner if ps fails at exit", async () => {
+    const { node, started } = nastyStation("read-failure");
+    const fail = path.join(tmp, "fail-ps");
+    fs.writeFileSync(
+      path.join(tmp, "ps"),
+      `#!/bin/sh
+if [ "$1" = -axww ] && [ -f ${shellQuote(fail)} ]; then exit 1; fi
+exec ${shellQuote(Bun.which("ps")!)} "$@"
+`,
+      { mode: 0o755 },
+    );
+    const runner = runnerScript(node, { PATH: `${tmp}:${process.env.PATH}` });
+    const record = path.join(stationRecordDir(), `${runner.pid}.json`);
+    try {
+      await pollUntil(() => {
+        const pids = started();
+        if (pids.length !== 4 || !fs.existsSync(record)) return false;
+        const rows = JSON.parse(fs.readFileSync(record, "utf-8")).groups[0]
+          .procs;
+        return rows.some(
+          (p: { pid: number; pgid: number }) =>
+            p.pid === pids[3] && p.pgid === p.pid,
+        );
+      }, "the record naming the detached child");
+      fs.writeFileSync(fail, "");
+      runner.kill("SIGTERM");
+      expect(await runner.exited).toBe(143);
+      expect(fs.existsSync(record)).toBe(true);
+      expect(await reapDeadRunnerStations(undefined, graceMs)).toHaveLength(1);
+      await pollUntil(
+        async () => (await stillRunning(started())).length === 0,
+        "the surviving station processes ending",
+      );
+      expect(fs.existsSync(record)).toBe(false);
     } finally {
       runner.kill();
       await runner.exited;

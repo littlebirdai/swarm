@@ -139,15 +139,16 @@ export const KILL_IF_SAME = [
 export function endStationsOnExit(
   groups: Iterable<number>,
   graceMs = STATION_KILL_GRACE_MS,
-): void {
-  if (process.platform === "win32") return;
+): boolean {
+  if (process.platform === "win32") return true;
   const list = [...groups];
-  if (!list.length) return;
+  if (!list.length) return true;
   const read = () => {
     const procs = snapshotProcessTable({ timeout: PS_TIMEOUT_MS });
     return uniqueRows(list.flatMap((g) => processGroupTree(procs, g)));
   };
-  let rows = read();
+  const first = read();
+  let rows = first;
   const wait = msUntilProvable(rows);
   if (wait) {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
@@ -165,14 +166,14 @@ export function endStationsOnExit(
     } catch {
       /* gone */
     }
-  const proven = rows.filter(
+  const proven = (rows.length ? rows : first).filter(
     (r) =>
       r.pid > 1 &&
       r.pid !== process.pid &&
       r.pgid !== undefined &&
       bornBeforeCaptureSecond(r),
   );
-  if (!proven.length) return;
+  if (!proven.length) return false;
   try {
     spawn(
       "sh",
@@ -190,8 +191,9 @@ export function endStationsOnExit(
         env: { ...process.env, LANG: "C", LC_ALL: "C" },
       },
     ).unref();
+    return rows.length > 0;
   } catch {
-    /* nothing left to escalate with */
+    return false;
   }
 }
 
@@ -310,6 +312,7 @@ export async function readStationProcs(
   known: StationProc[],
 ): Promise<StationProc[]> {
   const procs = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
+  if (!procs.length) return known;
   return uniqueRows([
     ...processGroupTree(procs, group),
     ...provenTree(procs, known),
@@ -339,7 +342,7 @@ export async function reapDeadRunnerStations(
   }
   if (!files.length) return [];
   const boot = bootTimeMs() ?? 0;
-  const dead: StationRecord[] = [];
+  const dead: Array<{ file: string; rec: StationRecord }> = [];
   for (const f of files) {
     const file = path.join(dir, f);
     let rec: StationRecord;
@@ -355,14 +358,25 @@ export async function reapDeadRunnerStations(
       !Array.isArray(rec.groups);
     if (!stale && (rec.runner === process.pid || isPidAlive(rec.runner)))
       continue;
-    fs.rmSync(file, { force: true });
-    if (!stale) dead.push(rec);
+    if (stale) fs.rmSync(file, { force: true });
+    else dead.push({ file, rec });
   }
   if (!dead.length) return [];
   const procs = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
+  if (!procs.length) return [];
+  const claimed = dead.filter(({ file }) => {
+    try {
+      fs.unlinkSync(file);
+      return true;
+    } catch {
+      return false;
+    }
+  });
   const ended: number[] = [];
   const ends: Promise<void>[] = [];
-  for (const { pgid, procs: known = [] } of dead.flatMap((r) => r.groups)) {
+  for (const { pgid, procs: known = [] } of claimed.flatMap(
+    ({ rec }) => rec.groups,
+  )) {
     const rows = provenTree(procs, known);
     if (!rows.length) continue;
     ended.push(pgid);

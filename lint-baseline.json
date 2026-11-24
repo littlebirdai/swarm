@@ -5583,7 +5583,7 @@
   },
   "apps/cli/src/workflow/stationProcs.ts": {
     "swarm/no-blocking-child-process-call": 1,
-    "swarm/no-comments": 58
+    "swarm/no-comments": 57
   },
   "apps/cli/src/workflow/subjectPark.ts": {
     "swarm/no-comments": 24

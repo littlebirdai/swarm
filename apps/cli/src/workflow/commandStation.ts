@@ -198,11 +198,13 @@ function endWithRunner(group: number, graceMs: number): void {
         try {
           process.kill(group, "SIGTERM");
         } catch {}
-    } else
-      endStationsOnExit(
+    } else if (
+      !endStationsOnExit(
         runningGroups.keys(),
         Math.max(...[...runningGroups.values()].map((g) => g.graceMs)),
-      );
+      )
+    )
+      return;
     runningGroups.clear();
     recordRunning();
   });
