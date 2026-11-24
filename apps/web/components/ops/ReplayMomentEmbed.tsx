@@ -36,7 +36,7 @@ import {
 import { replayTitle } from "./opsModel";
 import { importedUntil } from "./replayModel";
 import { ReplayMiniBar } from "./ReplayMiniBar";
-import { replayWindowHolds } from "@codecast/shared/contracts/replayPlayer";
+import { replayWindowHolds } from "@codecast/replay/replayPlayer";
 
 /** Until the player says how big the recording is. */
 const DEFAULT_SIZE = { width: 1600, height: 1000 };

@@ -9,7 +9,7 @@
 // two clocks are one (both are the replay clock, ms since its first event).
 // Without a capture the page reads as the semantic view alone.
 //
-// Skip inactivity jumps the clock over idle stretches (shared/replay/list.ts
+// Skip inactivity jumps the clock over idle stretches (packages/replay/src/list.ts
 // idleRanges) whichever clock is playing. The address follows the scrubber
 // once it rests, so a copied URL opens where the person stopped. The header's
 // Share (ShareControl, as every object page has) links the recording and sends
@@ -32,16 +32,16 @@ import {
   keepReasonLabel,
   needsVendorImport,
   type ReplayEvent,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import { ExternalLink, Play } from "lucide-react";
 import {
   activeMsOf,
-  formatReplayTime,
   isAnonymous,
   personKey,
   personLabel,
-  routeOf,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
+import { formatReplayTime } from "@codecast/replay/events";
+import { routeOf } from "@codecast/replay/issues";
 import {
   detailGone,
   useOpsReplay,

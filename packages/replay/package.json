@@ -1,0 +1,35 @@
+{
+  "name": "@codecast/replay",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./capture": "./src/capture.ts",
+    "./dom": "./src/dom.ts",
+    "./events": "./src/events.ts",
+    "./issues": "./src/issues.ts",
+    "./list": "./src/list.ts",
+    "./mobile": "./src/mobile.ts",
+    "./mobile.fixture": "./src/mobile.fixture.ts",
+    "./moment": "./src/moment.ts",
+    "./replay": "./src/replay.ts",
+    "./replayPlayer": "./src/replayPlayer.ts",
+    "./repro": "./src/repro.ts",
+    "./rrweb": "./src/rrweb.ts",
+    "./timeline": "./src/timeline.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/calls": "workspace:*",
+    "@codecast/changes": "workspace:*",
+    "@codecast/signals": "workspace:*"
+  }
+}

@@ -12,10 +12,7 @@ import type {
   WatchDirection,
   WatchKind,
 } from "@codecast/shared/contracts/ingest";
-import type {
-  ReplayBackfill,
-  ReplayProvider,
-} from "@codecast/shared/contracts/replay";
+import type { ReplayBackfill, ReplayProvider } from "@codecast/replay/replay";
 import type {
   AlertDelivery,
   AlertNotify,
@@ -25,7 +22,7 @@ import type {
   ReplayFacts,
   ReplayPerson,
   ReplayShape,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
 
 export type OpsSource = {
   _id: string;
@@ -221,7 +218,7 @@ export type OpsReplay = {
   counts: { clicks: number; errors: number; failed_requests: number };
   /** Why the SDK kept it (shared REPLAY_KEEP_REASONS, or the app's own token). Absent from an older backend. */
   kept_for?: string[];
-  /** Activity strip, failure marks, rage clicks, active time (shared/replay/list.ts); null until the stream is read. */
+  /** Activity strip, failure marks, rage clicks, active time (packages/replay/src/list.ts); null until the stream is read. */
   shape?: ReplayShape | null;
   /** What the vendor says of it (length, activity, browser, OS, device, country, referrer); absent from an older backend. */
   facts?: ReplayFacts | null;
@@ -246,7 +243,7 @@ export type OpsReplay = {
   vendor_refresh_after?: number | null;
   /** Why the vendor is waited out until vendor_refresh_after (shared VENDOR_REFRESH_WHYS). Absent from an older backend. */
   vendor_refresh_why?:
-    | import("@codecast/shared/contracts/replay").VendorRefreshWhy
+    | import("@codecast/replay/replay").VendorRefreshWhy
     | null;
   updated_at: number;
 };

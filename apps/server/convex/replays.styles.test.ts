@@ -5,9 +5,9 @@ import { signPlayerManifest } from "./lib/replayChunks";
 import { upsertReplayManifest } from "./lib/replayWrites";
 import { handleReplaySign, validateReplaySign } from "./replaysHttp";
 import { h, teamSource, world } from "./replays.testkit";
-import { REPLAY_STYLE_LIMITS } from "@codecast/shared/contracts/replayPlayer";
+import { REPLAY_STYLE_LIMITS } from "@codecast/replay/replayPlayer";
 
-// Stylesheets a DOM capture names by href (contracts/replayPlayer
+// Stylesheets a DOM capture names by href (packages/replay/src/replayPlayer
 // REPLAY_STYLE_LIMITS) and the reasons an SDK kept a recording.
 
 const NOW = Date.now();

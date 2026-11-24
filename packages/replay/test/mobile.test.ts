@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { replayCaptureProblem } from "../contracts/replayPlayer";
-import { readVendorCapture } from "./capture";
+import { replayCaptureProblem } from "../src/replayPlayer";
+import { readVendorCapture } from "../src/capture";
 import {
   fromMobileWireframes,
   isMobileCapture,
   MOBILE_BODY_ID,
-} from "./mobile";
-import { mobileRecording } from "./mobile.fixture";
-import { renderTimeline } from "./timeline";
-import { replayMoment } from "./moment";
+} from "../src/mobile";
+import { mobileRecording } from "../src/mobile.fixture";
+import { renderTimeline } from "../src/timeline";
+import { replayMoment } from "../src/moment";
 
 /** Every node of a serialized tree, depth first. */
 function nodes(n: any, out: any[] = []): any[] {

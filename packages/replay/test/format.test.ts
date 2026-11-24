@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatReplayTime } from "./events";
+import { formatReplayTime } from "../src/events";
 
 describe("formatReplayTime", () => {
   test("rounds before splitting, so a second never reads 60", () => {

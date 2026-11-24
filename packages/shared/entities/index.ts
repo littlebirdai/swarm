@@ -28,8 +28,8 @@ import {
   parseReplayRef,
   replayRefId,
   type ReplayRef,
-} from "../contracts/replayPlayer";
-import { parseReplayT, replayTParam } from "../replay/events";
+} from "@codecast/replay/replayPlayer";
+import { parseReplayT, replayTParam } from "@codecast/replay/events";
 
 export type EntityType =
   | "task"
@@ -692,7 +692,7 @@ function parseReplayPath(segs: string[], search: string): string | null {
     id = segs[2].trim();
   }
   if (!/^rp-\d+$/i.test(id) && !isConvexId(id)) return null;
-  // ?t is seconds (or a clock, or 1h2m3s), as the replay page reads it (shared/replay parseReplayT).
+  // ?t is seconds (or a clock, or 1h2m3s), as the replay page reads it (packages/replay/src parseReplayT).
   const atMs = search
     ? (parseReplayT(new URLSearchParams(search).get("t"))?.t ?? null)
     : null;
@@ -955,7 +955,7 @@ export function callRefLabelSuffix(
 // (ms since its first event, the clock the player and the text timeline
 // show). A stretch, `rp-12@1:00-2:30`, is what `cast replay snap --every`
 // samples; a reader opens it at its start. The parser and the prose form live
-// with the player contract (contracts/replayPlayer).
+// with the player contract (packages/replay/src/replayPlayer).
 // ---------------------------------------------------------------------------
 
 /** A moment or a stretch of a replay, as prose writes it: `rp-12@1:23`, `rp-12@1:00-2:30`. */

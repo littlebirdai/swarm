@@ -9,8 +9,8 @@ import { SCOPE, useCliHarness } from "./externalDataCli.testHarness.js";
 import {
   VENDOR_CONVERTER_VERSION,
   needsVendorImport,
-} from "@codecast/shared/contracts/replay";
-import { REPLAY_FRAME_LIMITS } from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replay";
+import { REPLAY_FRAME_LIMITS } from "@codecast/replay/replayPlayer";
 import {
   recordingJsonRow,
   recordingMatches,

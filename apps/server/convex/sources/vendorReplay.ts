@@ -8,9 +8,9 @@
 // The rrweb capture itself is kept too, masked (prepareDomCapture: no typed
 // value, nothing private), as DOM chunks beside the stream, so the player can
 // play the recording and agents can see frames of it
-// (contracts/replayPlayer.ts). A PostHog mobile recording, which holds
+// (packages/replay/src/replayPlayer.ts). A PostHog mobile recording, which holds
 // wireframes rather than a DOM, is converted to a plain page first
-// (shared/replay/mobile.ts); readVendorCapture does both reads. A capture
+// (packages/replay/src/mobile.ts); readVendorCapture does both reads. A capture
 // rrweb could not draw (no full snapshot of a page) is not kept. It is uploaded here, in the adapter's action,
 // because a capture of tens of MB cannot ride an action's arguments.
 //
@@ -23,11 +23,8 @@ import { v } from "convex/values";
 import { action } from "../functions";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import {
-  readVendorCapture,
-  type CaptureCarry,
-  type RrwebEvent,
-} from "@codecast/shared/replay";
+import { readVendorCapture, type CaptureCarry } from "@codecast/replay/capture";
+import { type RrwebEvent } from "@codecast/replay/rrweb";
 import { gzipSync, strFromU8, strToU8 } from "fflate";
 import {
   REPLAYS_ROOT,
@@ -40,15 +37,15 @@ import { sha256Hex } from "../lib/hash";
 import { readBodyCapped } from "../lib/tokenHttp";
 import { gunzipCapped, putChunk, storeReplayDom } from "../lib/replayChunks";
 import { importExternalCore } from "../lib/replayImport";
-import { REPLAY_LIMITS } from "@codecast/shared/contracts/replay";
-import { REPLAY_DOM_LIMITS } from "@codecast/shared/contracts/replayPlayer";
+import { REPLAY_LIMITS } from "@codecast/replay/replay";
+import { REPLAY_DOM_LIMITS } from "@codecast/replay/replayPlayer";
 import {
   REPLAY_REST,
   VENDOR_REFRESH_RETRY,
   needsRest,
   needsVendorImport,
   type VendorRefreshWhy,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 /** What an adapter read of one recording. */
 export interface VendorRecording {

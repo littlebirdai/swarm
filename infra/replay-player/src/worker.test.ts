@@ -8,7 +8,7 @@ import worker, {
   type Env,
 } from "./worker";
 import { remoteAssetHosts, remoteAssetsLabel } from "./remoteAssets";
-import { REPLAY_FRAME_LIMITS } from "../../../packages/shared/contracts/replayPlayer";
+import { REPLAY_FRAME_LIMITS } from "../../../packages/replay/src/replayPlayer";
 
 const BUCKET = "https://acct.r2.cloudflarestorage.com/codecast-replays/";
 const env = {

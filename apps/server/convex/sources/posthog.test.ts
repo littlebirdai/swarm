@@ -4,8 +4,8 @@ import { gzipSync, strFromU8, strToU8 } from "fflate";
 import schema from "../schema";
 import { makeFakeDb, schemaIndexes } from "../testDb";
 import { PASSTHROUGH_MAX_BYTES } from "@codecast/shared/contracts/ingest";
-import { VENDOR_CONVERTER_VERSION } from "@codecast/shared/contracts/replay";
-import { fromRrweb } from "@codecast/shared/replay";
+import { VENDOR_CONVERTER_VERSION } from "@codecast/replay/replay";
+import { fromRrweb } from "@codecast/replay/rrweb";
 import { createSource } from "../ingest";
 import { importedReplays } from "../replays";
 import {

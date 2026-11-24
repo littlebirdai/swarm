@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { domCapturePlayable, prepareDomCapture } from "./dom";
+import { domCapturePlayable, prepareDomCapture } from "../src/dom";
 
 const snapshot = (children: any[]) => ({
   type: 2,

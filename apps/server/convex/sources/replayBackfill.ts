@@ -63,7 +63,7 @@ import {
   replayBackfillStalled,
   type ReplayBackfill,
   type ReplayImportFailure,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 /**
  * One page: recordings listed per action, imported two at a time, inside a

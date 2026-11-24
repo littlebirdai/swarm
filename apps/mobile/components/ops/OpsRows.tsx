@@ -14,12 +14,9 @@ import {
 } from "@/constants/Theme";
 import { Mono, uiFace } from "@/constants/fonts";
 import { relTimeShort } from "@codecast/time";
-import {
-  formatReplayTime,
-  personLabel,
-  routeOf,
-  urlPath,
-} from "@codecast/shared/replay";
+import { formatReplayTime, urlPath } from "@codecast/replay/events";
+import { personLabel } from "@codecast/replay/list";
+import { routeOf } from "@codecast/replay/issues";
 import type {
   OpsGroup,
   OpsReplay,

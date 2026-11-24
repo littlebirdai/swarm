@@ -11,7 +11,7 @@ import {
   REPLAY_LIMITS,
   cleanKeepReasons,
   type ReplayProvider,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import {
   INGEST_SHORT_ID_PREFIX,
   type IngestItem,
@@ -21,7 +21,7 @@ import {
   REPLAY_DOM_LIMITS,
   REPLAY_STYLE_LIMITS,
   type ReplayChunkKind,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 import { patchReplay } from "./replayIndex";
 import { moveTally } from "./replayTallies";
 
@@ -280,7 +280,7 @@ export async function recordReplayChunk(
 }
 
 /**
- * Name one stylesheet a recording's DOM capture links to (contracts/replayPlayer
+ * Name one stylesheet a recording's DOM capture links to (packages/replay/src/replayPlayer
  * REPLAY_STYLE_LIMITS). A href already named points at the newer copy, so a
  * sheet stored again on a later day stays readable for as long as the
  * recording is. Refuses past max_per_replay.

@@ -9,8 +9,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { Pause, Play } from "lucide-react";
-import { REPLAY_PLAYER_SPEEDS } from "@codecast/shared/contracts/replayPlayer";
-import { formatReplayTime } from "@codecast/shared/replay";
+import { REPLAY_PLAYER_SPEEDS } from "@codecast/replay/replayPlayer";
+import { formatReplayTime } from "@codecast/replay/events";
 import "./replays.css";
 
 const SPEEDS = REPLAY_PLAYER_SPEEDS.filter(

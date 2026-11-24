@@ -309,7 +309,7 @@ describe("command groups stay off the boot graph", () => {
       // the barrels' contracts/slashCommand.ts and render/structuredMessage.ts.
       // 338 the same day, three leaves: contracts/vaultMessages.ts (the vault's
       // message tags, split out of the barrel's secrets contract), and
-      // replay/events.ts with the contracts/replay.ts it reads, which
+      // replay/events.ts with the packages/replay/src/replay.ts it reads, which
       // entities/index.ts now loads for the replay link's ?t (parseReplayT,
       // replayTParam). None imports a command group.
       // 346 on 2026-11-08, eight leaves: the contracts barrel's claudeBackend,
@@ -445,7 +445,7 @@ describe("command groups stay off the boot graph", () => {
       // claudeConfigDirs.ts +3.2, slashCommand.ts +1.7, shared/async +0.9,
       // structuredMessage.ts +0.5), replayPlayer.ts (+3.3), formatter.ts and
       // knownValueRedaction.ts (+2 each), then the three leaves of 338:
-      // contracts/replay.ts (+15.7) and replay/events.ts (+10.2), carried for
+      // packages/replay/src/replay.ts (+15.7) and replay/events.ts (+10.2), carried for
       // the two ?t helpers entities/index.ts reads, and vaultMessages.ts (+2.1,
       // moved out of machineMessages.ts, which fell by as much).
       // 4519 on 2026-11-08, after orgProposal.ts (~80) and permissionRules.ts

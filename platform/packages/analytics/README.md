@@ -248,7 +248,7 @@ bytes }`, answer `{ upload_url }` or `{ exists: true }`), followed by a
 `replay` manifest item. It never reads an input value, skips `[data-private]`,
 blanks query values, and costs one capture listener per event type plus
 patches on history, console, fetch and XHR: no MutationObserver, nothing per
-frame. The event types match codecast `packages/shared/contracts/replay.ts`
+frame. The event types match codecast `packages/replay/src/replay.ts`
 and codecast typechecks the two against each other.
 
 **DOM mode.** `startReplay({ ..., replayDom: "onError" | "sampled" })` (default

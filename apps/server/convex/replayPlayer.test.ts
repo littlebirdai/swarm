@@ -1,5 +1,5 @@
 // The replay player's server half (external-data.md X5, "Playing a replay";
-// contracts/replayPlayer.ts): DOM chunks stored beside the stream, the
+// packages/replay/src/replayPlayer.ts): DOM chunks stored beside the stream, the
 // capability minted after an access check, and the manifest it opens.
 import { afterEach, describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
@@ -31,8 +31,8 @@ import {
   REPLAY_FRAME_LIMITS,
   REPLAY_PLAYER_ORIGIN,
   parseReplayPlayerUrl,
-} from "@codecast/shared/contracts/replayPlayer";
-import { REPLAY_LIMITS } from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replayPlayer";
+import { REPLAY_LIMITS } from "@codecast/replay/replay";
 
 const h = (fn: any) => fn._handler;
 const NOW = Date.now();

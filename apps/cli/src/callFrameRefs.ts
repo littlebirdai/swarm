@@ -19,7 +19,7 @@
  *
  * `cast replay snap` frames ride the same memory: a frame of a customer's
  * page is as private as the replay, so it becomes `Frame of the replay:
- * rp-12@1:23` (contracts/replayPlayer.ts), which the web renders under the
+ * rp-12@1:23` (packages/replay/src/replayPlayer.ts), which the web renders under the
  * replay's own access rule.
  *
  * Which image is a frame: its path when the image names one (a Codex image,
@@ -40,7 +40,7 @@ import {
 import {
   replayFrameSeenRef,
   replayFrameSeenText,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 import { codecastDir, homeDir } from "./codecastDir.js";
 
 export type CallFrameEntry = {

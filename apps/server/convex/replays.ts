@@ -44,12 +44,12 @@ import {
   VENDOR_CONVERTER_VERSION,
   VENDOR_REFRESH_WHYS,
   needsVendorImport,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import {
   replayShape,
   SHAPE_VERSION,
   type ReplayMatch,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
 import {
   REPLAY_DOM_WINDOW,
   REPLAY_FRAME_PATH,
@@ -59,7 +59,7 @@ import {
   replayPlayerUrl,
   type ReplayDomChunkMeta,
   type ReplayPlayerLink,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 import { mintReplayCap, replayCapKey } from "./lib/replayCap";
 import {
   patchReplay,
@@ -1082,7 +1082,7 @@ export const chunkObject = internalQuery({
   },
 });
 
-// ── The player (contracts/replayPlayer.ts) ──
+// ── The player (packages/replay/src/replayPlayer.ts) ──
 
 /** Who may open a replay's player, and whether there is anything to play. A refusal reads like a missing replay. */
 export const playerTarget = internalQuery({

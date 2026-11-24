@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ReplayEvent } from "@codecast/shared/contracts/replay";
+import type { ReplayEvent } from "@codecast/replay/replay";
 import {
   ChevronDown,
   Copy,
@@ -25,9 +25,9 @@ import {
   formatReplayTime,
   isFailedRequest,
   isFailure,
-  rageBursts,
-  routeOf,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/events";
+import { rageBursts } from "@codecast/replay/list";
+import { routeOf } from "@codecast/replay/issues";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { copyText } from "../../lib/copyText";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";

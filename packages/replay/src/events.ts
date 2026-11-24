@@ -3,11 +3,7 @@
 // targets, the manifest counts, and how a moment is written. The timeline,
 // the repro, the rrweb converter and the Convex assembler all import these,
 // so "a failed request" means one thing everywhere.
-import {
-  REPLAY_KEYS,
-  REPLAY_LIMITS,
-  type ReplayEvent,
-} from "../contracts/replay";
+import { REPLAY_KEYS, REPLAY_LIMITS, type ReplayEvent } from "./replay";
 
 type NetworkEvent = Extract<ReplayEvent, { type: "network" }>;
 type ConsoleEvent = Extract<ReplayEvent, { type: "console" }>;

@@ -59,6 +59,7 @@
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -153,6 +154,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -295,6 +297,7 @@
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -382,6 +385,7 @@
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -862,6 +866,18 @@
         "@types/css-tree": "^2.3.11",
       },
     },
+    "packages/replay": {
+      "name": "@codecast/replay",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/calls": "workspace:*",
+        "@codecast/changes": "workspace:*",
+        "@codecast/signals": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/search": {
       "name": "@codecast/search",
       "version": "0.0.1",
@@ -905,6 +921,7 @@
         "@codecast/projects": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
+        "@codecast/replay": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
@@ -1419,6 +1436,8 @@
     "@codecast/ratchet": ["@codecast/ratchet@workspace:packages/ratchet"],
 
     "@codecast/render": ["@codecast/render@workspace:packages/render"],
+
+    "@codecast/replay": ["@codecast/replay@workspace:packages/replay"],
 
     "@codecast/search": ["@codecast/search@workspace:packages/search"],
 

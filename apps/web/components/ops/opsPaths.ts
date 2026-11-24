@@ -6,7 +6,7 @@
 // the same view here (opsViewHref). This file is the only place that knows the
 // addresses. Pure: no React, no store.
 
-import { parseReplayT, replayTParam } from "@codecast/shared/replay";
+import { parseReplayT, replayTParam } from "@codecast/replay/events";
 
 export const OPS_TABS = [
   "timeline",

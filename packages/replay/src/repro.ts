@@ -5,7 +5,7 @@
 // turning a replay into a fix needs. Locators come from the recorded label
 // and role (getByRole, getByLabel), the way a person finds a control; the CSS
 // selector is the fallback when neither was recorded.
-import type { ReplayEvent } from "../contracts/replay";
+import type { ReplayEvent } from "./replay";
 import {
   primaryFailure,
   sortReplayEvents,

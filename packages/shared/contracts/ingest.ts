@@ -19,7 +19,7 @@ import {
   type MomentEventItem,
 } from "./moments";
 import { isCiRunSeries, parseVolumeQuery } from "./volumeWatch";
-import { cleanKeepReasons } from "./replay";
+import { cleanKeepReasons } from "@codecast/replay/replay";
 
 // ── Sources ──
 
@@ -689,7 +689,7 @@ export type IngestItem =
       /** Chunks uploaded so far; chunk keys derive from the replay and the index. */
       chunks?: number;
       counts?: { clicks?: number; errors?: number; failed_requests?: number };
-      /** Why the SDK kept the recording, first reason first (contracts/replay REPLAY_KEEP_REASONS). */
+      /** Why the SDK kept the recording, first reason first (packages/replay/src/replay REPLAY_KEEP_REASONS). */
       kept_for?: string[];
       at: number;
     }

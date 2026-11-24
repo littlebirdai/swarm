@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  REPLAY_REST_NO_MORE,
-  type ReplayEvent,
-} from "@codecast/shared/contracts/replay";
+import { REPLAY_REST_NO_MORE, type ReplayEvent } from "@codecast/replay/replay";
 import {
   failureReasons,
   restHold,
@@ -61,7 +58,7 @@ import {
   issueMoments,
   runText,
 } from "./replayRail";
-import { isFailure } from "@codecast/shared/replay";
+import { isFailure } from "@codecast/replay/events";
 import type { OpsReplay } from "./opsTypes";
 import { importBar } from "./ReplayImport";
 
@@ -561,7 +558,7 @@ describe("issue moments", () => {
     ]);
     expect(at.size).toBe(0);
     const [issue] = (
-      require("@codecast/shared/replay") as typeof import("@codecast/shared/replay")
+      require("@codecast/replay/issues") as typeof import("@codecast/replay/issues")
     ).replayIssues(events, "https://shop.example.com/cart", 0);
     const hit = issueMoments(events, "https://shop.example.com/cart", [
       { _id: "g3", title: "x", fingerprint: `union:request:${issue.fp}` },

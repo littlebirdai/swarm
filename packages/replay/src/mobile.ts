@@ -36,7 +36,7 @@
 // Masking stays prepareDomCapture's: an input's value becomes a value
 // attribute on an input, textarea or select, which it stars like any other.
 import type { RrwebEvent } from "./rrweb";
-import { REPLAY_LIMITS } from "../contracts/replay";
+import { REPLAY_LIMITS } from "./replay";
 
 const EventType = {
   FullSnapshot: 2,

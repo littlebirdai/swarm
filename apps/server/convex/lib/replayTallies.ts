@@ -22,7 +22,7 @@ import {
   REPLAY_ENV_KEYS,
   type ReplayMatch,
   type ReplayPerson,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
 
 type Db = { db: any };
 

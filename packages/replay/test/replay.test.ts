@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ReplayEvent } from "../contracts/replay";
+import type { ReplayEvent } from "../src/replay";
 import {
   currentTimelineText,
   fromRrweb,
@@ -9,9 +9,9 @@ import {
   replayCounts,
   toRepro,
   type RrwebEvent,
-} from "./index";
-import { formatReplayTime, isFailedRequest } from "./events";
-import { placeholderValue } from "./repro";
+} from "../src/index";
+import { formatReplayTime, isFailedRequest } from "../src/events";
+import { placeholderValue } from "../src/repro";
 
 const checkout: ReplayEvent[] = [
   {
@@ -1266,7 +1266,7 @@ describe("fromRrweb", () => {
 
 describe("parseReplayEvents", () => {
   test("keeps well formed events, clips them, and drops the rest", async () => {
-    const { parseReplayEvents } = await import("./index");
+    const { parseReplayEvents } = await import("../src/events");
     const out = parseReplayEvents({
       events: [
         {

@@ -1,5 +1,5 @@
 // The replay player page's script (docs/architecture/external-data.md X5,
-// "Playing a replay"; contracts/replayPlayer.ts). Runs on replay.codecast.sh,
+// "Playing a replay"; packages/replay/src/replayPlayer.ts). Runs on replay.codecast.sh,
 // never on codecast.sh: the page it draws is a customer's DOM.
 //
 // It trades the capability in its path for the manifest (Convex), reads the
@@ -32,7 +32,7 @@ import {
   replayPlayerUrl,
   type ReplayPlayerManifest,
   type ReplayPlayerMessage,
-} from "../../../packages/shared/contracts/replayPlayer";
+} from "../../../packages/replay/src/replayPlayer";
 import { replayClock } from "./clock";
 import { remoteAssetHosts, remoteAssetsLabel } from "./remoteAssets";
 

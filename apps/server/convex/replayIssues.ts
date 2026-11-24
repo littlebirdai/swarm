@@ -19,12 +19,9 @@ import type { Id } from "./_generated/dataModel";
 import { readReplayChunks } from "./lib/replayChunks";
 import { applyIssues } from "./lib/replayImport";
 import { replaysBucketFromEnv } from "./lib/r2";
-import {
-  isFailedRequest,
-  replayIssues,
-  type ReplayIssue,
-} from "@codecast/shared/replay";
-import type { ReplayProvider } from "@codecast/shared/contracts/replay";
+import { isFailedRequest } from "@codecast/replay/events";
+import { replayIssues, type ReplayIssue } from "@codecast/replay/issues";
+import type { ReplayProvider } from "@codecast/replay/replay";
 
 /** Recordings one call reads at most; a longer window continues from the returned cursor. */
 export const REGROUP_PAGE = 150;

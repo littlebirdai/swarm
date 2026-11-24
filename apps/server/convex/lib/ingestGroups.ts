@@ -26,7 +26,7 @@ import {
   metricFingerprint,
   sdkErrorFingerprint,
 } from "@codecast/signals/signalFingerprint";
-import type { ReplayIssue } from "@codecast/shared/replay";
+import type { ReplayIssue } from "@codecast/replay/issues";
 import { utcDayKey } from "@codecast/shared/contracts/flowMap";
 
 export const HOUR_MS = 3600_000;
@@ -960,7 +960,7 @@ export interface ReplayRef {
 }
 
 /**
- * One wall a recording shows (shared/replay/issues.ts) as an occurrence of its
+ * One wall a recording shows (packages/replay/src/issues.ts) as an occurrence of its
  * replay_issue group. Its fingerprint is route plus failure, so every
  * recording of the same failure on the same page counts on one group, which
  * opens, regresses and promotes by the same rules an error does.

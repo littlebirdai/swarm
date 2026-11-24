@@ -16,7 +16,7 @@ import {
   replayBackfillState,
   type ReplayBackfill,
   type ReplayBackfillWindow,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import { formatRelative, relTimeShort } from "../../lib/utils";
 import Link from "next/link";
 import { opsHref } from "./opsPaths";
@@ -29,7 +29,8 @@ import {
   restTrend,
   vendorRecordingUrl,
 } from "./replayModel";
-import { anonHandle, formatReplayTime } from "@codecast/shared/replay";
+import { anonHandle } from "@codecast/replay/list";
+import { formatReplayTime } from "@codecast/replay/events";
 import "./replays.css";
 
 const WINDOW_LABEL: Record<ReplayBackfillWindow, string> = {

@@ -4,7 +4,7 @@
 // The filter lives in the address, so a filtered list can be shared. The
 // server's browse (convex replays.browse) runs the filter over every
 // recording and counts the matches; its rows land in the store, and the list
-// paints from the store with the same filter (shared/replay/list.ts), so a
+// paints from the store with the same filter (packages/replay/src/list.ts), so a
 // cached page shows at once and "Show more" only adds rows.
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -42,14 +42,14 @@ import {
   REPLAY_ENV_KEYS,
   REPLAY_HAS,
   REPLAY_SORTS,
-  formatReplayTime,
-  routeOf,
   type ReplayEnvKey,
   type ReplayHas,
   type ReplayPeopleSort,
   type ReplayPerson,
   type ReplaySort,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
+import { formatReplayTime } from "@codecast/replay/events";
+import { routeOf } from "@codecast/replay/issues";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {

@@ -29386,6 +29386,75 @@
   "packages/render/test/typeScale.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/replay/src/capture.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/replay/src/dom.ts": {
+    "swarm/no-comments": 28
+  },
+  "packages/replay/src/events.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/replay/src/index.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/replay/src/issues.ts": {
+    "swarm/no-comments": 56
+  },
+  "packages/replay/src/list.ts": {
+    "swarm/no-comments": 73
+  },
+  "packages/replay/src/mobile.fixture.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/replay/src/mobile.ts": {
+    "swarm/no-comments": 79
+  },
+  "packages/replay/src/moment.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/replay/src/replay.ts": {
+    "swarm/no-comments": 63
+  },
+  "packages/replay/src/replayPlayer.ts": {
+    "swarm/no-comments": 109
+  },
+  "packages/replay/src/repro.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/replay/src/rrweb.ts": {
+    "swarm/no-comments": 63
+  },
+  "packages/replay/src/timeline.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/replay/test/capture.test.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/replay/test/dom.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/replay/test/issues.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/replay/test/list.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/replay/test/mobile.test.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/replay/test/moment.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/replay/test/navs.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/replay/test/replay.test.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/replay/test/replayPlayer.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/search/src/index.ts": {
     "swarm/no-comments": 5
   },
@@ -29899,15 +29968,6 @@
   "packages/shared/contracts/regretRates.ts": {
     "swarm/no-comments": 19
   },
-  "packages/shared/contracts/replay.ts": {
-    "swarm/no-comments": 63
-  },
-  "packages/shared/contracts/replayPlayer.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/replayPlayer.ts": {
-    "swarm/no-comments": 109
-  },
   "packages/shared/contracts/rolePlaybook.test.ts": {
     "swarm/no-comments": 2
   },
@@ -30003,66 +30063,6 @@
   },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9
-  },
-  "packages/shared/replay/capture.test.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/replay/capture.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/replay/dom.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/replay/dom.ts": {
-    "swarm/no-comments": 28
-  },
-  "packages/shared/replay/events.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/replay/index.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/replay/issues.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/replay/issues.ts": {
-    "swarm/no-comments": 56
-  },
-  "packages/shared/replay/list.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/replay/list.ts": {
-    "swarm/no-comments": 73
-  },
-  "packages/shared/replay/mobile.fixture.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/replay/mobile.test.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/replay/mobile.ts": {
-    "swarm/no-comments": 79
-  },
-  "packages/shared/replay/moment.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/replay/moment.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/replay/navs.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/replay/replay.test.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/replay/repro.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/replay/rrweb.ts": {
-    "swarm/no-comments": 63
-  },
-  "packages/shared/replay/timeline.ts": {
-    "swarm/no-comments": 18
   },
   "packages/shared/tasks/foreignText.test.ts": {
     "swarm/no-comments": 10

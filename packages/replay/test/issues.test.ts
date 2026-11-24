@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ReplayEvent } from "../contracts/replay";
+import type { ReplayEvent } from "../src/replay";
 import {
   ECHO_MS,
   errorLine,
@@ -7,7 +7,7 @@ import {
   routeOf,
   sameSite,
   serviceOf,
-} from "./issues";
+} from "../src/issues";
 
 const page = "https://app.example.com/orders/8f3a9c21?tab=items";
 

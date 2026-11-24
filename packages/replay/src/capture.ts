@@ -4,7 +4,7 @@
 // DOM) is first made into an rrweb capture of a plain page (mobile.ts), and
 // its screens' text joins the stream as outlines; a web recording is read as
 // it is.
-import { REPLAY_LIMITS, type ReplayEvent } from "../contracts/replay";
+import { REPLAY_LIMITS, type ReplayEvent } from "./replay";
 import {
   domCapturePlayable,
   prepareDomCapturePart,

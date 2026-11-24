@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { ReplayEvent } from "../contracts/replay";
+import type { ReplayEvent } from "../src/replay";
 import {
   formatReplayMoment,
   replayClockDuration,
   replayClockStart,
   replayMoment,
-} from "./moment";
+} from "../src/moment";
 
 // A recorder ring buffer: the stream starts 60s into the session.
 const S = 60_000;

@@ -17,8 +17,8 @@
 // Stars keep each string's length, so layout replays the way it looked.
 // Events are changed in place: a capture is tens of MB, and a copy would
 // double what an import holds in memory.
-import { cleanUrl } from "../contracts/replay";
-import { replayCaptureProblem } from "../contracts/replayPlayer";
+import { cleanUrl } from "./replay";
+import { replayCaptureProblem } from "./replayPlayer";
 import type { RrwebEvent } from "./rrweb";
 
 const EventType = { FullSnapshot: 2, IncrementalSnapshot: 3, Meta: 4 } as const;

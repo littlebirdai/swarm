@@ -20,8 +20,8 @@ import {
 } from "../../hooks/useSyncOps";
 import { filePath } from "../../lib/externalEvents";
 import { relTimeShort } from "../../lib/utils";
-import { formatReplayTime } from "@codecast/shared/replay";
-import { replayRefId } from "@codecast/shared/contracts/replayPlayer";
+import { formatReplayTime } from "@codecast/replay/events";
+import { replayRefId } from "@codecast/replay/replayPlayer";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { foldRuns, replayPlace } from "./opsModel";
 import { opsHref } from "./opsPaths";

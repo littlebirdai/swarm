@@ -15,7 +15,7 @@ import {
   useOpsScope,
   useOpsWatches,
 } from "../../hooks/useSyncOps";
-import { REPLAY_PROVIDERS } from "@codecast/shared/contracts/replay";
+import { REPLAY_PROVIDERS } from "@codecast/replay/replay";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import {
   removeSourceLedger,
