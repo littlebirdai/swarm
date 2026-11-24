@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { DEFAULT_THEME } from "@codecast/web/lib/theme/builtinThemes";
-import { THEME_COLOR_TOKENS } from "@codecast/shared/contracts/theme";
+import { THEME_COLOR_TOKENS } from "@codecast/mods/theme";
 import { ModernPalettes } from "./modernPalette";
 import { mixHex } from "./colorMix";
 

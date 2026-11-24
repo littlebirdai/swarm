@@ -3,7 +3,7 @@
 // origin: no cookies, no storage, no reach into the app. The first message is
 // the mod: its code (the SDK bundled with the author's module) and the origins
 // its manifest may fetch from. This page locks its own policy to those origins
-// before it runs a line of the mod. Contract: packages/shared/contracts/mods.ts.
+// before it runs a line of the mod. Contract: packages/mods/src/mods.ts.
 (function () {
   var loaded = false;
   addEventListener("message", function (ev) {

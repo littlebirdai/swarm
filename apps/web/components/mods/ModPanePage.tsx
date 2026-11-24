@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from "react";
 import { DynamicIcon } from "./ModIcon";
-import type { ModSurface } from "@codecast/shared/contracts/mods";
+import type { ModSurface } from "@codecast/mods/mods";
 import { ModSurfaceView } from "./ModSurface";
 import { ModLogList } from "./ModLogList";
 import { modNavigate, takePaneProps } from "../../lib/mods/host";

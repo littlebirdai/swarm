@@ -35,6 +35,7 @@
     "@codecast/hosted-assistant": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",
+    "@codecast/mods": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",
     "@codecast/pages": "workspace:*",

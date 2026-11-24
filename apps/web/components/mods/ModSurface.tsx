@@ -4,7 +4,7 @@
 // pane page and by fences in any markdown.
 
 import { useCallback, useId, useMemo } from "react";
-import type { ModNode, ModSurface } from "@codecast/shared/contracts/mods";
+import type { ModNode, ModSurface } from "@codecast/mods/mods";
 import { CodeBlock } from "../CodeBlock";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { DynamicIcon } from "./ModIcon";

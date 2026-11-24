@@ -2,10 +2,7 @@
 // list, the board and the object page agree.
 
 import { useState } from "react";
-import type {
-  ModObjectField,
-  ModObjectKind,
-} from "@codecast/shared/contracts/mods";
+import type { ModObjectField, ModObjectKind } from "@codecast/mods/mods";
 import { Switch } from "../ui/switch";
 import { EntityIdPill } from "../EntityIdPill";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";

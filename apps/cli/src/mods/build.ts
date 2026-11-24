@@ -1,7 +1,7 @@
 // Builds a codecast mod: reads the folder, validates the manifest, bundles the
 // hooks module together with the SDK into one script for the sandbox, and
 // inspects the source against the manifest's grants. Contract:
-// shared/contracts/mods.ts. The SDK and the author typings are embedded in the
+// packages/mods/src/mods.ts. The SDK and the author typings are embedded in the
 // binary, so a mod builds the same from any install.
 
 import fs from "node:fs";
@@ -13,10 +13,7 @@ import SDK_SOURCE from "@codecast/mods/sdk" with { type: "text" };
 import LOCAL_SDK_SOURCE from "@codecast/mods/localSdk" with { type: "text" };
 // @ts-ignore: embedded as text for `cast mod new` and `cast mod types`.
 import AUTHORING_TYPES from "@codecast/mods/authoring.d.ts" with { type: "text" };
-import {
-  validateManifest,
-  type ModManifest,
-} from "@codecast/shared/contracts/mods";
+import { validateManifest, type ModManifest } from "@codecast/mods/mods";
 import { inspectModSource, type ModInspection } from "@codecast/mods/inspect";
 import { localHash } from "./localRunner.js";
 

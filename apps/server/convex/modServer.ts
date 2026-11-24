@@ -6,7 +6,7 @@ import {
   canReadConnector,
   secretFor,
   type ModManifest,
-} from "@codecast/shared/contracts/mods";
+} from "@codecast/mods/mods";
 import { appCall } from "./sources/app";
 import { reachesMod } from "./modLocal";
 import { decryptModSecret } from "./modSecrets";

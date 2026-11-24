@@ -307,7 +307,7 @@ export type ModManifest = {
   fences?: ModFence[];
   sidebar?: ModSidebar[];
   objects?: ModObjectKind[];
-  /** Color themes the person can pick in Settings (contracts/theme.ts): data, applied app-wide. */
+  /** Color themes the person can pick in Settings (packages/mods/src/theme.ts): data, applied app-wide. */
   themes?: ModTheme[];
   /**
    * The local half: a module the codecast daemon runs on a machine you own,

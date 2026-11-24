@@ -29155,8 +29155,14 @@
   "packages/mods/src/localSdk.ts": {
     "swarm/no-comments": 14
   },
+  "packages/mods/src/mods.ts": {
+    "swarm/no-comments": 60
+  },
   "packages/mods/src/sdk.ts": {
     "swarm/no-comments": 24
+  },
+  "packages/mods/src/theme.ts": {
+    "swarm/no-comments": 16
   },
   "packages/mods/test/contract.test.ts": {
     "swarm/no-comments": 1
@@ -29749,9 +29755,6 @@
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
   },
-  "packages/shared/contracts/mods.ts": {
-    "swarm/no-comments": 60
-  },
   "packages/shared/contracts/moments.ts": {
     "swarm/no-comments": 55
   },
@@ -29931,9 +29934,6 @@
   },
   "packages/shared/contracts/taskStats.ts": {
     "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/theme.ts": {
-    "swarm/no-comments": 16
   },
   "packages/shared/contracts/threadState.test.ts": {
     "swarm/no-comments": 2

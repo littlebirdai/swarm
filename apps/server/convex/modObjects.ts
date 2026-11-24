@@ -15,11 +15,11 @@ import {
   RESERVED_OBJECT_PREFIXES,
   type ModManifest,
   type ModObjectKind,
-} from "@codecast/shared/contracts/mods";
+} from "@codecast/mods/mods";
 import type { Id } from "./_generated/dataModel";
 
 /**
- * Objects of the kinds mods declare (plan pl-839, shared/contracts/mods.ts).
+ * Objects of the kinds mods declare (plan pl-839, packages/mods/src/mods.ts).
  * Access is the work-item rule: the row's stored `workspace` key, written by
  * computeWorkspaceKey, read through the pure stamp evaluator. A kind exists
  * only while some mod the creator can see declares it, so a typo never mints

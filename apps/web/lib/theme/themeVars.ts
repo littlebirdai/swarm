@@ -1,4 +1,4 @@
-// The one place a color theme's tokens (shared/contracts/theme.ts) meet the
+// The one place a color theme's tokens (packages/mods/src/theme.ts) meet the
 // app's internal CSS variables. The token names are public and stable; the
 // variables here are ours, so renaming or adding an internal variable means
 // editing this file and nothing a theme author wrote.
@@ -9,7 +9,7 @@ import type {
   ThemeMode,
   ThemePalette,
   ThemeToken,
-} from "@codecast/shared/contracts/theme";
+} from "@codecast/mods/theme";
 import {
   ACCENT_MIX,
   ACCENT_SCALES,

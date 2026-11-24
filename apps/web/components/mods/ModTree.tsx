@@ -1,5 +1,5 @@
 // Draws a mod's element tree with codecast's own components (contract:
-// shared/contracts/mods.ts, author types: @codecast/mods/authoring.d.ts). The tree
+// packages/mods/src/mods.ts, author types: @codecast/mods/authoring.d.ts). The tree
 // is plain data from the sandbox; a handler in it is a { $fn } id, and pressing
 // the control sends that id back to the mod's runtime. Nothing the mod sends is
 // ever HTML except the Canvas element, which goes through the same sanitizer as
@@ -28,7 +28,7 @@ import { sanitizeCanvasHtml } from "../../lib/canvasSanitize";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { hydrateCharts } from "../../lib/castChart";
 import { formatRelativeTime } from "../../lib/conversationFormat";
-import { MOD_ELEMENTS, type ModNode } from "@codecast/shared/contracts/mods";
+import { MOD_ELEMENTS, type ModNode } from "@codecast/mods/mods";
 import { isAppPath } from "../../lib/mods/host";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useMountEffect } from "../../hooks/useMountEffect";

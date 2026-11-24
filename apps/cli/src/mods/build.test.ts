@@ -1,6 +1,6 @@
 // End to end below the browser: the real builder bundles a mod with the SDK,
 // the bundle runs in a VM standing in for the sandboxed iframe, and the test
-// plays the host's side of the protocol (shared/contracts/mods.ts).
+// plays the host's side of the protocol (packages/mods/src/mods.ts).
 
 import { afterAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
@@ -9,7 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { buildMod } from "./build.js";
 import { scaffoldFiles } from "./scaffold.js";
-import type { FrameToHost, HostToFrame } from "@codecast/shared/contracts/mods";
+import type { FrameToHost, HostToFrame } from "@codecast/mods/mods";
 
 const dirs: string[] = [];
 afterAll(() => {

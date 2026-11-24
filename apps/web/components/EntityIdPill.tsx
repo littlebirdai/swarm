@@ -152,7 +152,7 @@ import {
 } from "./ops/parts";
 import { replayFacts, replayTitle } from "./ops/opsModel";
 import { ModPaneEmbed } from "./mods/ModPaneEmbed";
-import { OBJECT_REF_PREFIX } from "@codecast/shared/contracts/mods";
+import { OBJECT_REF_PREFIX } from "@codecast/mods/mods";
 import { actionsRunKey } from "@codecast/shared/contracts/deploys";
 import { DeployPillSuffix } from "./deploys/deployRefLook";
 import {

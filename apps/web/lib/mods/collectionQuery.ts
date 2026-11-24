@@ -2,7 +2,7 @@
 // here): a store collection's rows as the person sees them, with the derived
 // facts every mod would otherwise recompute, filtered, sorted and trimmed.
 
-import { MOD_COLLECTIONS } from "@codecast/shared/contracts/mods";
+import { MOD_COLLECTIONS } from "@codecast/mods/mods";
 import {
   useInboxStore,
   sessionWorkState,
