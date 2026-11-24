@@ -39,7 +39,7 @@ import {
   precheckMessageBlock,
   triggerLifecycleInstructions,
   STASHED_RUN_NOTE,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerLifecycle";
 
 const ENRICHED_PATH = [
   process.env.PATH,

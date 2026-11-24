@@ -14,7 +14,7 @@ import {
   STASHED_RUN_NOTE,
   triggerLifecycleInstructions,
   triggerRunFrame,
-} from "./triggerLifecycle";
+} from "../src/triggerLifecycle";
 
 // A fresh run's owner is the session that armed a once trigger; every other
 // shape has none. The owner is woken for outcomes it must act on, and for a
@@ -101,7 +101,8 @@ describe("runParentOf", () => {
   test.each(["once", "recurring", "event"] as const)(
     "a %s spawn run nests under its creator",
     (schedule_type) => {
-      expect(runParentOf({ ...onceSpawn, schedule_type })).toBe("creator");
+      const task = { ...onceSpawn, schedule_type };
+      expect(runParentOf(task)).toBe("creator");
     },
   );
   test("an inject trigger has no run of its own to nest", () => {
@@ -110,7 +111,7 @@ describe("runParentOf", () => {
     ).toBeUndefined();
   });
   test("a trigger armed outside any session has no parent", () => {
-    expect(runParentOf({ schedule_type: "recurring" })).toBeUndefined();
+    expect(runParentOf({})).toBeUndefined();
   });
   test("a repeating run has a parent to nest under but no thread to post to", () => {
     const recurring = { ...onceSpawn, schedule_type: "recurring" };

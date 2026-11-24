@@ -51,7 +51,7 @@ import {
   runResultThreadOf,
   triggerRunFrame,
   type RunOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerLifecycle";
 import {
   formatScheduledTask,
   type WaitingSession,

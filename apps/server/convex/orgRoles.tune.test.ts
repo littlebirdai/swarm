@@ -10,7 +10,7 @@ import {
 import { listEntries, performUndo } from "./orgChanges";
 import { orgLogLine } from "@codecast/org/orgChange";
 import { BRIEF_BUDGET_CHARS } from "@codecast/org/rolePlaybook";
-import { triggerRunFrame } from "@codecast/shared/contracts";
+import { triggerRunFrame } from "@codecast/triggers/triggerLifecycle";
 
 // A role tunes its own check (docs/architecture/org-staffing.md S38): inside
 // its bounds without a proposal, logged as one org change a person can take

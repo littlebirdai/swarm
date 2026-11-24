@@ -37,7 +37,7 @@ import {
   GROUP_STATUSES,
   bucketSeries,
 } from "@codecast/ingest/ingest";
-import { fenceProductText } from "@codecast/shared/contracts";
+import { fenceProductText } from "@codecast/triggers/triggerLifecycle";
 import { parseDuration } from "@codecast/time";
 
 export interface EventRow {

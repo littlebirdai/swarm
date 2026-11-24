@@ -20,7 +20,6 @@ export * from "./capabilityResolver";
 export * from "./decisionAnswers";
 // The cross-entity review queue row — one shape for "what is waiting on a
 // human", fed by comment threads, page comments, and workflow gates alike.
-export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
 // `cast org init` decisions carry). It sits off the CLI boot graph on purpose
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static

@@ -10,7 +10,7 @@ import {
   type ScheduledTaskFrame,
   type WaitingSession,
 } from "@codecast/messages/machineMessages";
-import { withoutStashedRunNote } from "@codecast/shared/contracts";
+import { withoutStashedRunNote } from "@codecast/triggers/triggerLifecycle";
 import { roleCardInitiativeLine } from "@codecast/org/roleCard";
 import { AREA_STATUS_WORDS } from "@codecast/org/orgAreas";
 import { ShortcutTooltip } from "../../KeyboardShortcutsHelp";
