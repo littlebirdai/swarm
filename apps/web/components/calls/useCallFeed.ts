@@ -8,9 +8,9 @@ import {
   huddleFeedBriefing,
   HUDDLE_FEED_DISREGARD,
   isRecRoomKey,
-  humanizeConvexError,
   transcriptChunkHeader,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
 import {
   characterNameFor,

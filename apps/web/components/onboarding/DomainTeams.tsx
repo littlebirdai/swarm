@@ -7,7 +7,7 @@ import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { Users } from "lucide-react";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 
 export function DomainTeams() {

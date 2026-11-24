@@ -73,7 +73,7 @@ import {
   roleActedOn,
 } from "@codecast/shared/contracts/orgProposal";
 import { orgAppliedDiff } from "@codecast/shared/contracts/orgChange";
-import { humanizeConvexError } from "@codecast/shared/contracts/convexErrors";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { roleCharterOf } from "./lib/roleCharter";
 
 // Staffing proposals (docs/architecture/org-staffing.md S4): a set of changes

@@ -6,7 +6,7 @@
 // loads for any other command.
 
 import type { Command } from "commander";
-import { cliErrorMessage } from "@codecast/shared/contracts";
+import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
 import { apiPost } from "./castApi.js";
 import { commandGroup, type GroupDeps } from "./commandGroups.js";
 import { registerLineProfileCommands } from "./lineProfileCommand.js";

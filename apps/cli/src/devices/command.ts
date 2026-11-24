@@ -11,7 +11,6 @@ import {
   PROVIDER_KEYS,
   STALE_MACHINE_MS,
   cloudAgentSetupSentence,
-  cliErrorMessage,
   deviceDisplayName,
   distinctDeviceNames,
   getProviderKeySpec,
@@ -19,7 +18,8 @@ import {
   machineOutOfService,
   snippetBySlug,
 } from "@codecast/shared/contracts";
-import { type AgentToolSetupStatus } from "@codecast/capabilities/agentToolSetup";
+import type { AgentToolSetupStatus } from "@codecast/capabilities/agentToolSetup";
+import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
 import { commandGroup } from "../commandGroups.js";
 import { fmt, icons } from "../colors.js";
 import { formatAgeShort } from "../publishCommand.js";

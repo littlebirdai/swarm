@@ -157,14 +157,14 @@ import {
   callAnchorHref,
   callPathRef,
   segmentAt,
-  cliErrorMessage,
   normalizeGuestName,
 } from "@codecast/shared/contracts";
 import {
   teamFeaturesForSnippet,
   TEAM_FEATURES,
-  type TeamFeatureKey,
 } from "@codecast/policy/teamFeatures";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
+import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
 import type {
   ExcludedSelf,
   SearchPartial,

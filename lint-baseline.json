@@ -28789,6 +28789,12 @@
   "packages/comments/test/sendOutcome.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/convex-errors/src/convexErrors.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/convex-errors/test/convexErrors.test.ts": {
+    "swarm/no-comments": 7
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -29157,12 +29163,6 @@
   },
   "packages/shared/contracts/conversationFields.ts": {
     "swarm/no-comments": 62
-  },
-  "packages/shared/contracts/convexErrors.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/convexErrors.ts": {
-    "swarm/no-comments": 13
   },
   "packages/shared/contracts/daemonCommands.ts": {
     "swarm/no-comments": 244

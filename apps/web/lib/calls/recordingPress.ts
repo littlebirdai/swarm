@@ -1,13 +1,13 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { CommandReceiptRejectedError } from "@platform/engine";
 import {
-  humanizeConvexError,
   RECORDING_RESTART_COOLDOWN_MS,
   recordingCooling,
   recordingPressStale,
   recordingPressStaleWords,
   type CallRecordingStatus,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { myUserId, useInboxStore } from "../../store/inboxStore";
 import {

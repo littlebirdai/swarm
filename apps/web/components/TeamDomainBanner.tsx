@@ -4,7 +4,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { Users, X } from "lucide-react";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useInboxStore } from "../store/inboxStore";
 
 const DISMISS_FOR_MS = 7 * 24 * 60 * 60 * 1000;

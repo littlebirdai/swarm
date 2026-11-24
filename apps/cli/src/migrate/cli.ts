@@ -29,7 +29,7 @@ import * as path from "node:path";
 import type { MoveRehearsal } from "@codecast/shared/contracts/moveRehearsal";
 import type { BroughtPath } from "../remote/session-move.js";
 import { bringsByDefault } from "@codecast/shared/contracts/moveRehearsal";
-import { humanizeConvexError } from "@codecast/shared/contracts/convexErrors";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { createRunnerIo } from "./io.js";
 import { hostResolver } from "./hosts.js";
 import { pickOwnDevice } from "./pickDevice.js";

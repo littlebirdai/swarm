@@ -54,7 +54,7 @@ import {
   type ChatVoiceStatus,
 } from "@codecast/chat";
 import { normalizeChannelName } from "@codecast/convex/convex/chatText";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import {
   mergeLinkOptions,
   nextSlackMembers,

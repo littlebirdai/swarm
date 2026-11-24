@@ -52,10 +52,10 @@ import {
 } from "../../../components/calls/RecordingMark";
 import {
   guestNoticeLines,
-  humanizeConvexError,
   noticeNews,
   type GuestNotice,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { Button } from "../../../components/ui/button";
 
 // The call, for a guest: the member's stage (StageViews: the same tiles, the

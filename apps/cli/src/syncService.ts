@@ -33,10 +33,8 @@ import type {
   TriggerFiringSource,
   TriggerPrecheckResult,
 } from "@codecast/shared/contracts";
-import {
-  argumentValidationProblem,
-  withoutDeliveryId,
-} from "@codecast/shared/contracts";
+import { withoutDeliveryId } from "@codecast/shared/contracts";
+import { argumentValidationProblem } from "@codecast/convex-errors/convexErrors";
 import type { DeliveryEchoLedger } from "./deliveryEchoLedger.js";
 import {
   MAX_USER_FILE_SIZE,

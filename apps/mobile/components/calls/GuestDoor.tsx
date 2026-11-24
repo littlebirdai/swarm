@@ -13,7 +13,7 @@ import {
   removeGuest,
 } from "@codecast/web/lib/calls/guestDoorActions";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { Text } from "@/components/Themed";
 // The call stage is always dark (call.tsx says why), so the light palette's
 // contrast reads are the right ones here too.

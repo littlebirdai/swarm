@@ -20,8 +20,8 @@ import {
 import {
   DAEMON_COMMAND_TTL_MS,
   deviceDisplayName,
-  humanizeConvexError,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { lineProjectParam, paintStationEdits } from "./line/lineStations";
 import { SHIPPED_LINE } from "./line/shippedLine.generated";
 import type { SenseSource } from "./lineFlow";

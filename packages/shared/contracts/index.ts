@@ -84,7 +84,6 @@ export * from "./callGuests";
 export * from "./huddleDigest";
 export * from "./screenRecording";
 export * from "./fileAttachment";
-export * from "./convexErrors";
 // Without these two lines every consumer reinvents the capability vocabulary:
 // convex copied the constants, the web store reached in by relative path, and
 // the web UI and the CLI each declared their own scope and kind unions. Four

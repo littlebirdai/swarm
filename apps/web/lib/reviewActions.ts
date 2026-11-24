@@ -23,7 +23,7 @@ import {
   type OrgReplyItem,
   type OrgReplyVerdict,
 } from "@codecast/shared/contracts/orgProposal";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { proposalSeen } from "../components/org/proposalHooks";
 import {
   orgVerdictRevisedNotice,

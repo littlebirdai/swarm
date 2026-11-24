@@ -29,7 +29,6 @@
     "./contracts/shellWords": "./contracts/shellWords.ts",
     "./contracts/commandRun": "./contracts/commandRun.ts",
     "./contracts/lineSlug": "./contracts/lineSlug.ts",
-    "./contracts/convexErrors": "./contracts/convexErrors.ts",
     "./contracts/orgChange": "./contracts/orgChange.ts",
     "./contracts/orgChangeWords": "./contracts/orgChangeWords.ts",
     "./contracts/orgSessionFiling": "./contracts/orgSessionFiling.ts",

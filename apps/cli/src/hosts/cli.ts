@@ -96,9 +96,9 @@ import {
   CLOUD_AUTOSCALE_DEFAULT_SIZE,
   CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES,
   CLOUD_HOST_SIZES,
-  cliErrorMessage,
   cloudSeedLabel,
 } from "@codecast/shared/contracts";
+import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
 import { commandGroup } from "../commandGroups.js";
 import { commandTree, unknownCommandNextStep } from "../commandSuggestion.js";
 import { registerHostKeepaliveCommand } from "../cloud/keepalive.js";

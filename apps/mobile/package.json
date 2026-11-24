@@ -22,6 +22,7 @@
     "@codecast/artifacts": "workspace:*",
     "@codecast/chat": "workspace:*",
     "@codecast/convex": "workspace:*",
+    "@codecast/convex-errors": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",
     "@codecast/hash": "workspace:*",

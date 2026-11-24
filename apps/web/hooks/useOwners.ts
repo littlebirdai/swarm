@@ -21,7 +21,7 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { isConvexId } from "../lib/entityLinks";
 import { useWatchEffect } from "./useWatchEffect";
 import { useQueryNoThrow } from "./useQueryNoThrow";

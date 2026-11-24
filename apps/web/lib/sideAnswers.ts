@@ -9,10 +9,10 @@
 // (convex/sideAnswers.ts) stores it and the cheap model's answer replaces it.
 
 import {
-  humanizeConvexError,
   SIDE_ANSWER_EXPIRE_MS,
   type SideAnswerRow,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { isConvexId, useInboxStore } from "../store/inboxStore";
 import { toast } from "sonner";
 import { settleEchoedSend } from "./decisionDiscussion";
