@@ -61,6 +61,8 @@ test("a chat channel paints its cached line with every query missing", async () 
     expect(describeFailures(page)).toBe("");
     const text = page.text();
     expect(text).toContain("release-room");
+    const shell = page.container.querySelector(".ch-shell");
+    expect(shell?.parentElement?.matches(".h-full.min-h-0")).toBeTruthy();
     expect(text).toContain("Cutting the 1.1.168 release after lunch");
     for (const fn of [
       "chat:listChannels",

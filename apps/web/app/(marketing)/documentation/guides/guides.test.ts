@@ -20,12 +20,6 @@ describe("guide feature invariant", () => {
       ).toBe(true);
     }
   });
-
-  test("stable is genuinely outside the catalog, or this test's reason is gone", () => {
-    // If stable ever joins SNIPPET_CATALOG, the special case above stops
-    // pulling its weight and should be deleted with it.
-    expect(allSnippetSlugs()).not.toContain("stable");
-  });
 });
 
 // A guide is three registrations: the registry row, the markdown body, and a

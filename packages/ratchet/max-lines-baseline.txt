@@ -532,7 +532,7 @@ apps/web/components/calls/RoomThreadRows.tsx 1000
 apps/web/components/calls/StageViews.tsx 950
 apps/web/components/calls/__tests__/roomThread.test.tsx 1450
 apps/web/components/capabilities/__tests__/fleetRows.test.ts 850
-apps/web/components/castCommand.test.ts 1500
+apps/web/components/castCommand.test.ts 1400
 apps/web/components/castCommand.ts 1200
 apps/web/components/changes/ChangesPage.tsx 950
 apps/web/components/chat/ChatMessage.tsx 1000

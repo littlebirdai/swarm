@@ -185,3 +185,27 @@ describe("session message intent", () => {
     ).toBeUndefined();
   });
 });
+
+const rawReport =
+  "Backend B (ct-51438) review fixes: all five of mine fixed, none skipped.";
+
+test.each([
+  [
+    "wrapped",
+    '<agent-message from="critic-K-L">sweep done</agent-message>',
+    { variant: "agent", from: "critic-K-L", body: "sweep done" },
+  ],
+  [
+    "unwrapped",
+    rawReport,
+    { from: "unknown", name: "Backend B", body: rawReport },
+  ],
+])("attributes a %s worker report", (_label, content, fields) => {
+  const message = { _id: "report", role: "user", content, timestamp: 1 };
+  expect(
+    classifyUserMessage(message as Parameters<typeof classifyUserMessage>[0]),
+  ).toEqual({
+    kind: "session_message",
+    ...fields,
+  });
+});

@@ -1,6 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
+import { act } from "react";
+import { installDom } from "../../test-helpers/missingBackend";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BrowserHandoffCard } from "../BrowserHandoffToast";
+
+const { mountSurface } = installDom("https://app.test/");
 
 const session = {
   title: "Staffing layer analyzer",
@@ -77,17 +81,30 @@ describe("BrowserHandoffCard", () => {
     expect(html).toContain("Not now");
   });
 
-  test("Open session and Not now fire the matching callbacks", () => {
-    const html = render(
+  test("Open session and Not now fire the matching callbacks", async () => {
+    const callbacks = { onOpen: mock(() => {}), onDismiss: mock(() => {}) };
+    const { container, unmount } = await mountSurface(
       <BrowserHandoffCard
         path="/conversation/jx71b14"
         session={session}
-        onOpen={() => {}}
-        onDismiss={() => {}}
+        {...callbacks}
       />,
     );
-    expect(html).toContain("handoff-toast-open");
-    expect(html).toContain("handoff-toast-stay");
-    expect(html).toContain('type="button"');
+    const click = (label: string) =>
+      act(() => {
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent?.trim() === label)
+          ?.click();
+      });
+    try {
+      await click("Open session");
+      expect(callbacks.onOpen).toHaveBeenCalledTimes(1);
+      expect(callbacks.onDismiss).not.toHaveBeenCalled();
+      await click("Not now");
+      expect(callbacks.onDismiss).toHaveBeenCalledTimes(1);
+      expect(callbacks.onOpen).toHaveBeenCalledTimes(1);
+    } finally {
+      await unmount();
+    }
   });
 });

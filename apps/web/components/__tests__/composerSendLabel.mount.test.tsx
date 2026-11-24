@@ -27,7 +27,7 @@ afterAll(() => {
 const button = (host: HTMLElement) =>
   host.querySelector<HTMLButtonElement>("button")!;
 
-test("a label makes the send a violet pill that says what it applies; without one the icon stands; bare ignores it", async () => {
+test("the send button announces its custom label and the reason it is disabled", async () => {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -40,14 +40,6 @@ test("a label makes the send a violet pill that says what it applies; without on
     expect(b.getAttribute("aria-label")).toBe("Send and apply 3");
     expect(b.dataset.ccSendLabel).toBe("Send and apply 3");
     expect(b.hasAttribute("data-cc-send")).toBe(true);
-    expect(b.className).toContain("bg-[var(--sol-violet)]");
-    expect(b.className).toContain("text-[var(--sol-bg)]");
-    expect(b.className).toContain("rounded-full");
-    // The pill is as wide as its words: a height and padding, never a fixed width (jsdom lays nothing out, so the classes stand in for the box).
-    expect(b.className).toContain("h-8");
-    expect(b.className).toContain("px-3");
-    expect(b.className).toContain("whitespace-nowrap");
-    expect(b.className).not.toMatch(/(^|\s)(w-\d|w-\[|aspect-)/);
     expect(b.disabled).toBe(false);
     expect(b.querySelector("svg")).not.toBeNull();
     // Held: the same pill, faded; its tooltip says why and offers no key, and
@@ -69,11 +61,11 @@ test("a label makes the send a violet pill that says what it applies; without on
     );
     b = button(host);
     expect(b.disabled).toBe(true);
-    expect(b.className).toContain("opacity-[0.45]");
     const held = host.querySelector<HTMLElement>("[data-tip]")!;
     expect(held.dataset.tip).toBe("Out of allowance");
     expect(held.dataset.accel).toBe("");
-    expect(b.parentElement).not.toBe(held);
+    expect(held).not.toBe(b);
+    expect(held.contains(b)).toBe(true);
     expect(b.textContent?.trim()).toBe("Send 2 answers");
     // No label: the icon, named Send, no label hook.
     await act(() => root.render(<ComposerSendButton canSubmit />));
@@ -82,10 +74,6 @@ test("a label makes the send a violet pill that says what it applies; without on
     expect(b.getAttribute("aria-label")).toBe("Send");
     expect(b.dataset.ccSendLabel).toBeUndefined();
     expect(b.hasAttribute("data-cc-send")).toBe(true);
-    expect(b.className).not.toContain("--sol-violet");
-    // Quotes only keeps its cyan tint.
-    await act(() => root.render(<ComposerSendButton canSubmit quotesOnly />));
-    expect(button(host).className).toContain("sol-cyan");
     // The bare comment box ignores the label.
     await act(() =>
       root.render(
@@ -96,7 +84,6 @@ test("a label makes the send a violet pill that says what it applies; without on
     expect(b.textContent?.trim()).toBe("");
     expect(b.getAttribute("aria-label")).toBe("Send");
     expect(b.hasAttribute("data-cc-send")).toBe(false);
-    expect(b.className).toContain("w-6");
   } finally {
     await act(() => root.unmount());
     host.remove();

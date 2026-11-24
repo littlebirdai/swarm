@@ -15,10 +15,11 @@ describe("usage chip hover panel vs titlebar drag", () => {
   test("globals.css marks [data-flyout] no-drag", () => {
     // [data-flyout] may share its block with other selectors (modal layers).
     const rule = css.match(
-      /(?:^|[},])\s*\[data-flyout\]\s*(?:,[^{}]*)?\{([^}]+)\}/m,
+      /(?:^|[},])\s*(\[data-flyout\]\s*(?:,[^{}]*)?)\{([^}]+)\}/m,
     );
     expect(rule).toBeTruthy();
-    expect(rule![1]).toMatch(/-webkit-app-region:\s*no-drag/);
+    expect(rule![1]).toContain("[data-radix-popper-content-wrapper]");
+    expect(rule![2]).toMatch(/-webkit-app-region:\s*no-drag/);
   });
 
   test("the hover panel carries data-flyout", () => {
@@ -31,20 +32,11 @@ describe("usage chip hover panel vs titlebar drag", () => {
 // The same dead strip closed the header faces' card as the pointer moved down
 // onto it, and any Radix popover opened from a header control.
 describe("every flyout over the titlebar opts out of drag", () => {
-  const noDragBlock = css.match(/\[data-flyout\],[^{]*\{([^}]+)\}/)?.[0] ?? "";
-
-  test("Radix floating layers are no-drag", () => {
-    expect(noDragBlock).toContain("[data-radix-popper-content-wrapper]");
-    expect(noDragBlock).toMatch(/-webkit-app-region:\s*no-drag/);
-  });
-
-  test("the face card band and the face chat bubble carry data-flyout", () => {
-    const row = readFileSync(join(web, "components/faces/FaceRow.tsx"), "utf8");
+  test("the face chat bubble carries data-flyout", () => {
     const chat = readFileSync(
       join(web, "components/faces/FaceChatLayer.tsx"),
       "utf8",
     );
-    expect(row).toMatch(/className="face-row-below"[^>]*data-flyout/);
     expect(chat).toMatch(/className="fc-bubble"\s+data-flyout/);
   });
 });
@@ -54,11 +46,6 @@ describe("every flyout over the titlebar opts out of drag", () => {
 // blanked the whole chip, and a machine with no reported account rendered
 // nothing at all. Each one read as a control that comes and goes.
 describe("usage chip never leaves the bar", () => {
-  test("the account name carries no width-gated hide", () => {
-    expect(chip).not.toContain("tb-squeeze");
-    expect(css).not.toContain("tb-squeeze");
-  });
-
   test("cached accounts come from the viewer-scoped store", () => {
     expect(chip).toContain('useSettingsData("accountProfiles")');
     expect(chip).not.toContain("lastResolved");

@@ -31,7 +31,7 @@ import { replaceGlobals } from "../../../test-helpers/globals";
 // control inside each live element (pointer, mouse, click, context menu and
 // Enter/Space), and a context menu on every message and trigger row. New chapters and parts are
 // picked up through the registry (chapters/contract.test.ts keeps the
-// registry equal to the files), so a builder never edits this test.
+// registry equal to the scenes), so a builder never edits this test.
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "https://codecast.test/",

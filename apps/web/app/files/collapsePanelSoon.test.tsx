@@ -91,8 +91,8 @@ describe("collapsePanelSoon", () => {
   });
 
   test("does nothing when the panel is already gone", () => {
-    stubFrames();
-    // Never throws — a null ref is simply skipped.
+    const frames = stubFrames();
     collapsePanelSoon({ current: null }, () => true);
+    expect(frames.queue).toHaveLength(0);
   });
 });

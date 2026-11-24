@@ -1177,6 +1177,7 @@ describe("two densities, one row", () => {
     expect(h.q(".face-name")).toBeNull();
     await h.click(h.circle(BO));
     const band = h.q(".face-row-below") as HTMLElement;
+    expect(band.hasAttribute("data-flyout")).toBe(true);
     expect(band.getAttribute("data-notch")).toBe("1");
     expect(band.style.left).toMatch(/px$/);
     expect(band.style.getPropertyValue("--notch-x")).toMatch(/px$/);

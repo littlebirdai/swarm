@@ -8307,7 +8307,7 @@
     "swarm/no-comments": 32
   },
   "apps/server/convex/agentTasks.ts": {
-    "swarm/no-comments": 642
+    "swarm/no-comments": 640
   },
   "apps/server/convex/agentTasks.verbHistory.test.ts": {
     "swarm/no-comments": 2
@@ -13015,7 +13015,7 @@
     "swarm/no-comments": 1
   },
   "apps/web/app/(marketing)/documentation/guides/guides.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 8
   },
   "apps/web/app/(marketing)/documentation/guides/guides.ts": {
     "swarm/no-comments": 7
@@ -13442,9 +13442,6 @@
   "apps/web/app/(marketing)/heroFly/chapters/automation.tsx": {
     "swarm/no-comments": 13
   },
-  "apps/web/app/(marketing)/heroFly/chapters/contract.test.ts": {
-    "swarm/no-comments": 2
-  },
   "apps/web/app/(marketing)/heroFly/chapters/contract.ts": {
     "swarm/no-comments": 6
   },
@@ -13482,7 +13479,7 @@
     "swarm/no-comments": 5
   },
   "apps/web/app/(marketing)/heroFly/chapters/inbox.poster.test.tsx": {
-    "swarm/no-comments": 13
+    "swarm/no-comments": 6
   },
   "apps/web/app/(marketing)/heroFly/chapters/inbox.tsx": {
     "react-hooks/exhaustive-deps": 1,
@@ -13816,7 +13813,7 @@
     "swarm/no-comments": 3
   },
   "apps/web/app/files/collapsePanelSoon.test.tsx": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 9
   },
   "apps/web/app/files/page.tsx": {
     "react-hooks/exhaustive-deps": 4,
@@ -13899,7 +13896,7 @@
     "swarm/no-comments": 6
   },
   "apps/web/app/meet/[token]/guestScreens.test.tsx": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 27
   },
   "apps/web/app/meet/[token]/meetStorage.ts": {
     "swarm/no-comments": 15
@@ -13966,7 +13963,7 @@
     "swarm/no-comments": 2
   },
   "apps/web/app/projects/[id]/ProjectHeader.mount.test.tsx": {
-    "swarm/no-comments": 37
+    "swarm/no-comments": 35
   },
   "apps/web/app/projects/[id]/page.tsx": {
     "react-hooks/exhaustive-deps": 1,
@@ -14021,7 +14018,7 @@
     "swarm/no-native-title-with-aria-label": 1
   },
   "apps/web/app/sessions/triageFlags.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 8
   },
   "apps/web/app/sessions/triageFlags.ts": {
     "swarm/no-comments": 23
@@ -15370,7 +15367,7 @@
     "swarm/no-comments": 8
   },
   "apps/web/components/__tests__/agentReportRail.guard.test.ts": {
-    "swarm/no-comments": 5
+    "swarm/no-comments": 2
   },
   "apps/web/components/__tests__/assignmentBadge.test.ts": {
     "swarm/no-comments": 2
@@ -15391,7 +15388,7 @@
     "swarm/no-comments": 8
   },
   "apps/web/components/__tests__/chatVoiceBubble.test.tsx": {
-    "swarm/no-comments": 145
+    "swarm/no-comments": 136
   },
   "apps/web/components/__tests__/cleanUserMessage.test.ts": {
     "swarm/no-comments": 10
@@ -15430,7 +15427,7 @@
     "swarm/no-comments": 5
   },
   "apps/web/components/__tests__/composerSendLabel.mount.test.tsx": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 12
   },
   "apps/web/components/__tests__/composerSessionIdFlap.mount.test.tsx": {
     "swarm/no-comments": 5
@@ -16475,7 +16472,7 @@
     "swarm/no-comments": 20
   },
   "apps/web/components/castCommand.ts": {
-    "swarm/no-comments": 189
+    "swarm/no-comments": 185
   },
   "apps/web/components/changes/ChangeBoard.tsx": {
     "swarm/no-comments": 13
@@ -17171,7 +17168,7 @@
     "swarm/no-comments": 12
   },
   "apps/web/components/conversationScroll.test.ts": {
-    "swarm/no-comments": 34
+    "swarm/no-comments": 32
   },
   "apps/web/components/conversationScroll.ts": {
     "swarm/no-comments": 83
@@ -29165,7 +29162,7 @@
     "swarm/no-comments": 12
   },
   "packages/render/src/index.ts": {
-    "swarm/no-comments": 9
+    "swarm/no-comments": 7
   },
   "packages/render/src/mobileSessionStyle.ts": {
     "swarm/no-comments": 20
@@ -29537,7 +29534,7 @@
     "swarm/no-comments": 27
   },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 42
+    "swarm/no-comments": 35
   },
   "packages/shared/contracts/ingest.ts": {
     "swarm/no-comments": 80

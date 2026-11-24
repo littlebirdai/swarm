@@ -3,6 +3,7 @@
 // other people's read quieter, typing filters, ↵ picks a reachable seat and
 // hands the caret back, Esc backs out, and × returns to a fresh session.
 // Run: bun test apps/web/components/ComposeRolePicker.mount.test.tsx
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   realInboxStore,
@@ -324,5 +325,7 @@ async function verifyPicker() {
   closeDomWindow(dom);
 }
 
-await verifyPicker();
-console.log("ComposeRolePicker mount: ok");
+test(
+  "the role picker filters, selects, and respects composer focus",
+  verifyPicker,
+);

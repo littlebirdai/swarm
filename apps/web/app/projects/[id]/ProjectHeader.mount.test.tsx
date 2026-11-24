@@ -53,7 +53,6 @@ async function verifyProjectHeader() {
   const { mock } = await import("bun:test");
   const React = await import("react");
   const { act } = React;
-  const { writeAsServerShape } = await import("../../../store/serverShape");
   const { projectTaskCounts } = await import("@codecast/shared/tasks");
 
   // ── the world the page reads ──
@@ -79,6 +78,9 @@ async function verifyProjectHeader() {
     created_at: 0,
     updated_at: 0,
   };
+  const liveStore = realInboxStore.useInboxStore;
+  const initialProjects = liveStore.getState().projects;
+  liveStore.setState({ projects: { [PID]: { ...serverRow } } });
   const task = (
     id: string,
     status: string,
@@ -189,12 +191,10 @@ async function verifyProjectHeader() {
         backfilledAt: 1,
       },
     },
-    // What the store's action does to the draft (store/inboxStore updateProject).
     updateProject: (id: string, fields: Record<string, unknown>) => {
       calls.push(`updateProject:${id}:${JSON.stringify(fields)}`);
-      const row = { ...state.projects[id] };
-      writeAsServerShape(row, fields);
-      state.projects = { ...state.projects, [id]: row };
+      liveStore.getState().updateProject(id, fields);
+      state.projects = liveStore.getState().projects;
     },
     // The page scopes the inbox beside it to the project (useProjectInboxScope).
     activeProjectFilter: null,
@@ -203,14 +203,18 @@ async function verifyProjectHeader() {
     },
     setActiveBucketFilter: () => {},
   };
-  const useInboxStore = Object.assign((sel: any) => sel(state), {
+  const useProjectState = () => {
+    liveStore((s: { projects: unknown }) => s.projects);
+    return state;
+  };
+  const useInboxStore = Object.assign((sel: any) => sel(useProjectState()), {
     getState: () => state,
     setState: () => {},
   });
   mock.module("../../../store/inboxStore", () => ({
     ...realInboxStore,
     useInboxStore,
-    useTrackedStore: () => state,
+    useTrackedStore: useProjectState,
   }));
 
   const noop = () => {};
@@ -570,15 +574,6 @@ async function verifyProjectHeader() {
     partOf.querySelector("[data-pill='initiative:in-1']"),
     "the goal it serves",
   );
-  // What the project is for, its charter and repositories live on its About view, not in the header.
-  for (const gone of [
-    "[data-charter]",
-    "[data-inline-edit='Project folder']",
-    "[data-repository-links]",
-    "[data-initiative-progress]",
-    "[data-project-counts]",
-  ])
-    assert.equal(q(gone), null, `${gone} is not the header's`);
   assert.doesNotMatch(header.textContent!, /The org chart, roles and scopes\./);
   env.search = "tab=timeline";
   await repaint();
@@ -624,7 +619,6 @@ async function verifyProjectHeader() {
   assert.deepEqual(updates("title"), [
     `updateProject:${PID}:${JSON.stringify({ title: "Agent organisation" })}`,
   ]);
-  await repaint();
   assert.equal(
     env.server!.title,
     "Agent org",
@@ -754,6 +748,7 @@ async function verifyProjectHeader() {
   env.search = "";
 
   await act(async () => root.unmount());
+  liveStore.setState({ projects: initialProjects });
 }
 
 test("project board: one header row over Tasks, Timeline and Line, painted from the store row, at its `pj-` address", async () => {

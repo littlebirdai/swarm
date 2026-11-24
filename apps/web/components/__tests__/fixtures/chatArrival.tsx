@@ -219,8 +219,14 @@ test("edits and older pages preserve history, while equal-timestamp arrivals pin
     );
   try {
     await render();
-    await pause(1050);
     const feed = host.querySelector<HTMLElement>(".ch-list")!;
+    expect(
+      feed.querySelector(":scope > .ch-list-fill > .ch-list-sizer"),
+    ).not.toBeNull();
+    expect(
+      feed.scrollHeight - feed.scrollTop - feed.clientHeight,
+    ).toBeLessThanOrEqual(1);
+    await pause(1050);
     await act(async () => {
       feed.scrollTop = 600;
       feed.dispatchEvent(new Event("scroll"));
@@ -243,6 +249,14 @@ test("edits and older pages preserve history, while equal-timestamp arrivals pin
     expect(
       feed.scrollHeight - feed.scrollTop - feed.clientHeight,
     ).toBeLessThanOrEqual(1);
+    channelId = "tail-linked-room";
+    targetMessageId = "message-33";
+    messages = Array.from({ length: 40 }, (_, i) => message(i));
+    await render();
+    await pause(700);
+    expect(
+      feed.scrollHeight - feed.scrollTop - feed.clientHeight,
+    ).toBeLessThanOrEqual(1);
     channelId = "linked-room";
     targetMessageId = "message-10";
     messages = Array.from({ length: 40 }, (_, i) => message(i));
@@ -251,6 +265,8 @@ test("edits and older pages preserve history, while equal-timestamp arrivals pin
     expect(
       feed.scrollHeight - feed.scrollTop - feed.clientHeight,
     ).toBeGreaterThan(500);
+    expect(feed.scrollTop).toBeGreaterThan(0);
+    expect(feed.querySelector("#chatmsg-message-10")).not.toBeNull();
     messages = [...messages, message(41)];
     await render();
     await nextFrame();

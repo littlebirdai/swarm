@@ -77,6 +77,7 @@ describe("voice bubble", () => {
     );
     expect(html).toContain("ch-voice-live");
     expect(html).toContain("ch-voice-dot");
+    expect(html).not.toContain("walkie-level");
     expect(html).toContain("can you look at the deploy");
     // The room is joinable, so the bubble is the door into it.
     expect(html).toContain(`data-walkie-live="${MESSAGE}"`);
@@ -112,6 +113,7 @@ describe("voice bubble", () => {
     );
     expect(html).toContain("shipping it now");
     expect(html).toContain("0:07");
+    expect(html).toContain("ch-voice-clock");
     expect(html).toContain(`data-walkie-play="${MESSAGE}"`);
     // Never the image tile path: an audio storage id in an <img> is a broken
     // thumbnail where a voice note should be.
@@ -234,15 +236,6 @@ describe("which surface the dock shows", () => {
     // (ct-46032); and video or an expand still earns the room the real dock.
     expect(surface(held("call"), seated)).toBe("walkie");
     expect(surface(held("call"), seated, true)).toBe("stage");
-    expect(surface(held("call"), seated, false, true)).toBe("dock");
-  });
-
-  test("a burst spoken inside a call with video leaves that call its own dock", () => {
-    // The room keys match exactly when the video answer must hold: a 1:1 call
-    // with a camera up lives in the same dm: room a burst to that person is
-    // spoken into, and taking the dock away would strip it of its camera and
-    // lock for the length of a sentence. A voice-only call keeps the walkie
-    // card instead, which now carries its own hang-up and mute.
     expect(surface(held("call"), seated, false, true)).toBe("dock");
     expect(surface(held("call"), seated, true, true)).toBe("stage");
   });
@@ -370,18 +363,6 @@ describe("the clock only appears when there is something to time", () => {
     expect(html).not.toContain("0:00");
     expect(html).not.toContain("ch-voice-clock");
   });
-
-  test("a burst with a real length still shows it", () => {
-    const html = render(
-      view({
-        content: "shipping it",
-        voice: { status: "done", durationMs: 7_400 },
-        attachments: [{ storage_id: "st1", mime: "audio/webm" }],
-      }),
-    );
-    expect(html).toContain("ch-voice-clock");
-    expect(html).toContain("0:07");
-  });
 });
 
 // ct-45855. The bubble gained three states the founder asked for by name — a
@@ -398,18 +379,6 @@ describe("the live bubble reads as a direction", () => {
     );
     expect(html).toContain("ch-voice-rx");
     expect(html).not.toContain("ch-voice-tx");
-  });
-
-  test("with no voice to measure, the dot carries it alone", () => {
-    // A live burst in a DM somebody has open but is not in the room for has no
-    // level on either side. Four bars sitting flat would say the microphone was
-    // dead; the pulsing dot says only what is known, which is that a burst is
-    // open.
-    const html = render(
-      view({ content: "hello", voice: { status: "live", roomKey: ROOM } }),
-    );
-    expect(html).toContain("ch-voice-dot");
-    expect(html).not.toContain("walkie-level");
   });
 });
 

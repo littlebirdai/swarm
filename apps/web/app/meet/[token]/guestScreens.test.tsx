@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { JSDOM } from "jsdom";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GuestOutcome, linkAsOf, type Outcome } from "./GuestOutcome";
 import { GuestLobby, deviceTrouble, type LobbyMode } from "./GuestLobby";
@@ -386,9 +387,11 @@ describe("the lobby and the door", () => {
     expect(t).toContain("live now");
     expect(t).toContain("This call is transcribed");
     expect(t).toContain("Ask to join");
-    // The app's Button in its cyan face, not a hand-rolled fill.
-    expect(lobby("ask")).toContain("cc-btn-cyan");
-    expect(lobby("ask")).not.toMatch(/#[0-9a-f]{6}/i);
+    const button = JSDOM.fragment(
+      lobby("ask"),
+    ).querySelector<HTMLButtonElement>('button[type="submit"]');
+    expect(button?.textContent?.trim()).toBe("Ask to join");
+    expect(button?.disabled).toBe(false);
   });
 
   test("no name, no knock", () => {
@@ -436,15 +439,17 @@ describe("the lobby and the door", () => {
   test("while the browser's prompt is up the two switches rest, and are not drawn as off", () => {
     const asking = {
       ...preview,
-      getSnapshot: () => ({ ...preview.getSnapshot(), asking: true }),
+      getSnapshot: () => ({
+        ...preview.getSnapshot(),
+        asking: true,
+        audio: true,
+        video: true,
+      }),
     };
-    const html = lobby("ask", { preview: asking });
+    const view = JSDOM.fragment(lobby("ask", { preview: asking }));
     expect(
-      html.match(/disabled="" class="[^"]*bg-white\/10 text-white\/50/g)
-        ?.length,
-    ).toBe(2);
-    expect(html).not.toContain("bg-sol-red/85");
-    expect(lobby("ask")).toContain("bg-sol-red/85");
+      view.querySelectorAll('button[disabled][aria-pressed="false"]'),
+    ).toHaveLength(2);
   });
 
   test("let in, then the transcript went public: the Join names what changed", () => {
@@ -727,31 +732,33 @@ describe("inside the call", () => {
       refreshDevices: async () => {},
     } as any;
   };
-  const inCall = (call: any, over: Record<string, unknown> = {}) =>
-    text(
-      renderToStaticMarkup(
-        <GuestInCall
-          call={call}
-          title="#design"
-          myName="Ada"
-          transcribed
-          recording={false}
-          accepted={null}
-          reconnecting={false}
-          serverTrouble={false}
-          onLeave={() => {}}
-          onReconnect={() => {}}
-          onStopRecording={async () => {}}
-          onAgree={() => {}}
-          {...over}
-        />,
-      ),
+  const callMarkup = (call: any, over: Record<string, unknown> = {}) =>
+    renderToStaticMarkup(
+      <GuestInCall
+        call={call}
+        title="#design"
+        myName="Ada"
+        transcribed
+        recording={false}
+        accepted={null}
+        reconnecting={false}
+        serverTrouble={false}
+        onLeave={() => {}}
+        onReconnect={() => {}}
+        onStopRecording={async () => {}}
+        onAgree={() => {}}
+        {...over}
+      />,
     );
+  const inCall = (...args: Parameters<typeof callMarkup>) =>
+    text(callMarkup(...args));
 
   test("my own row reads 'you', never my name with a guest mark", () => {
-    const t = inCall(fakeCall());
-    expect(t).toContain("you");
-    expect(t).not.toContain("Ada guest");
+    const names = [
+      ...JSDOM.fragment(callMarkup(fakeCall())).querySelectorAll("span"),
+    ].map((node) => node.textContent);
+    expect(names).toContain("you");
+    expect(names).not.toContain("Ada");
   });
 
   test("every way the media lets go is said, with what to do", () => {
