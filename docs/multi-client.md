@@ -7,7 +7,7 @@ spelling seam, and how to add a ninth client.
 
 ## The registry
 
-`packages/shared/contracts/agentClients.ts` is the single source of truth. It is
+`packages/agent-clients/src/agentClients.ts` is the single source of truth. It is
 pure isomorphic data, so the Convex runtime, the Node daemon, and the browser all
 import it.
 
@@ -21,7 +21,7 @@ bug this structure removes.
 
 Cloud agents (Cursor Cloud, Codex Cloud, the OpenAI Agents API) are not clients
 of their own. They are providers riding on the `cursor` and `codex` ids, declared
-in `packages/shared/contracts/cloudAgents.ts` and run from
+in `packages/agent-clients/src/cloudAgents.ts` and run from
 `apps/cli/src/cloudAgents/`.
 
 ## The spelling seam

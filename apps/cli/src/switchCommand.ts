@@ -12,7 +12,7 @@ import {
   parseExecutionAgentClientId,
   toConvexAgentType,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { c, fmt } from "./colors.js";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { commandGroup } from "./commandGroups.js";

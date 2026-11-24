@@ -87,7 +87,7 @@ Final state on 2026-10-02:
   - `registry.ts`: the only thing the daemon calls.
   - `poll.ts`, `http.ts`, `apiError.ts` (`cloudApiVerdict`), `streams.ts`, `shape.ts` and `canary.ts`.
 - **Adapters:** `cloudAgents/cursor.ts`, `cloudAgents/codex.ts` (wham), and `cloudAgents/openaiAgents.ts` (Agents API). The list the daemon loads is in `cloudAgents/index.ts`.
-- **Shared contract:** `packages/shared/contracts/cloudAgents.ts`. It holds the provider specs, the launch keys, and the per-kind setup table `CLOUD_AGENT_SETUP_KIND_INFO`.
+- **Shared contract:** `packages/agent-clients/src/cloudAgents.ts`. It holds the provider specs, the launch keys, and the per-kind setup table `CLOUD_AGENT_SETUP_KIND_INFO`.
 - **Web:** `packages/web/components/cloudAgents/` (connect dialogs, header chip and actions, setup cards, lanes) and `lib/useProviderKeyCommand.ts`.
 - **Convex:**
   - `devices.ts`: the login and action commands and the `cloud_agent_blocks` heartbeat.

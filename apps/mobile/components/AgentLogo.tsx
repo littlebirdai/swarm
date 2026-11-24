@@ -12,7 +12,7 @@ import {
   CODECAST_MARK_C_PATH,
   CODECAST_MARK_VIEWBOX,
 } from "@codecast/render/codecastMark";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 
 export function agentLogoBg(agentType?: string): string {
   const bg = agentType ? MOBILE_AGENT_LOGO_BG[agentType] : undefined;

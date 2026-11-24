@@ -1,11 +1,11 @@
 import {
   FENCED_RUNTIME_CAPABILITIES,
-  type AgentClientId,
   type Delivery,
   type ExecutionTargetSpec,
   type RuntimeCapability,
   type RuntimeConfiguration,
 } from "@codecast/shared/contracts";
+import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import { assertRuntimeDeliveryFence, type RuntimeDriver } from "../driver.js";
 import type {
   DriverDeliveryResult,

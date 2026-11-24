@@ -14,7 +14,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import type { AgentClientId } from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 import { providerKeyEnv } from "@codecast/provider-keys/providerKeys";
 import { readProviderKeyStore } from "./providerKeyStore.js";
 import { atomicWriteFile } from "./atomicWrite.js";

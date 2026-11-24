@@ -12,8 +12,8 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   AGENT_MODEL_CONFIG,
   agentSupportsExecutionTransport,
-  isStashHidden,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { isStashHidden } from "@codecast/shared/contracts";
 import type { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
 import {

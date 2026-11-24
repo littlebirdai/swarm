@@ -52,15 +52,29 @@ export function carryRenames(
 export function parseRenames(nameStatus: string): Array<[string, string]> {
   const fields = nameStatus.split("\0");
   const renames: Array<[string, string]> = [];
+  const copies = new Map<string, string[]>();
+  const rewrites = new Set<string>();
   for (let i = 0; i < fields.length;) {
     const status = fields[i++];
     if (!status) continue;
     if (status.startsWith("R") || status.startsWith("C")) {
       const from = fields[i++]!;
       const to = fields[i++]!;
-      if (status.startsWith("R")) renames.push([from, to]);
+      if (status.startsWith("R")) {
+        renames.push([from, to]);
+      } else {
+        const destinations = copies.get(from) ?? [];
+        destinations.push(to);
+        copies.set(from, destinations);
+      }
     } else {
-      i++;
+      const file = fields[i++]!;
+      if (status === "M100") rewrites.add(file);
+    }
+  }
+  for (const [from, destinations] of copies) {
+    if (rewrites.has(from) && destinations.length === 1) {
+      renames.push([from, destinations[0]!]);
     }
   }
   return renames;

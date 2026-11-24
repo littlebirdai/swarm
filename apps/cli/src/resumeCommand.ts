@@ -12,7 +12,7 @@ import {
   findModelOption,
   type AgentClientId,
   localAgentClient,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { appendModelEffortFlags } from "./launchCommand.js";
 
 import { CLAUDE_UUID_RE } from "./syncScope.js";

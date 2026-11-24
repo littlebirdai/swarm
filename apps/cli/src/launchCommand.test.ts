@@ -7,7 +7,7 @@ import {
   AGENT_CLIENTS,
   findModelOption,
   type AgentClientId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import {
   buildLaunchArgs,
   buildPrintArgs,

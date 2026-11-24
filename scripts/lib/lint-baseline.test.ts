@@ -84,7 +84,7 @@ test("a rename never overwrites a path that already has counts", () => {
   expect(carryRenames(baseline, [["a.ts", "b.ts"]])).toEqual(baseline);
 });
 
-test("reads renames from git's -z name-status output and ignores copies and other statuses", () => {
+test("reads renames and moves that leave a rewrite at the old path", () => {
   const out = [
     "R100",
     "old.ts",
@@ -97,11 +97,17 @@ test("reads renames from git's -z name-status output and ignores copies and othe
     "R087",
     "p/q.ts",
     "r/q.ts",
+    "C099",
+    "moved.ts",
+    "destination.ts",
+    "M100",
+    "moved.ts",
     "",
   ].join("\0");
   expect(parseRenames(out)).toEqual([
     ["old.ts", "new.ts"],
     ["p/q.ts", "r/q.ts"],
+    ["moved.ts", "destination.ts"],
   ]);
 });
 

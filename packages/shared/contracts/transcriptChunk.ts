@@ -12,7 +12,10 @@
 //   context  the room talking among itself. No answer is owed; the chunk
 //            waits while the agent works and arrives as one catch up when the
 //            turn ends. `addressesAgent` decides the lane on both sides.
-import { AGENT_CLIENTS, fromConvexAgentType } from "./agentClients";
+import {
+  AGENT_CLIENTS,
+  fromConvexAgentType,
+} from "@codecast/agent-clients/agentClients";
 
 export type TranscriptChunkSegment = { speaker_name: string; text: string };
 

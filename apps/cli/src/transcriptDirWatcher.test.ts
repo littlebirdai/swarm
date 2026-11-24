@@ -7,7 +7,7 @@ import { describe, test, expect } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import {
   TranscriptDirWatcher,
   transcriptDirWatcherConfig,

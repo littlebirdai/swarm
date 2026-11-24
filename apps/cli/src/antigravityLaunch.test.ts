@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import {
   buildLaunchArgs,
   buildPrintArgs,

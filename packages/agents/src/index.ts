@@ -41,12 +41,14 @@ import {
   splitModelEffortSuffix,
   type AgentChainSpec,
   type AgentChainStep,
-  type AgentClientId,
   type AgentDefinitionSpec,
   type AgentDefinitionMode,
   type AgentPromptMode,
-  parseExecutionAgentClientId,
 } from "@codecast/shared/contracts";
+import {
+  type AgentClientId,
+  parseExecutionAgentClientId,
+} from "@codecast/agent-clients/agentClients";
 import { splitFrontmatter } from "@codecast/docs";
 import { parseYamlSubset, toStringList } from "@codecast/vault/parseNote";
 

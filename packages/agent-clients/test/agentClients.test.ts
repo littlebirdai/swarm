@@ -23,13 +23,13 @@ import {
   toConvexAgentType,
   type AgentClientId,
   type CapabilityKindSupport,
-} from "./agentClients";
+} from "../src/agentClients";
 import {
   pinnedAgentIds,
   pinnableAgentIds,
   pinnedLaunchOptions,
   pinnedPickerOptions,
-} from "./agentPins";
+} from "../src/agentPins";
 import {
   CAPABILITY_KINDS,
   type CapabilityKind,
@@ -605,7 +605,7 @@ describe("fork and switch capability helpers", () => {
 
   it("a native-fork client always declares fork", () => {
     for (const d of Object.values(AGENT_CLIENTS)) {
-      if (d.forkCmd) expect(d.capabilities.fork).toBe(true);
+      if ("forkCmd" in d && d.forkCmd) expect(d.capabilities.fork).toBe(true);
     }
   });
 
@@ -679,9 +679,9 @@ describe("pinned agents", () => {
       "claude",
       "gemini",
     ]);
-    expect(pinnedLaunchOptions(undefined, null).map((o) => o.id)).toEqual(
-      pinnedAgentIds(undefined),
-    );
+    expect<AgentClientId[]>(
+      pinnedLaunchOptions(undefined, null).map((o) => o.id),
+    ).toEqual(pinnedAgentIds(undefined));
   });
 
   it("the hosted assistant is pinnable but unpinned by default", () => {

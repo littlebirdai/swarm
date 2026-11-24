@@ -56,7 +56,6 @@ import {
   answeredThreadStateFields,
   formatUserMessage,
   hasThreadState,
-  isHostedAgentType,
   isReviveClientId,
   isStashHidden,
   formatSessionMessage,
@@ -67,6 +66,7 @@ import {
   type SendArrival,
   type SessionMessageIntent,
 } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   HEARTBEAT_ALIVE_MS,
   SETTLE_VERDICT_STATUSES,

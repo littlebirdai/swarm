@@ -9,7 +9,7 @@ import {
   modelSwitchStdoutLabel,
   parseAgentSwitchNotice,
 } from "./agentSwitch";
-import { agentDisplayName } from "./agentClients";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 
 describe("agent switch notice", () => {
   test("names Claude and Codex from either spelling", () => {

@@ -9,7 +9,7 @@ import {
 import { activeTeamMembershipFor } from "./lib/access";
 import { patchConversationVisibility } from "./lib/conversationVisibility";
 import { enqueueStartSession } from "./devices";
-import { fromConvexAgentType } from "@codecast/shared/contracts";
+import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
 import { killConversation } from "./conversations";
 import {
   enqueuePendingMessage,

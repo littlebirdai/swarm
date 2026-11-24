@@ -1,4 +1,4 @@
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   isConversationSafetyBlocked,
   type ConversationSafetyState,

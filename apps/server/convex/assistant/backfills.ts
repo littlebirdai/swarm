@@ -4,7 +4,7 @@ import { v } from "convex/values";
 import { internalMutation } from "../functions";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 
 /** Whether a hosted conversation still carries a name no title pass gave
  *  it: no pass has run (a pass always writes a subtitle), or its title is

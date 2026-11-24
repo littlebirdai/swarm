@@ -17,7 +17,7 @@ import {
   rulingsShown,
 } from "./judges";
 import { momentWindow, renderMoment } from "./moments";
-import { CHEAP_MODEL } from "./modelOptions";
+import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import type { MomentRecord } from "./moments";
 
 const T = Date.parse("2026-10-09T14:00:00Z");

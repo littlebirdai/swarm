@@ -4,7 +4,7 @@ import { Text } from "@/components/Themed";
 import { FontAwesome } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { BottomSheet } from "@/components/BottomSheet";
-import type { ModelOption } from "@codecast/shared/contracts";
+import type { ModelOption } from "@codecast/agent-clients/modelOptions";
 import { Theme } from "../constants/Theme";
 
 // The model/effort bottom sheet, shared by the session-header switcher chip

@@ -7,7 +7,7 @@
 // no replies. Shared by the send path (server), the restart bar (web) and the
 // CLI, so every surface names the same cost the same way.
 
-import { contextWindowTokens } from "@codecast/shared/contracts";
+import { contextWindowTokens } from "@codecast/agent-clients/agentClients";
 
 export const PROMPT_CACHE_LIFETIME_MS = 60 * 60 * 1000;
 

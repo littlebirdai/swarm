@@ -4,11 +4,9 @@
  * agents raise on their own before or between turns.
  */
 
-import {
-  isClaudeAutoContinueLine,
-  localAgentClient,
-} from "@codecast/shared/contracts";
-import type { AgentClientId } from "@codecast/shared/contracts";
+import { isClaudeAutoContinueLine } from "@codecast/shared/contracts";
+import { localAgentClient } from "@codecast/agent-clients/agentClients";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 import type { LivenessVerdict } from "@codecast/sessions/liveness";
 import {
   isComposerRow,

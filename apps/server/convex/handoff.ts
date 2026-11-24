@@ -48,10 +48,10 @@ import {
   isContextRecoveryPrompt,
   CONTEXT_RECOVERY_COOLDOWN_MS,
   describeAgentRun,
-  fromConvexAgentType,
   normalizeThreadState,
   type RecoveryMessage,
 } from "@codecast/shared/contracts";
+import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
 
 export const HANDOFF_MODEL = CHEAP_MODEL;
 // Transcript budget for the brief: the opening (goal) and the tail (latest

@@ -688,7 +688,7 @@ const REVIEWED_PURE: Record<string, string> = {
     "memo of rendered markdown, keyed by the source text and its options",
   "formatters (packages/time/src/index.ts)":
     "Intl formatters by locale and options, each built once",
-  "cardPatterns (packages/shared/contracts/cloudAgents.ts)":
+  "cardPatterns (packages/agent-clients/src/cloudAgents.ts)":
     "regular expressions built once per card kind",
   "tokensByConversation (apps/web/lib/shareTokenScope.ts)":
     "a conversation's share token is recorded before the conversation page's children mount (ConversationPageClient) and never changes for that id",

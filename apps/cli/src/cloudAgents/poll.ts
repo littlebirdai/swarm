@@ -4,7 +4,7 @@
  * pages one pass reads, where a cloud session is placed locally, and the
  * self-scheduling cadence that polls fast while work runs or a reply is due.
  */
-import { CLOUD_AGENT_BACKFILL_DAYS } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_BACKFILL_DAYS } from "@codecast/agent-clients/cloudAgents";
 import type { GitInfo } from "../syncService.js";
 import { isGitHubName } from "../cloud/gitOrigin.js";
 

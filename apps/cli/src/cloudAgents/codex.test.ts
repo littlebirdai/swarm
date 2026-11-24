@@ -1,17 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import {
-  CLIENT_ERROR_BANNER_PREFIX,
-  cloudAgentCardOf,
-} from "@codecast/shared/contracts";
+import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/shared/contracts";
+import { cloudAgentCardOf } from "@codecast/agent-clients/cloudAgents";
 import { parseMirrorTranscriptFile } from "../parser.js";
 import { cloudApiErrorOf, CloudApiError } from "./http.js";
 import { execFileSync } from "child_process";
 import {
   CLOUD_AGENT_ACTION_SUBTYPE,
   CLOUD_AGENT_PROVIDERS,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { readTranscriptIngest } from "../workers/ingestClient.js";
 import {
   buildCodexCloudTranscript,

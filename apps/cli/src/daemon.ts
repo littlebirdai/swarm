@@ -49,30 +49,39 @@ import {
 import {
   AGENT_CLIENTS,
   LOCAL_AGENT_CLIENTS,
+  agentForksNatively,
+  agentReconstitutes,
+  findModelOption,
+  fromConvexAgentType,
+  modelOptionKey,
+  localAgentClient,
+  isHostedAgentType,
+  type AgentClientId,
+  type AgentPaneReadiness,
+  type PaneTerminalModes,
+} from "@codecast/agent-clients/agentClients";
+import {
   RESUME_BURST_SPACING_MS,
-  CODEX_EFFORT_LEVELS,
   SNIPPET_CATALOG,
   STABLE_ENV_CONVERSATION_ID,
   STABLE_ENV_EXCLUDE,
   STABLE_ENV_MODE,
-  agentForksNatively,
-  agentReconstitutes,
   classifyApiErrorBanner,
-  isCloudAgentActionName,
-  findModelOption,
-  fromConvexAgentType,
-  modelOptionKey,
   isClaudeAutoContinueLine,
   isCodexSafetyError,
   isLocalCommandLine,
   isRecoveryContinueClientId,
   type ApiErrorBannerKind,
+  type DeviceSnippetSettings,
+  type ResourceProcess,
+  type StableLaunchPrefs,
   isMachineDeliveredMessage,
   snippetBySlug,
+  type AgentDefinitionSpec,
   worktreeOfPath,
-  localAgentClient,
-  isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { CODEX_EFFORT_LEVELS } from "@codecast/agent-clients/modelOptions";
+import { isCloudAgentActionName } from "@codecast/agent-clients/cloudAgents";
 import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncOn,
@@ -1174,15 +1183,6 @@ import {
   codexPermissionsFromArgs,
   launchBinary,
 } from "./launchCommand.js";
-import type {
-  AgentClientId,
-  AgentDefinitionSpec,
-  AgentPaneReadiness,
-  DeviceSnippetSettings,
-  PaneTerminalModes,
-  ResourceProcess,
-  StableLaunchPrefs,
-} from "@codecast/shared/contracts";
 import type { CloudSessionSource } from "@codecast/agent-clients/cloudSessionSync";
 import type { MachineSettingValues } from "@codecast/agent-clients/harnessHooks";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";

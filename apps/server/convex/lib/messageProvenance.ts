@@ -20,8 +20,8 @@
 // terminal, are not.
 import type { Doc } from "../_generated/dataModel";
 import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
-  isHostedAgentType,
   parseDecisionAnswer,
   stripMentionContext,
   stripPastedContent,

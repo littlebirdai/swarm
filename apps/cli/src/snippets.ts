@@ -41,9 +41,9 @@ import {
   snippetBySlug,
   stampSectionBody,
   stripSnippetStamp,
-  LOCAL_AGENT_CLIENTS,
   SNIPPET_CATALOG,
 } from "@codecast/shared/contracts";
+import { LOCAL_AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import {
   applySnippet,
   cutOwnedSections,

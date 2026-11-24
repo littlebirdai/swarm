@@ -18,7 +18,7 @@
 import {
   CLOUD_AGENT_PROVIDERS,
   isCloudAgentId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import {
   CloudApiError,
   cloudApiVerdict,

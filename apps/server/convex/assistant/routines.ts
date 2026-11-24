@@ -5,7 +5,7 @@
 // numbers live in PLANS; routineRefusal holds the rule. This module only
 // gathers the facts it needs, and is a leaf so agentTasks can import it.
 import type { Id } from "../_generated/dataModel";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   routineRefusal,
   type RoutineShape,

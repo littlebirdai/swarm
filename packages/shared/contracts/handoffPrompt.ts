@@ -8,7 +8,10 @@
 // what to do first, the model-written brief, the exact commands that open the
 // rest of the transcript, and the operator's direction when one was given.
 
-import { AGENT_CLIENTS, fromConvexAgentType } from "./agentClients";
+import {
+  AGENT_CLIENTS,
+  fromConvexAgentType,
+} from "@codecast/agent-clients/agentClients";
 
 export interface HandoffSourceRef {
   short_id: string;

@@ -15,7 +15,7 @@ import {
   cloudAgentLaunch,
   cloudAgentRootId,
   isCloudAgentId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { atomicWriteFile } from "../atomicWrite.js";
 import { splitPatches } from "../repoMirror.js";
 import { codecastPath } from "../codecastDir.js";

@@ -53,7 +53,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import { execFile } from "../proc.js";
 import { hasBin } from "../doctorClients.js";
 import {
@@ -65,7 +65,7 @@ import {
 
 /** Claude Code's own binary name, from the client registry rather than a
  *  literal — the same descriptor the daemon launches and resumes with
- *  (`packages/shared/contracts/agentClients.ts:289`). */
+ *  (`packages/agent-clients/src/agentClients.ts:289`). */
 const CLAUDE_BINARY = AGENT_CLIENTS.claude.binary;
 
 /** A listing spends a process and blocks nothing; 20s matches the model

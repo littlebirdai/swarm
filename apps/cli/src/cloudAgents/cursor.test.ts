@@ -18,10 +18,12 @@ import { parseMirrorTranscriptFile } from "../parser.js";
 import { classifyMirrorTranscriptTail } from "./transcript.js";
 import {
   CLIENT_ERROR_BANNER_PREFIX,
-  CLOUD_AGENT_PROVIDERS,
   classifyApiErrorBanner,
-  cloudAgentCardOf,
 } from "@codecast/shared/contracts";
+import {
+  CLOUD_AGENT_PROVIDERS,
+  cloudAgentCardOf,
+} from "@codecast/agent-clients/cloudAgents";
 import { CloudAgentSetupError } from "./types.js";
 import { deviceLabel } from "../remote/device.js";
 import { fakeCloudFetch, json } from "../test-helpers/cloudFetch.js";

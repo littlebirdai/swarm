@@ -2,10 +2,8 @@
 // statuses, the one rule for which direction a session moves and which daemon
 // does the work, a batch's roll-up, and the staleness and batch limits.
 
-import {
-  fromConvexAgentType,
-  isClosedSession,
-} from "@codecast/shared/contracts";
+import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
+import { isClosedSession } from "@codecast/shared/contracts";
 import { DEVICE_ONLINE_MS } from "../deviceRouting";
 
 export type MigrationDirection = "to_cloud" | "to_local";

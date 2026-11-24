@@ -18,11 +18,13 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as path from "path";
 import {
   CLIENT_ERROR_BANNER_PREFIX,
+  classifyApiErrorBanner,
+} from "@codecast/shared/contracts";
+import {
   CLOUD_AGENT_PROVIDERS,
   CLOUD_AGENT_RETRIED_SUFFIX,
-  classifyApiErrorBanner,
   cloudAgentCardOf,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { json, type FakeCloudCall } from "../test-helpers/cloudFetch.js";
 import { tmp } from "../test-helpers/cloudAgentFakes.js";
 import {

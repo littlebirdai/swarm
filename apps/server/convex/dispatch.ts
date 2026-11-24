@@ -112,7 +112,7 @@ import {
   fromConvexAgentType,
   type ConvexAgentType,
   isHostedAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import {
   recordingPressStale,
   recordingPressStaleWords,
