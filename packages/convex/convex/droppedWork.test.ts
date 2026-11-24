@@ -1,9 +1,18 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, setSystemTime, test } from "bun:test";
 import { api } from "./_generated/api";
 import * as notificationRouter from "./notificationRouter";
 import { HOUR, pause, REPO, setup, SHA2, SHA3, SHA4 } from "./deployRecord.testkit";
 
 // Who put a dropped name on a target, and telling them their uncommitted work was dropped. Synthetic data only.
+
+// A diff's read time is the ship's receive time minus changes_read_age_ms, so a
+// test that orders a read before a save holds the clock still and steps it:
+// on a loaded runner the gap between computing the age and the ship landing
+// outran a 5ms pause and moved the read past the save.
+const tick = () => {
+  setSystemTime(new Date(Date.now() + 1000));
+  return Date.now();
+};
 
 describe("who added a name", () => {
   test("each name answers with the push active last that added it, a deploy or a dev push; names never added are left out", async () => {
@@ -35,33 +44,41 @@ describe("who added a name", () => {
 
   test("a clean deploy whose diff read prod before the adder's last push proves nothing: the work is still uncommitted", async () => {
     const { ids, save, ship, notes, addedBy } = await setup();
-    // Ben's deploy.sh reads prod at t=1, then sits in its typecheck.
-    const t1 = Date.now();
-    await pause();
-    // Ana's dev push adds a table at t=5.
-    await save("ana", { adds: ["table:anas"] });
-    await pause();
-    // Ben's clean push goes out at t=10, its diff (read at t=1) dropped nothing.
-    const bens = await ship("ben", { sha: SHA2, changes_read_age_ms: Date.now() - t1 });
-    expect(bens.deploy).toBeTruthy();
-    expect((await addedBy(["table:anas"]))[0].committed_in).toBeUndefined();
-    // So when Ben's next deploy drops it, Ana is told.
-    await pause();
-    const drop = await ship("ben", { sha: SHA3, drops: ["table:anas"] });
-    expect(await notes()).toEqual([expect.objectContaining({ recipient_user_id: ids.ana, actor_user_id: ids.ben, entity_id: drop.deploy })]);
+    try {
+      // Ben's deploy.sh reads prod at t=1, then sits in its typecheck.
+      const t1 = tick();
+      // Ana's dev push adds a table at t=2.
+      tick();
+      await save("ana", { adds: ["table:anas"] });
+      // Ben's clean push goes out at t=3, its diff (read at t=1) dropped nothing.
+      tick();
+      const bens = await ship("ben", { sha: SHA2, changes_read_age_ms: Date.now() - t1 });
+      expect(bens.deploy).toBeTruthy();
+      expect((await addedBy(["table:anas"]))[0].committed_in).toBeUndefined();
+      // So when Ben's next deploy drops it, Ana is told.
+      tick();
+      const drop = await ship("ben", { sha: SHA3, drops: ["table:anas"] });
+      expect(await notes()).toEqual([expect.objectContaining({ recipient_user_id: ids.ana, actor_user_id: ids.ben, entity_id: drop.deploy })]);
+    } finally {
+      setSystemTime();
+    }
   });
 
   test("a later dirty push of the adder counts from its last save, not its first", async () => {
     const { save, ship, addedBy } = await setup();
-    await save("ana", { adds: ["table:anas"] });
-    await pause();
-    // A diff read between Ana's saves: her row's last save comes after it.
-    const read = Date.now();
-    await pause();
-    await save("ana", { adds: ["fn:a:more"] });
-    await pause();
-    await ship("ben", { sha: SHA2, changes_read_age_ms: Date.now() - read });
-    expect((await addedBy(["table:anas"]))[0].committed_in).toBeUndefined();
+    try {
+      tick();
+      await save("ana", { adds: ["table:anas"] });
+      // A diff read between Ana's saves: her row's last save comes after it.
+      const read = tick();
+      tick();
+      await save("ana", { adds: ["fn:a:more"] });
+      tick();
+      await ship("ben", { sha: SHA2, changes_read_age_ms: Date.now() - read });
+      expect((await addedBy(["table:anas"]))[0].committed_in).toBeUndefined();
+    } finally {
+      setSystemTime();
+    }
   });
 
   test("a clean deploy whose diff did not run is no proof a name was committed", async () => {
