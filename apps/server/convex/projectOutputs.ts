@@ -6,7 +6,7 @@
 // project, so a worker bound to a task in another project brings nothing
 // here but the pull requests that name one of this project's tasks.
 //
-// Two parts (shared/contracts/projectOutputs.ts). `members` reads the
+// Two parts (packages/projects/src/projectOutputs.ts). `members` reads the
 // sessions, tasks and images and re-runs as those sessions change. `items`
 // reads pull requests, pages and docs by the member ids it is handed, so a
 // session's heartbeat or new message never re-runs it, and it reads pull
@@ -46,7 +46,7 @@ import {
   type ProjectOutputItems,
   type ProjectOutputMembers,
   type ProjectOutputs,
-} from "@codecast/shared/contracts/projectOutputs";
+} from "@codecast/projects/projectOutputs";
 
 export type {
   OutputDoc,
@@ -57,7 +57,7 @@ export type {
   OutputTask,
   PrGroup,
   ProjectOutputs,
-} from "@codecast/shared/contracts/projectOutputs";
+} from "@codecast/projects/projectOutputs";
 export { prGroupOf };
 
 type Ctx = { db: any; storage?: any };

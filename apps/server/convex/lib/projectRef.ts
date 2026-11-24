@@ -1,12 +1,12 @@
 import type { Doc } from "../_generated/dataModel";
-import { matchProject } from "@codecast/shared/contracts/projectRef";
+import { matchProject } from "@codecast/projects/projectRef";
 import { notFound } from "./auth";
 
 // A `--project` ref (an id, a short id, or a title substring) resolved inside
 // ONE workspace: the one a write lands in, or the one a read was scoped to
 // (line-profile.md LP1). Projects are read by their access key, so a project
 // of another workspace never matches, whatever its title. The matching rule
-// is the CLI's own (shared/contracts/projectRef).
+// is the CLI's own (@codecast/projects/projectRef).
 
 type Ctx = { db: any };
 

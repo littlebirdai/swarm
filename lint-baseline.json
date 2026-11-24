@@ -29188,6 +29188,15 @@
   "packages/policy/test/vendorCoverage.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/projects/src/projectContext.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/projects/src/projectOutputs.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/projects/src/projectRef.ts": {
+    "swarm/no-comments": 12
+  },
   "packages/provider-keys/src/oauthCodePaste.ts": {
     "swarm/no-comments": 13
   },
@@ -29814,15 +29823,6 @@
   },
   "packages/shared/contracts/productView.ts": {
     "swarm/no-comments": 34
-  },
-  "packages/shared/contracts/projectContext.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/contracts/projectOutputs.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/contracts/projectRef.ts": {
-    "swarm/no-comments": 12
   },
   "packages/shared/contracts/proposalCard.line.test.ts": {
     "swarm/no-comments": 4
