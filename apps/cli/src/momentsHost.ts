@@ -15,11 +15,11 @@ import path from "node:path";
 import { spawn, findOnPath, TOOL_PATH, execFileAsync } from "./proc.js";
 import { codecastPath } from "./codecastDir.js";
 import { MOMENT_LIMITS, type ExtractorInput } from "@codecast/ingest/moments";
-import type { JudgeHandoff } from "@codecast/shared/contracts/judges";
+import type { JudgeHandoff } from "@codecast/judges/judges";
 import type {
   ModelCallResult,
   ModelCallSpec,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 import { subscriptionModelCall } from "./subscriptionCall.js";
 
 export const MOMENTS_DIR = ".codecast/moments";

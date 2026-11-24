@@ -42,7 +42,7 @@ import {
   parseJudgeReply,
   parseJudgeSpec,
   type ExpectationsBrief,
-} from "@codecast/shared/contracts/judges";
+} from "@codecast/judges/judges";
 import {
   modelCost,
   postMessages,

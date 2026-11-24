@@ -20,7 +20,7 @@
 //     show it) and each control (a live finding of the same
 //     judge) on both sides, reps times, on the team's budget; a changed
 //     extractor re-extracts both sides from the product's own data. Writes
-//     the card (<dir>/judge-fix.json, shared/contracts/judgeFix.ts) and exits
+//     the card (<dir>/judge-fix.json, packages/judges/src/judgeFix.ts) and exits
 //     0 only when the ruled cases separate and the controls do not get worse.
 import fs from "node:fs";
 import os from "node:os";
@@ -57,16 +57,13 @@ import {
   type ExpectationsBrief,
   type JudgeRuling,
   type JudgeSpec,
-} from "@codecast/shared/contracts/judges";
+} from "@codecast/judges/judges";
 import {
   parseExtractorHeader,
   type JudgeBackend,
   type MomentRecord,
 } from "@codecast/ingest/moments";
-import {
-  isJudgeCaseKey,
-  type CaseTarget,
-} from "@codecast/shared/contracts/judgeReview";
+import { isJudgeCaseKey, type CaseTarget } from "@codecast/judges/judgeReview";
 import {
   caseMoved,
   fisherOneSided,
@@ -79,7 +76,7 @@ import {
   type JudgeFixCase,
   type JudgeFixKept,
   type JudgeFixRest,
-} from "@codecast/shared/contracts/judgeFix";
+} from "@codecast/judges/judgeFix";
 
 function fail(message: string, code = 2): never {
   console.error(fmt.error(message));

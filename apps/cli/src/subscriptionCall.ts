@@ -36,7 +36,7 @@ import {
   parseJsonBlock,
   type ModelCallResult,
   type ModelCallSpec,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 import { sendsThinkingOff } from "@codecast/agent-clients/modelOptions";
 
 /** A saved profile's setup token (`cast accounts token <name>`): a fixed sign-in in a 0600 env file. */

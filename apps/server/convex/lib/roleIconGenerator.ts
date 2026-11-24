@@ -17,7 +17,7 @@ import {
   type RoleIcon,
   type RoleIconAccent,
 } from "@codecast/org/roleIcon";
-import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
+import { parseJsonBlock } from "@codecast/judges/modelCall";
 import {
   Canvas,
   SHEET_THEMES,

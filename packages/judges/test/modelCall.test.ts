@@ -5,7 +5,7 @@ import {
   modelCallProblem,
   parseJsonBlock,
   type BudgetSummary,
-} from "./modelCall";
+} from "../src/modelCall";
 
 describe("the model call contract (LL1)", () => {
   it("accepts a well formed call and names what is wrong with one", () => {

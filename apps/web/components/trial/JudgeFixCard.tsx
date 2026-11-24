@@ -1,5 +1,5 @@
 "use client";
-// The judge route's card (shared/contracts/judgeFix.ts, learning-loop.md
+// The judge route's card (packages/judges/src/judgeFix.ts, learning-loop.md
 // LL11): a fix to one of codecast's judges, its extractor or an expectation,
 // measured on the moments its cases were ruled on. The reviewer reads, in
 // this order: what changes, whether it worked (the ruled cases stop being
@@ -11,7 +11,7 @@ import {
   type JudgeFixCard,
   type JudgeFixCase,
   type JudgeFixGroup,
-} from "@codecast/shared/contracts/judgeFix";
+} from "@codecast/judges/judgeFix";
 import { cn } from "../../lib/utils";
 import { CardFacts, type CardFactsProps } from "../decisions/CardFacts";
 

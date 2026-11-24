@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseJudgeSpec } from "./judges";
+import { parseJudgeSpec } from "../src/judges";
 import {
   agentFindingSignal,
   agentJudgePrompt,
@@ -7,7 +7,7 @@ import {
   agentSimilarText,
   parseAgentFindings,
   transcriptFromStream,
-} from "./agentJudges";
+} from "../src/agentJudges";
 import type { MomentRecord } from "@codecast/ingest/moments";
 
 const file = (

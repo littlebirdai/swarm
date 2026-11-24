@@ -13,7 +13,7 @@
 // Pure, so the run start (workflows.lineRouteFor), the sweep's admission
 // (liveFlows.planLiveFlow) and the flow map name each problem's lane alike.
 import { flowGraphAttr } from "@codecast/flows/flowPool";
-import { JUDGE_CASE_SOURCE } from "@codecast/shared/contracts/judgeReview";
+import { JUDGE_CASE_SOURCE } from "@codecast/judges/judgeReview";
 
 /** The fields of a workflows row the route reads. */
 export type FlowRouteRow = {

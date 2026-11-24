@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { isExpectationId } from "@codecast/shared/contracts/expectations";
-import { findingConversation } from "@codecast/shared/contracts/judges";
+import { findingConversation } from "@codecast/judges/judges";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import {
   useSyncSignals,

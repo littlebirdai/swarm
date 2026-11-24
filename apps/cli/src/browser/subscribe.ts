@@ -36,7 +36,7 @@ import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import type {
   ModelCallResult,
   ModelCallSpec,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 import { globMatch } from "@codecast/deploys/deployTargets";
 import { codecastDir } from "../codecastDir.js";
 import { resolveCastInvocation } from "../castInvocation.js";

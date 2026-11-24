@@ -45,7 +45,7 @@ import {
 import {
   transcriptFromStream,
   type ReviewTranscript,
-} from "@codecast/shared/contracts/agentJudges";
+} from "@codecast/judges/agentJudges";
 
 /** What `cast line reviews run` sets on this machine. */
 export type ReviewsConfig = {

@@ -41,7 +41,7 @@ import {
   type FlowMapSource,
   type FlowMapStep,
 } from "@codecast/shared/contracts/flowMap";
-import { JUDGE_CASE_SOURCE } from "@codecast/shared/contracts/judgeReview";
+import { JUDGE_CASE_SOURCE } from "@codecast/judges/judgeReview";
 import { flowFamily, flowRouteFor, type FlowRouteRow } from "./lib/flowRoute";
 import { eventSourceWords, sourceWords } from "./lib/flowMapLabels";
 import { flowHands, flowHold, flowRoles } from "./liveFlows";

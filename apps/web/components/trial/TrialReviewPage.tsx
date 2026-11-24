@@ -13,7 +13,7 @@
 // Our tooling also holds the trial's open expectation proposals: one a run's
 // station asked is its trial decision's card, and one no station asked is
 // drawn with the Expectations page's own Proposal.
-import { findingConversation } from "@codecast/shared/contracts/judges";
+import { findingConversation } from "@codecast/judges/judges";
 import { Fragment, useMemo, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {

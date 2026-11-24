@@ -109,7 +109,7 @@ import { byUser } from "./lib/taskHistory";
 import {
   JUDGE_CASE_SOURCE,
   isJudgeProblem,
-} from "@codecast/shared/contracts/judgeReview";
+} from "@codecast/judges/judgeReview";
 import { ASK_LINE, personAskDue } from "@codecast/decisions/personAsk";
 
 export { SIGNAL_KINDS, type SignalKind };

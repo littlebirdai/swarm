@@ -13,7 +13,7 @@ import type { Command } from "commander";
 import { fmt } from "./colors.js";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { durationWords } from "@codecast/ingest/moments";
-import type { ReviewTranscript } from "@codecast/shared/contracts/agentJudges";
+import type { ReviewTranscript } from "@codecast/judges/agentJudges";
 import {
   REVIEWS_DEFAULTS,
   REVIEWS_TICK_MS,

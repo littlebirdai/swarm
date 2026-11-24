@@ -9,7 +9,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type {
   ReviewTranscript,
   TranscriptEntry,
-} from "@codecast/shared/contracts/agentJudges";
+} from "@codecast/judges/agentJudges";
 import {
   useLineReviews,
   useSyncLineReviews,

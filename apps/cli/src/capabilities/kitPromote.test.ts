@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { MESSAGING_SNIPPET } from "../snippets.js";
-import type { ModelCallSpec } from "@codecast/shared/contracts/modelCall";
+import type { ModelCallSpec } from "@codecast/judges/modelCall";
 import {
   insertUnderSection,
   runPromote,

@@ -44,7 +44,7 @@ import {
   resolveWorkflowSource,
   withTemplateIncludes,
 } from "./templates";
-import { JUDGE_REVIEW_GRAPH } from "@codecast/shared/contracts/judgeReview";
+import { JUDGE_REVIEW_GRAPH } from "@codecast/judges/judgeReview";
 import type { WorkflowGraph } from "./types";
 import { isolateCodecastDirEachTest } from "../test-helpers/codecastDir.js";
 import { UNION_PROFILE } from "../test-helpers/unionLineProfile";

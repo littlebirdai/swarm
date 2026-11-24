@@ -52,7 +52,7 @@ import changeConflict from "./templates/change/conflict.md" with { type: "text" 
 import changeCiConflict from "./templates/change/ci_conflict.md" with { type: "text" };
 import featureCast from "../../workflows/feature/workflow.cast" with { type: "text" };
 import planAutopilotCast from "../../workflows/plan-autopilot/workflow.cast" with { type: "text" };
-import { JUDGE_REVIEW_GRAPH } from "@codecast/shared/contracts/judgeReview";
+import { JUDGE_REVIEW_GRAPH } from "@codecast/judges/judgeReview";
 import { LINE_DEPLOY_GRAPH } from "@codecast/deploys/lineDeploy";
 import * as fs from "fs";
 import * as path from "path";

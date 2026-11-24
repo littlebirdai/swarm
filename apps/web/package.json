@@ -44,6 +44,7 @@
     "@codecast/hosted-assistant": "workspace:*",
     "@codecast/inbox": "workspace:*",
     "@codecast/ingest": "workspace:*",
+    "@codecast/judges": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",
     "@codecast/memory": "workspace:*",

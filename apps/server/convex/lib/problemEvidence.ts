@@ -2,7 +2,7 @@
 // card): its live findings, or how each one that left went and where.
 
 import type { Doc, Id } from "../_generated/dataModel";
-import { findingConversation } from "@codecast/shared/contracts/judges";
+import { findingConversation } from "@codecast/judges/judges";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { parseMoveTally } from "./moveTally";
 import { BEFORE_LINE, CLOSED_WITH } from "../findingGroups";
