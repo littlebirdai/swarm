@@ -6,7 +6,7 @@ import type {
   Expectation,
   ExpectationCitation,
   ExpectationsHow,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import type {
   ExpectationFinding,
   ExpectationLineUsage,

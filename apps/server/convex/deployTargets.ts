@@ -44,7 +44,7 @@ import {
   readJsonLive,
   type DeployLiveReader,
 } from "@codecast/deploys/deployTargets";
-import { liveDeployOf } from "@codecast/shared/contracts/deploys";
+import { liveDeployOf } from "@codecast/line/deploys";
 import {
   checkSuiteCi,
   ciOf,

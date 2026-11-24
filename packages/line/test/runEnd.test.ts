@@ -5,8 +5,8 @@
 // end is an end only where the run stopped. The shapes are Union's real runs
 // of 2026-10-25.
 import { describe, expect, test } from "bun:test";
-import { closedAtStep } from "./causeHistory";
-import { lineRunOutcome, runEnd } from "./changeCard";
+import { closedAtStep } from "../src/causeHistory";
+import { lineRunOutcome, runEnd } from "../src/changeCard";
 
 const AGENTWATCH_GRAPH = [
   "bind",

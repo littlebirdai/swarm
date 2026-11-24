@@ -1,6 +1,6 @@
 "use client";
 
-import { gateDoc } from "@codecast/shared/contracts/changeCard";
+import { gateDoc } from "@codecast/line/changeCard";
 import { useState } from "react";
 import Link from "next/link";
 import {

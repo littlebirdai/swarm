@@ -3,10 +3,7 @@
 // When a re-judge or a merge leaves the problem with no findings, nothing is
 // behind the change: the card says so and recommends Drop, naming where the
 // evidence went. /trial's list and pane and the problem page read it here.
-import {
-  BASE_CHECK,
-  type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+import { BASE_CHECK, type ChangeCard } from "@codecast/line/changeCard";
 import { JUDGE_FIX_MIN_CONTROLS } from "@codecast/judges/judgeFix";
 import type {
   TrialCardRow,

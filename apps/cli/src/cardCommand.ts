@@ -26,16 +26,16 @@ import {
   type ChangeCard,
   type ChangeVerdict,
   type RiskClass,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   alongsideMissing,
   validateProposalCard,
   type ProposalProof,
-} from "@codecast/shared/contracts/proposalCard";
+} from "@codecast/line/proposalCard";
 import { findingConversation } from "@codecast/judges/judges";
 import { goalRefLabel } from "@codecast/goals/goalsBrief";
 import type { GoalsBrief } from "@codecast/goals/goalsBrief";
-import { renderChangeCardHtml } from "@codecast/shared/render/changeCardHtml";
+import { renderChangeCardHtml } from "@codecast/line/changeCardHtml";
 import type { EvalResult } from "@platform/evals/contract";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { fmt } from "./colors.js";

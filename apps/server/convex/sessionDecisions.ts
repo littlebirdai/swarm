@@ -104,7 +104,7 @@ import {
   parseRunCommand,
   type CommandRun,
 } from "@codecast/decisions/commandRun";
-import { proposalAnswersError } from "@codecast/shared/contracts/expectations";
+import { proposalAnswersError } from "@codecast/line/expectations";
 import { invalidImpact } from "@codecast/decisions/decisionImpact";
 import { reopenTaskWaits, scheduleDecisionSettle } from "./taskWaits";
 import {
@@ -117,7 +117,7 @@ import {
   CARD_GATE_NODE_ID,
   validateChangeCard,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 
 export const optionValidator = v.object({
   label: v.string(),

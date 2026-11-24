@@ -4,10 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { workspaceGrantsAccess } from "./lib/accessKeys";
 import { nextShortId } from "./counters";
 import { enqueueConfigCommand } from "./users";
-import {
-  DEPLOY_SHORT_ID_PREFIX,
-  liveDeploys,
-} from "@codecast/shared/contracts/deploys";
+import { DEPLOY_SHORT_ID_PREFIX, liveDeploys } from "@codecast/line/deploys";
 import {
   canRedeploySha,
   commitTouchesTarget,

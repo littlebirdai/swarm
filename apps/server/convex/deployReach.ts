@@ -12,7 +12,7 @@ import { normalizeRepository } from "./lib/gitRefs";
 import { commitBySha, targetDeploys } from "./deployTargetsState";
 import { accessibleCommits } from "./commits";
 import { commitTouchesTarget } from "@codecast/deploys/deployTargets";
-import { liveDeployOf } from "@codecast/shared/contracts/deploys";
+import { liveDeployOf } from "@codecast/line/deploys";
 import {
   deployReach,
   type DeployReach,

@@ -22,7 +22,7 @@ import {
   personEditApplies,
   personEditSummary,
   personOp,
-} from "./expectations";
+} from "../src/expectations";
 
 const QUOTED = {
   kind: "call" as const,

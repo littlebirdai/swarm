@@ -4,7 +4,7 @@ import schema from "./schema";
 import { allModules } from "./testModules.testkit";
 import { internal } from "./_generated/api";
 import { noteMainCiRun } from "./mainRed";
-import type { CiFailure } from "@codecast/shared/contracts/ciFailures";
+import type { CiFailure } from "@codecast/line/ciFailures";
 
 export const REPO = "acme/app";
 // Red main judges only the repositories listed (mainRedRepos): the test world's is.

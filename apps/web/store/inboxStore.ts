@@ -378,7 +378,7 @@ import {
   permissionRuleKey,
 } from "@codecast/policy/permissionRules";
 import type { BrowserPaneOffer } from "@codecast/browser/browserPaneOffer";
-import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
+import { cardVerdictIndexes } from "@codecast/line/changeCard";
 import { escalationTargetIds } from "@codecast/decisions/decisionEscalation";
 import {
   isAgentSpawnedConversation,
@@ -1960,7 +1960,7 @@ export type SessionDecisionItem = {
   options: DecisionOption[];
   report_slug?: string;
   /** A change card (the-line-end-to-end.md LE10) the decision is about. */
-  card?: import("@codecast/shared/contracts/changeCard").ChangeCard;
+  card?: import("@codecast/line/changeCard").ChangeCard;
   /** `cast decide --run`: the command the card runs on a person's Run, and how that went. */
   run?: import("@codecast/decisions/commandRun").CommandRun;
   blocking: boolean;

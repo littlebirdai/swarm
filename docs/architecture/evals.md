@@ -856,7 +856,7 @@ freezes, so they grade alike; a surface adapter the base already had stays the
 base's. Each side is one named batch (`--batch`) and neither moves the cadence
 state (`--no-state`). The `--freeze` ids are the proven freezes, the ones the
 run showed failing on the base; every freeze of the surface still runs.
-`eval-result.json` (`packages/shared/contracts/evalResult.ts`) holds per
+`eval-result.json` (`packages/line/src/evalResult.ts`) holds per
 surface the separation of the branch's scores from the base's, both run sets,
 the gates that failed, the proven freezes and the freezes whose majority
 verdict flipped, each with the moment, both replies and the judge's note. It

@@ -11,7 +11,7 @@ import {
   proposalAnswerAction,
   proposalAnswersError,
   type ExpectationsHow,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import { canAccessProject } from "./access";
 import { fileTrialCard, stationNodeOf, trialStationOf } from "./trialDecision";
 

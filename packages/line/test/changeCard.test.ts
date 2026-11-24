@@ -26,8 +26,8 @@ import {
   type CardAssemblyInput,
   type ChangeCard,
   runVerify,
-} from "./changeCard";
-import { renderChangeCardHtml } from "../render/changeCardHtml";
+} from "../src/changeCard";
+import { renderChangeCardHtml } from "../src/changeCardHtml";
 
 // Goldens: the sample cause (a prompt miss on the title surface) assembled
 // from its recorded inputs, and that card rendered. Regenerate deliberately
@@ -472,12 +472,10 @@ describe("helpers", () => {
   });
 
   it("labels risk", () => {
-    expect(riskLabel({ class: "low", reason: "" })).toBe("Low risk");
-    expect(riskLabel({ class: "review", reason: "" })).toBe("Medium risk");
-    expect(riskLabel({ class: "plan", reason: "" })).toBe(
-      "High risk: needs its own plan",
-    );
-    expect(riskLabel({ class: "plan", reason: "" }, true)).toBe("High risk");
+    expect(riskLabel({ class: "low" })).toBe("Low risk");
+    expect(riskLabel({ class: "review" })).toBe("Medium risk");
+    expect(riskLabel({ class: "plan" })).toBe("High risk: needs its own plan");
+    expect(riskLabel({ class: "plan" }, true)).toBe("High risk");
   });
 });
 

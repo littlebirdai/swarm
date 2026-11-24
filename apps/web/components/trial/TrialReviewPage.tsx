@@ -68,7 +68,7 @@ import {
   evalsOwed,
   verdictLabel,
   verdictOfOption,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   cardAsRead,
   cardsByProblem,

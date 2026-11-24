@@ -11,7 +11,7 @@ import {
   DEPLOY_WAIT_CAP_MS,
   parseDeployTargets,
 } from "@codecast/deploys/deployTargets";
-import type { MainRedPayload } from "@codecast/shared/contracts/mainRed";
+import type { MainRedPayload } from "@codecast/line/mainRed";
 import { parseWorkflowSource } from "./parser";
 import {
   awaitDeploy,

@@ -25,7 +25,7 @@
 // cause.issue_key; a merged key's rows carry merged_into, which is how the
 // old key keeps resolving.
 import { ConvexError, v } from "convex/values";
-import { isExpectationId } from "@codecast/shared/contracts/expectations";
+import { isExpectationId } from "@codecast/line/expectations";
 import {
   action,
   internalAction,

@@ -3,7 +3,7 @@
 // holds, the graph a project's line runs, and the stations a run visited in
 // order, loops included. Pure: no store, no React. lib/line/lineModel builds
 // the workspace's model over these.
-import { verdictOfOption } from "@codecast/shared/contracts/changeCard";
+import { verdictOfOption } from "@codecast/line/changeCard";
 import type { LineDecision, LineFlowRun, LineSignal } from "../lineFlow";
 import type { LineEdge, LineNode } from "./lineStations";
 import {

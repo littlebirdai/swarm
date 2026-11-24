@@ -150,7 +150,7 @@ is the CLI; `/cli/expectations/brief` is what a judge reads (the active lines
 with ids under the version to cite). The line template's
 `expectations-daily` routine is the proposer; its cursor is the newest window
 a proposal recorded, and a proposal an operator retracts (one that should never
-have run) records none. Shapes and the parser: `shared/contracts/expectations.ts`.
+have run) records none. Shapes and the parser: `packages/line/src/expectations.ts`.
 
 ## LM6. Changing the line
 

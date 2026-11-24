@@ -2,10 +2,10 @@
 // trial cards and projects, each feed the whole set of one workspace (several
 // workspaces can be fed at once: the line's For you lists every one), and each
 // trial's spend, one row per project.
-import type { ProposalCard } from "@codecast/shared/contracts/proposalCard";
+import type { ProposalCard } from "@codecast/line/proposalCard";
 import { useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type { ChangeCard } from "@codecast/shared/contracts/changeCard";
+import type { ChangeCard } from "@codecast/line/changeCard";
 import { useSyncCollection } from "./useSyncCollection";
 import { useFeederWorkspace } from "./useWorkspaceArgs";
 import {
@@ -44,7 +44,7 @@ export type TrialCardRow = {
   doc_md?: string;
   options: Array<{ key: string; label: string; description?: string }>;
   card?: ChangeCard;
-  /** A proposal gate's card (shared/contracts/proposalCard), when its words node wrote one. */
+  /** A proposal gate's card (packages/line/src/proposalCard.ts), when its words node wrote one. */
   proposal?: ProposalCard;
   /** The judge route's card (packages/judges/src/judgeFix.ts): a measured fix to a judge, its extractor or an expectation, for the project's reviewer. */
   judge_fix?: JudgeFixCard;

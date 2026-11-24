@@ -15,7 +15,7 @@ import {
   settleClientResolution,
 } from "./sessionDecisions";
 import { gateNote, lessonFingerprint } from "./lineLearn";
-import { verdictOfOption } from "@codecast/shared/contracts/changeCard";
+import { verdictOfOption } from "@codecast/line/changeCard";
 
 const TOKEN = "w".repeat(64);
 const DAY = 86_400_000;

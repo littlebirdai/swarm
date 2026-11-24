@@ -4,10 +4,7 @@
 // carries out ahead of new starts: orgLine.planSweep).
 import { ConvexError, v } from "convex/values";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
-import {
-  endedFailing,
-  endedUnmerged,
-} from "@codecast/shared/contracts/changeCard";
+import { endedFailing, endedUnmerged } from "@codecast/line/changeCard";
 import { tookPastStart } from "@codecast/flows/runStart";
 import { mutation } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";

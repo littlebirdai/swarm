@@ -11,10 +11,7 @@ import {
   type TargetDevPush,
 } from "@codecast/deploys/deployTargets";
 import { prNumberOf } from "@codecast/changes/cluster";
-import type {
-  DeployPushSummary,
-  DeployView,
-} from "@codecast/shared/contracts/deploys";
+import type { DeployPushSummary, DeployView } from "@codecast/line/deploys";
 import type { TargetState } from "../ship/journey";
 
 export type DeployTargetRow = {

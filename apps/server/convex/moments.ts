@@ -57,7 +57,7 @@ import {
   linesSince,
   renderExpectations,
   type ExpectationsVersion,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import {
   DEFAULT_QUIET_MS,
   MOMENT_LIMITS,

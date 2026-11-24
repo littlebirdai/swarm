@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CiFailure } from "./ciFailures";
+import type { CiFailure } from "../src/ciFailures";
 import {
   aggregateJobs,
   aggregateJobsByTiming,
@@ -16,7 +16,7 @@ import {
   workflowJobFor,
   type JudgedRun,
   type MainRedPayload,
-} from "./mainRed";
+} from "../src/mainRed";
 
 const fail = (job: string, test: string | null): CiFailure => ({
   job,

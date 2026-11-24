@@ -13,7 +13,7 @@ export const meta: SurfaceMeta = {
   sources: surfaceSources(
     "expectations",
     PROMPT_REL,
-    "packages/shared/contracts/expectations.ts",
+    "packages/line/src/expectations.ts",
     "apps/cli/src/expectationsCommand.ts",
     "apps/evals/src/served.ts",
     "apps/cli/scripts/prompt-dry-run-bin/cast",

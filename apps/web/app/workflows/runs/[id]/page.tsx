@@ -44,11 +44,7 @@ import {
   type ReportTask,
 } from "../../../../lib/line/runReport";
 import { SHIPPED_LINE } from "../../../../lib/line/shippedLine.generated";
-import {
-  costParts,
-  costUsd,
-  isLineRun,
-} from "@codecast/shared/contracts/changeCard";
+import { costParts, costUsd, isLineRun } from "@codecast/line/changeCard";
 import {
   useDecisionDetail,
   useSyncDecisionDetail,

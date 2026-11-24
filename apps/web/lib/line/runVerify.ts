@@ -1,7 +1,7 @@
 // A run's own Verify figure, read off its verify step's report the way the run page reads it (runTrace scriptChecks):
 // "4/4 pass". A card's Verify check says the run's figure, never a sentence of its own, so the card and the run agree
 // (ct-59338: the run read "Verify 4/4 pass" while its card's Checks tile counted the card's four checks). Pure.
-import { checksPassWords } from "@codecast/shared/contracts/changeCard";
+import { checksPassWords } from "@codecast/line/changeCard";
 import { scriptChecks } from "./scriptReport";
 import { jsonObject } from "./visitOutput";
 

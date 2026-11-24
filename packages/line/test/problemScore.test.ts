@@ -11,7 +11,7 @@ import {
   problemScorePrompt,
   sampleFindings,
   spentToday,
-} from "./problemScore";
+} from "../src/problemScore";
 
 describe("problem scoring", () => {
   test("a reply is clamped into range and needs a root cause", () => {

@@ -29356,6 +29356,57 @@
   "packages/keyboard/src/shortcutCatalog.ts": {
     "swarm/no-comments": 196
   },
+  "packages/line/src/causeHistory.ts": {
+    "swarm/no-comments": 146
+  },
+  "packages/line/src/changeCard.ts": {
+    "swarm/no-comments": 122
+  },
+  "packages/line/src/changeCardHtml.ts": {
+    "swarm/no-comments": 9
+  },
+  "packages/line/src/ciFailures.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/line/src/deploys.ts": {
+    "swarm/no-comments": 40
+  },
+  "packages/line/src/evalResult.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/line/src/expectations.ts": {
+    "swarm/no-comments": 61
+  },
+  "packages/line/src/lineRunEnd.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/line/src/lineTimeline.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/line/src/mainRed.ts": {
+    "swarm/no-comments": 39
+  },
+  "packages/line/src/problemScore.ts": {
+    "swarm/no-comments": 36
+  },
+  "packages/line/src/proposalCard.ts": {
+    "swarm/no-comments": 49
+  },
+  "packages/line/test/changeCard.test.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/line/test/expectations.test.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/line/test/mainRed.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/line/test/proposalCard.line.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/line/test/runEnd.test.ts": {
+    "swarm/no-comments": 7
+  },
   "packages/machines/src/checkouts.ts": {
     "swarm/no-comments": 42
   },
@@ -29935,30 +29986,6 @@
   "packages/sessions/test/threadState.test.ts": {
     "swarm/no-comments": 2
   },
-  "packages/shared/contracts/causeHistory.ts": {
-    "swarm/no-comments": 146
-  },
-  "packages/shared/contracts/changeCard.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/changeCard.ts": {
-    "swarm/no-comments": 122
-  },
-  "packages/shared/contracts/ciFailures.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/deploys.ts": {
-    "swarm/no-comments": 40
-  },
-  "packages/shared/contracts/evalResult.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/expectations.test.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/contracts/expectations.ts": {
-    "swarm/no-comments": 61
-  },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
   },
@@ -29983,12 +30010,6 @@
   "packages/shared/contracts/lineProfile.ts": {
     "swarm/no-comments": 56
   },
-  "packages/shared/contracts/lineRunEnd.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/contracts/lineTimeline.ts": {
-    "swarm/no-comments": 11
-  },
   "packages/shared/contracts/lineVolume.ts": {
     "swarm/no-comments": 42
   },
@@ -29998,23 +30019,8 @@
   "packages/shared/contracts/lineWords.ts": {
     "swarm/no-comments": 15
   },
-  "packages/shared/contracts/mainRed.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/mainRed.ts": {
-    "swarm/no-comments": 39
-  },
   "packages/shared/contracts/metricSeries.test.ts": {
     "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/problemScore.ts": {
-    "swarm/no-comments": 36
-  },
-  "packages/shared/contracts/proposalCard.line.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/proposalCard.ts": {
-    "swarm/no-comments": 49
   },
   "packages/shared/contracts/regretRates.test.ts": {
     "swarm/no-comments": 2
@@ -30022,14 +30028,8 @@
   "packages/shared/contracts/regretRates.ts": {
     "swarm/no-comments": 19
   },
-  "packages/shared/contracts/runEnd.test.ts": {
-    "swarm/no-comments": 7
-  },
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
-  },
-  "packages/shared/render/changeCardHtml.ts": {
-    "swarm/no-comments": 9
   },
   "packages/ship/src/changeGuide.ts": {
     "swarm/no-comments": 40

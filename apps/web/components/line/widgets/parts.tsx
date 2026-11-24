@@ -5,7 +5,7 @@
 // (the shared selection); drawn from a `line` fence elsewhere it links to the
 // project's workspace. Widgets never know which: they ask useLineNav().
 import { createContext, useContext, type ReactNode } from "react";
-import { backTimes } from "@codecast/shared/contracts/causeHistory";
+import { backTimes } from "@codecast/line/causeHistory";
 import { backOfWords } from "../../../lib/line/lineActions";
 import {
   closeBackWords,

@@ -1,6 +1,6 @@
 // A cause's life over time (line-workspace.md LW1 Timeline, LW5), as the web
 // reads it. The derivation is the shared one
-// (@codecast/shared/contracts/causeHistory), which the server also runs for a
+// (@codecast/line/causeHistory), which the server also runs for a
 // line run that starts on the cause (lineWorkspace causeHistoryForTask), so
 // the timeline a person reads and the brief a station is handed never
 // disagree. This file only supplies what the web says better: a run's outcome
@@ -16,7 +16,7 @@ import {
   type HandMerge,
   type OccurrenceRow,
   type RunSaid,
-} from "@codecast/shared/contracts/causeHistory";
+} from "@codecast/line/causeHistory";
 import type { LineCauseTask } from "../lineFlow";
 import type { MapDecision, MapRun, MapSignal } from "./lineMap";
 import {
@@ -59,7 +59,7 @@ export {
   type CloseKind,
   type CloseArgument,
   type RunSaid,
-} from "@codecast/shared/contracts/causeHistory";
+} from "@codecast/line/causeHistory";
 
 export type HistoryAttempt = SharedHistoryAttempt<RunOutcome>;
 export type CauseHistory = SharedCauseHistory<RunOutcome>;

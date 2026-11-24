@@ -4,7 +4,7 @@
 import React, { useContext, useMemo } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { actionsRunKey } from "@codecast/shared/contracts/deploys";
+import { actionsRunKey } from "@codecast/line/deploys";
 import { EntityIdPill } from "../EntityIdPill";
 import { ShortId } from "../ShortId";
 import { fmtClock } from "../triggerCadence";

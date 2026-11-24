@@ -4,7 +4,7 @@
 // names its edge by label, or leads with it ("Revise: tighten the close
 // note"), else by verdict; one that names no edge carries no key, and its
 // label routes as text.
-import { verdictOfOption } from "@codecast/shared/contracts/changeCard";
+import { verdictOfOption } from "@codecast/line/changeCard";
 
 export type GateChoice = {
   key: string;

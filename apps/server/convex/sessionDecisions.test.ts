@@ -2479,7 +2479,7 @@ describe("a change card on a decision (LE11)", () => {
     fs.readFileSync(
       path.join(
         __dirname,
-        "../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+        "../../../packages/line/test/__fixtures__/changeCard/card.json",
       ),
       "utf-8",
     ),

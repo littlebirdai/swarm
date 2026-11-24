@@ -76,7 +76,7 @@ import {
   verdictOfOption,
   type ChangeCard,
   type ChangeVerdict,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 
 export interface DecideOption {
   label: string;

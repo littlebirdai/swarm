@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseFailures } from "@codecast/shared/contracts/ciFailures";
+import { parseFailures } from "@codecast/line/ciFailures";
 import { parseDeadline } from "./ciStation.js";
 import {
   BUN_LOG,

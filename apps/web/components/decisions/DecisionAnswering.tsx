@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { AlertTriangle, ShieldCheck, Undo2 } from "lucide-react";
 import { autonomyOn } from "@codecast/org/roleAutonomy";
 import { advisoryAnswerOpen } from "@codecast/inbox/inboxMembership";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import {
   answersForOthers,
   mayAnswerFromDocument,

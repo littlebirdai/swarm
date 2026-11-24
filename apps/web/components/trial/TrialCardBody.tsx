@@ -4,7 +4,7 @@
 // each with its own header around it.
 import { useMemo } from "react";
 import { findingConversation } from "@codecast/judges/judges";
-import { verdictOfOption } from "@codecast/shared/contracts/changeCard";
+import { verdictOfOption } from "@codecast/line/changeCard";
 import type { TrialCardRow } from "../../hooks/useSyncTrial";
 import {
   useSyncSignals,
@@ -48,7 +48,7 @@ import {
   proposalCase,
 } from "../../lib/trialEvidence";
 import { receivedWords } from "@codecast/ingest/moments";
-import { PROPOSAL_VERDICT_KEY } from "@codecast/shared/contracts/proposalCard";
+import { PROPOSAL_VERDICT_KEY } from "@codecast/line/proposalCard";
 import { problemListName } from "../../lib/line/problemTable";
 import { trialWords } from "../../lib/line/fixDecision";
 

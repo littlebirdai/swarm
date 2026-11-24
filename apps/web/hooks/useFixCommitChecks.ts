@@ -12,7 +12,7 @@ import type {
   FixBranch,
   FixCommitChecks,
 } from "@codecast/convex/convex/lineFixChecks";
-import { deployIsLive } from "@codecast/shared/contracts/causeHistory";
+import { deployIsLive } from "@codecast/line/causeHistory";
 import { useCollectionRows } from "./useCollectionRows";
 import { useInboxStore } from "../store/inboxStore";
 import { ciRunOf } from "../lib/line/fixedOnMain";

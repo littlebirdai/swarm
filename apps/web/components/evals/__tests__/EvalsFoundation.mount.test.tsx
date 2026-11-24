@@ -12,7 +12,7 @@ import { act } from "react";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { JSDOM } from "jsdom";
-import { formatUsd } from "@codecast/shared/render/changeCardHtml";
+import { formatUsd } from "@codecast/line/changeCardHtml";
 import {
   EVALS_ROUTE_KEYS,
   matchEvalsRoute,

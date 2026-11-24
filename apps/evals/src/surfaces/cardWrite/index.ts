@@ -26,7 +26,7 @@ import {
   CHANGE_VERDICTS,
   validateChangeCard,
   type ChangeCard,
-} from "../../../../../packages/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import { REPO_ROOT } from "../../paths";
 import { writeServedRead } from "../../served";
 import {

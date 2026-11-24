@@ -3,7 +3,7 @@
 // shipped, merged and was deployed, the problem coming back after the deploy,
 // and a third attempt live on it.
 import { describe, expect, test } from "bun:test";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import { closesArgument, closesSummary, earlierFixes } from "../causeHistory";
 import {
   cameBackCount,
@@ -17,7 +17,7 @@ import {
   carriedBy,
   waitingMerges,
   type DeployMerge,
-} from "@codecast/shared/contracts/deploys";
+} from "@codecast/line/deploys";
 import {
   buildLineModel,
   carryingDeploys,

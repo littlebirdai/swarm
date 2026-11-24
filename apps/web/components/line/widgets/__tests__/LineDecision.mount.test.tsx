@@ -9,7 +9,7 @@ import { closeDomWindow } from "../../../../test-helpers/domGlobals";
 import {
   CARD_DECISION_OPTIONS,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   openFixDecisionFor,
   openFixDecisions,
@@ -87,7 +87,7 @@ const card: ChangeCard = JSON.parse(
   readFileSync(
     join(
       import.meta.dir,
-      "../../../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+      "../../../../../../packages/line/test/__fixtures__/changeCard/card.json",
     ),
     "utf-8",
   ),

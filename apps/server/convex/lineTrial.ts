@@ -57,7 +57,7 @@ import {
   validateChangeCard,
   verdictOfOption,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import { findingConversation } from "@codecast/judges/judges";
 import {
   proposalOptions,
@@ -66,7 +66,7 @@ import {
   validateProposalCard,
   whereParts,
   type ProposalCard,
-} from "@codecast/shared/contracts/proposalCard";
+} from "@codecast/line/proposalCard";
 export { sameCode };
 import {
   validateJudgeFixCard,
@@ -115,7 +115,7 @@ import {
   type FindingFate,
 } from "./lib/problemEvidence";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
-import { failedAtStation } from "@codecast/shared/contracts/causeHistory";
+import { failedAtStation } from "@codecast/line/causeHistory";
 import { insertTaskComment, moveTaskStatus } from "./tasks";
 import {
   newLineMemo,

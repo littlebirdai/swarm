@@ -7,7 +7,7 @@ import type {
   Expectation,
   ExpectationOp,
   ExpectationsVersion,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { entityIdArgs, useSyncCollection } from "./useSyncCollection";
