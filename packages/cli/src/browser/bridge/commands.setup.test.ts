@@ -82,7 +82,7 @@ test("setup without an installed extension points to the store without exposing 
   expect(out).toContain(`OPENED_EXTENSION_ID=${BRIDGE_EXTENSION_ID}`);
   expect(out).toContain(BRIDGE_STORE_URL);
   expect(out).toContain("Chrome Web Store");
-  expect(out).not.toMatch(/Load unpacked|Developer mode|packages\/browser-extension/);
+  expect(out).not.toMatch(/Load unpacked|Developer mode|apps\/browser-extension/);
   expect(out).not.toMatch(/[a-f0-9]{64}|#token=/);
 });
 

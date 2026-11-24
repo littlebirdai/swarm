@@ -317,6 +317,10 @@ cast setup              # Auto-start on login (launchd/systemd/Task Scheduler)
 
 ```
 codecast/
+  apps/
+    browser-extension/  Chrome extension behind `cast browser`
+    vscode-extension/   VS Code / Cursor blame integration
+    playground/         Multiplayer playground
   packages/
     cli/                CLI daemon, commands, and background sync engine
     web/                Vite + React web app
@@ -324,8 +328,6 @@ codecast/
     electron/           Native macOS desktop app
     mobile/             iOS/Android app (Expo + React Native)
     shared/             Encryption and cross-platform utilities
-    vscode-extension/   VS Code / Cursor blame integration
-    browser-extension/  Chrome extension behind `cast browser`
     evals/              Prompt evals against frozen moments
   scripts/              Deploy, build, and dev server scripts
   docs/                 Specs, plans, and design documents

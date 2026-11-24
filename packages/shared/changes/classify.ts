@@ -167,7 +167,7 @@ export function parseConventional(subject: string): Conventional | null {
 
 /**
  * Names a scope or a release word may use for an area, beyond the area's own
- * name. `fix(extension)` lands in `packages/browser-extension`, and
+ * name. `fix(extension)` lands in `apps/browser-extension`, and
  * `release desktop` ships `packages/electron`.
  */
 const AREA_ALIASES: Record<string, readonly string[]> = {

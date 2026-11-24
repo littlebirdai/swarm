@@ -26,12 +26,12 @@ describe("areaOf", () => {
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
     expect(areaOf("platform/vendor-manifest.txt")).toBe("platform");
     expect(areaOf("packages/electron/main.js")).toBe("electron");
-    expect(areaOf("packages/playground/src/main.tsx")).toBe("playground");
+    expect(areaOf("apps/playground/src/main.tsx")).toBe("playground");
     expect(areaOf("infra/convex-host/Caddyfile")).toBe("infra");
     expect(areaOf("infra/README.md")).toBe("infra");
     expect(areaOf("packages/mobile/app/index.tsx")).toBe("mobile");
-    expect(areaOf("packages/browser-extension/background.js")).toBe("extension");
-    expect(areaOf("packages/vscode-extension/src/extension.ts")).toBe("extension");
+    expect(areaOf("apps/browser-extension/background.js")).toBe("extension");
+    expect(areaOf("apps/vscode-extension/src/extension.ts")).toBe("extension");
   });
 
   test("maps prose at the repo root to docs", () => {
@@ -160,9 +160,9 @@ describe("classifyChangedPaths", () => {
 
   // Nothing imports the playground; the root build and typecheck cover it.
   test("a playground change runs build and typecheck only", () => {
-    const scope = classifyChangedPaths(["packages/playground/src/main.tsx"]);
+    const scope = classifyChangedPaths(["apps/playground/src/main.tsx"]);
     expect(scope.forcedBy).toEqual([]);
-    expect(ran(["packages/playground/src/main.tsx"])).toEqual(["build", "typecheck"]);
+    expect(ran(["apps/playground/src/main.tsx"])).toEqual(["build", "typecheck"]);
   });
 
   // infra's own tests run in test-always; no gated job reads infra/.
@@ -176,7 +176,7 @@ describe("classifyChangedPaths", () => {
   // The CLI carries the extension to cloud hosts (browser/hostExtension.ts),
   // so an extension change runs the cli tests too.
   test("an extension change runs build and the cli tests", () => {
-    expect(ran(["packages/browser-extension/background.js"])).toEqual(["build", "test-cli"]);
+    expect(ran(["apps/browser-extension/background.js"])).toEqual(["build", "test-cli"]);
   });
 
   test("the electron tests rerun for the vendored @platform/desktop they require", () => {

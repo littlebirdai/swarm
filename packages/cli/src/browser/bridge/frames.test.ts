@@ -50,7 +50,7 @@ describe("relay frames", () => {
 test("background.js still sends the two hot messages with the payload last", () => {
   // frames.ts slices the payload up to the closing brace, so a key added
   // after it would be relayed inside the payload. Change both together.
-  const src = fs.readFileSync(path.join(import.meta.dir, "../../../../browser-extension/background.js"), "utf-8");
+  const src = fs.readFileSync(path.join(import.meta.dir, "../../../../../apps/browser-extension/background.js"), "utf-8");
   expect(src).toContain('send({ op: "event", tabId, session: source.sessionId, method, params: params || {} });');
   expect(src).toContain("send({ id: msg.id, ok: true, ...result });");
   expect(src).toContain("return { result: (await cdpPastForeignFrames(m.tabId, m.method, m.params || {})) || {} };");

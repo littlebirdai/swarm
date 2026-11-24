@@ -14,7 +14,7 @@ Live at https://playclayground.com
 ## Run it locally
 
 ```bash
-cd packages/playground
+cd apps/playground
 npx convex dev            # pushes convex/ to the dev deployment named in .env.local, and watches
 bun run dev               # the shell on http://localhost:5317
 ```
@@ -39,7 +39,7 @@ real builds (`notes/builder-evals.md`).
 ## Deploy
 
 ```bash
-cd packages/playground
+cd apps/playground
 bun run deploy
 ```
 

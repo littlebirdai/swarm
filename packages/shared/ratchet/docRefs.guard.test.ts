@@ -34,7 +34,7 @@ const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
 const BASELINE = join(import.meta.dir, "doc-refs-baseline.txt");
 const DOC_DIR = "docs/architecture";
 const ROOT_DOCS = ["CLAUDE.md", "AGENTS.md"];
-const ROOTS = ["packages", "docs", "scripts", "platform", ".codecast", ".github"];
+const ROOTS = ["apps", "packages", "docs", "scripts", "platform", ".codecast", ".github"];
 const MODULE_EXTENSIONS = [".ts", ".tsx", ".js", ".mjs", ".cjs"];
 // Dirs no doc should have to name a file under: build output and codegen.
 const GENERATED = new Set(["node_modules", "dist", "_generated"]);

@@ -185,7 +185,7 @@ export function isForegroundTab(): boolean {
 // behind the human's (same hold). So every driver stamps the tabs it drives,
 // before any page script runs: the extension's per-tab overlay script, the
 // CLI's console recorder, and the engine's init script all write this key
-// and dispatch this event (packages/browser-extension/background.js,
+// and dispatch this event (apps/browser-extension/background.js,
 // packages/cli/src/browser/observe.ts). sessionStorage is the one store a
 // document-start script can write from any world, and it is scoped to the
 // tab — a human's tab never carries it. The event covers the tab's first

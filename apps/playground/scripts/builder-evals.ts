@@ -9,7 +9,7 @@
 //   bun scripts/builder-evals.ts <label> --first [scenario...]   new apps only
 //
 // Writes /tmp/pg-evals/<label>/results.json and prints one row per build,
-// for packages/playground/notes/builder-evals.md.
+// for apps/playground/notes/builder-evals.md.
 import { mkdir } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

@@ -14,7 +14,7 @@ describe("liveVendorToken", () => {
     expect(liveVendorToken("nothing here")).toBeNull();
   });
   test("credential files are named as such", () => {
-    expect(isCredentialFilePath("packages/playground/.env.production")).toBe(true);
+    expect(isCredentialFilePath("apps/playground/.env.production")).toBe(true);
     expect(isCredentialFilePath("certs/server.pem")).toBe(true);
     expect(isCredentialFilePath("src/env.ts")).toBe(false);
   });

@@ -6,8 +6,8 @@
  * (install one with `npx @puppeteer/browsers install chrome@stable`). The
  * tiles load their two fonts from Google Fonts, so rendering needs a network.
  * The PNGs it writes still carry alpha, so flatten them to 24-bit for the store:
- *   PROMO_CHROME=/path/to/chrome bun packages/browser-extension/store/promo/render.ts
- *   python3 -c "from PIL import Image; [Image.open(f'packages/browser-extension/store/promo/{n}.png').convert('RGB').save(f'packages/browser-extension/store/promo/{o}') for n,o in (('small','small-promo-tile-440x280.png'),('marquee','marquee-promo-tile-1400x560.png'))]"
+ *   PROMO_CHROME=/path/to/chrome bun apps/browser-extension/store/promo/render.ts
+ *   python3 -c "from PIL import Image; [Image.open(f'apps/browser-extension/store/promo/{n}.png').convert('RGB').save(f'apps/browser-extension/store/promo/{o}') for n,o in (('small','small-promo-tile-440x280.png'),('marquee','marquee-promo-tile-1400x560.png'))]"
  */
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";

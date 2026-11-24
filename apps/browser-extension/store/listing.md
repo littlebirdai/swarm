@@ -157,7 +157,7 @@ unrelated to the single purpose; not used for creditworthiness or lending.
 - Screenshots (1280×800 JPEG, at least one, up to five) live in
   `store/screenshots/`: the options page connected, and a driven page wearing
   the Cast frame. Regenerate them with
-  `SMOKE_STORE_SHOTS=packages/browser-extension/store/screenshots bun packages/browser-extension/smoke.mjs`,
+  `SMOKE_STORE_SHOTS=apps/browser-extension/store/screenshots bun apps/browser-extension/smoke.mjs`,
   which captures them from the states the smoke builds.
 - Promo tiles, both optional for an unlisted item, live in `store/promo/`:
   `small-promo-tile-440x280.png` and `marquee-promo-tile-1400x560.png`, 24-bit
@@ -174,7 +174,7 @@ listing's public key for development loads, and
 `packages/shared/contracts/browserExtension.ts` holds the ID and store URL.
 
 Later releases use the "Cut Chrome extension release" workflow. For a manual
-upload, build with `bun packages/browser-extension/release.mjs --dry-run`,
+upload, build with `bun apps/browser-extension/release.mjs --dry-run`,
 then upload that ZIP to this item's Package tab and submit for review. After
 a manual release, update the source manifest version to the accepted version
 so the next release increments it instead of uploading the same version again.

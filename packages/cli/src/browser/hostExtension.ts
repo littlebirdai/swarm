@@ -43,9 +43,9 @@ function payloadPath(): string {
   return path.isAbsolute(extensionTar) ? extensionTar : fileURLToPath(new URL(extensionTar, import.meta.url));
 }
 
-/** packages/browser-extension beside this file, when cast runs from a source checkout. */
+/** apps/browser-extension beside this file, when cast runs from a source checkout. */
 function sourceExtensionDir(): string | null {
-  const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../browser-extension");
+  const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../apps/browser-extension");
   return fs.existsSync(path.join(dir, "manifest.json")) ? dir : null;
 }
 

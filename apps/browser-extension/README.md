@@ -113,7 +113,7 @@ never updates itself, and self-hosted packages are refused on macOS and
 Windows outside enterprise policy. So every install that should follow fixes
 comes from the [published store listing](https://chromewebstore.google.com/detail/codecast/odfpgkdaibmjhhnbndgbjlhdbciciifd).
 
-- `bun packages/browser-extension/release.mjs --dry-run` builds the package:
+- `bun apps/browser-extension/release.mjs --dry-run` builds the package:
   the shipped files with the version bumped and the development `key` removed.
 - The "Cut Chrome extension release" workflow (`cut-extension-release.yml`)
   builds, uploads, submits for review, then commits the version bump and tags
@@ -136,7 +136,7 @@ same ID. The ID and install URL live in
 this exact ID. The private signing key belongs to the Chrome Web Store.
 
 For extension development only, open `chrome://extensions`, enable Developer
-mode, choose **Load unpacked**, and select `packages/browser-extension`.
+mode, choose **Load unpacked**, and select `apps/browser-extension`.
 Do not run the unpacked and store copies together. The old development ID was
 `dfimhlggoaabdefnfhlpboehapdaakol`: disable that copy before installing the
 store extension, update the CLI, then run `cast browser extension setup` again.
@@ -347,10 +347,10 @@ not gone.
 ## Smoke harness
 
 ```bash
-bun packages/browser-extension/smoke.mjs                                       # headless scratch Chrome
-SMOKE_HEADED=1 bun packages/browser-extension/smoke.mjs                        # watch it happen
-SMOKE_ENGINE=/path/to/agent-browser bun packages/browser-extension/smoke.mjs   # pick the engine binary
-SMOKE_KEEP=1 bun packages/browser-extension/smoke.mjs                          # leave the scratch dirs in place
+bun apps/browser-extension/smoke.mjs                                       # headless scratch Chrome
+SMOKE_HEADED=1 bun apps/browser-extension/smoke.mjs                        # watch it happen
+SMOKE_ENGINE=/path/to/agent-browser bun apps/browser-extension/smoke.mjs   # pick the engine binary
+SMOKE_KEEP=1 bun apps/browser-extension/smoke.mjs                          # leave the scratch dirs in place
 ```
 
 It launches a **separate** Chrome with a scratch profile (your running

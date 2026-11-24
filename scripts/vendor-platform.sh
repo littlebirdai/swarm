@@ -42,7 +42,9 @@ SCRIPT="$MIRROR/vendor-platform.sh"
 # the copy after the mirror changes, which every `cast` command and eval rep
 # would otherwise import. --copies names them for the shared script.
 shared() {
-  bash "$SCRIPT" --mirror "$MIRROR" --root "$ROOT" --consumers "$ROOT/packages/*/package.json" \
+  bash "$SCRIPT" --mirror "$MIRROR" --root "$ROOT" \
+    --consumers "$ROOT/apps/*/package.json" --consumers "$ROOT/packages/*/package.json" \
+    --consumers "$ROOT/tests/*/package.json" \
     --copies "$ROOT/node_modules/.bun/@platform+*/node_modules/@platform/*" "$@"
 }
 

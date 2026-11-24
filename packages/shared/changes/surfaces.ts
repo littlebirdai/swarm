@@ -12,7 +12,7 @@ export const SURFACE_PATHS: Record<string, readonly string[]> = {
   desktop: ["packages/electron/", "packages/web/", "packages/shared/"],
   backend: ["packages/convex/"],
   web: ["packages/web/", "packages/shared/"],
-  extension: ["packages/browser-extension/", "packages/chrome-extension/"],
+  extension: ["apps/browser-extension/", "packages/chrome-extension/"],
   mobile: ["packages/mobile/"],
 };
 
