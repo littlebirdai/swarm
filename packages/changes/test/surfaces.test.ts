@@ -167,6 +167,13 @@ describe("surfaces", () => {
     { surface: "backend", sha: "d1", at: T0 + 90 * MIN, kind: "deploy" },
   ];
 
+  test("releases cover package changes after the contract split", () => {
+    expect(assignRelease("line", T0, ships)?.surface).toBe("desktop");
+    expect(surfaceCoversArea("cli", "line")).toBe(true);
+    expect(surfaceCoversArea("web", "inbox")).toBe(true);
+    expect(surfaceCoversArea("web", "infra")).toBe(false);
+  });
+
   test("a story ships in the first covering release after its last commit", () => {
     expect(assignRelease("shared", T0, ships)?.surface).toBe("desktop");
     expect(assignRelease("cli", T0, ships)?.version).toBe("1.1.163");
