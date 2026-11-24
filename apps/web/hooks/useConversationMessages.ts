@@ -13,7 +13,7 @@ import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { prefetchStorageImageUrls } from "./useStorageImageUrl";
 import { parseMessageHash } from "../lib/messageHash";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { mergeUnconfirmedMessages } from "./conversationMessageMerge";
 import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
 import { rowSigExcluding } from "../store/wakeSig";

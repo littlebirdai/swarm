@@ -7,7 +7,7 @@ import { LogoMark } from "./Logo";
 import {
   agentDisplayName,
   isHostedAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 
 /** `mono` drops the brand colour so the glyph takes the colour around it
  *  (currentColor): the session mark draws it in its workspace's ink. */

@@ -9,7 +9,7 @@
 import {
   agentDisplayName,
   isHostedAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 
 export const sessionTypes = new Set([
   "session_idle",

@@ -3,7 +3,7 @@
 // here was never rendered and is gone.
 export type { Conversation } from "../lib/conversationRow";
 import { AgentTypeIcon } from "./AgentTypeIcon";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   ClaudeIcon,
   CodexIcon,

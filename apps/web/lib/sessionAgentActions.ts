@@ -1,5 +1,5 @@
 import { captureError } from "./analytics";
-import type { ConvexAgentType } from "@codecast/shared/contracts";
+import type { ConvexAgentType } from "@codecast/agent-clients/agentClients";
 import {
   isConvexId,
   type InboxSession,

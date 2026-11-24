@@ -11,7 +11,7 @@
 // re-renders nothing; time-driven state rides the shared 15s clock the feed
 // hooks already tick on.
 import { useMemo, useRef } from "react";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   railRowPlacement,
   useTrackedStore,

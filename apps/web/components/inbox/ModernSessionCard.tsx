@@ -5,8 +5,8 @@ import {
   withSafetyBlock,
   isClosedSession,
   isStashHidden,
-  isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { entityRoute } from "@codecast/shared/entities";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {

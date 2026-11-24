@@ -28,7 +28,7 @@ import {
   type PrGuideRow,
 } from "../../hooks/useSyncPrGuide";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
-import { prettifyModelId } from "@codecast/shared/contracts/modelOptions";
+import { prettifyModelId } from "@codecast/agent-clients/modelOptions";
 import { formatRelativeTime } from "../../lib/conversationFormat";
 import { formatDiffHash } from "../../lib/prView";
 

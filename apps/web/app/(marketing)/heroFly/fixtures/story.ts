@@ -14,7 +14,7 @@
  * mount-time `now`.
  */
 
-import type { ConvexAgentType } from "@codecast/shared/contracts";
+import type { ConvexAgentType } from "@codecast/agent-clients/agentClients";
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;

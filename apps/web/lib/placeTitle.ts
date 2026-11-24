@@ -4,7 +4,7 @@
 // a doc's, a channel's), read from the store by key; a page is named by the
 // registry (lib/pathLabel, which reads lib/navRegistry in Modern).
 
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { conversationTitle } from "./conversationTitle";
 import { pathLabel } from "./pathLabel";
 import { chatTabTitle, initiativeTabTitle, recordTabTitle } from "./tabTitle";

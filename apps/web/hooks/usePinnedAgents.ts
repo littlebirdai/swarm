@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import {
   fromConvexAgentType,
-  pinnedAgentIds,
-  pinnedPickerOptions,
   type AgentClientId,
   type AgentPickerOption,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import {
+  pinnedAgentIds,
+  pinnedPickerOptions,
+} from "@codecast/agent-clients/agentPins";
 // Relative, not "@/": mobile reaches this file and its "@/" is a different tree.
 import { useInboxStore } from "../store/inboxStore";
 import { defaultAgentType, onlyHostedAgent } from "../lib/defaultAgent";

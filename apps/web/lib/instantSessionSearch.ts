@@ -21,7 +21,7 @@ import {
   type InboxSession,
 } from "../store/inboxStore";
 import { makeCollectionSig } from "../store/wakeSig";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { promptTitle } from "@codecast/shared/contracts/assistant";
 import { ownTitle } from "./conversationTitle";
 import { cleanTitle } from "./conversationProcessor";

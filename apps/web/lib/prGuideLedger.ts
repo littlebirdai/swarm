@@ -4,7 +4,7 @@
 import { priceFor, usageCost } from "@platform/agent/meter";
 import type { SwitchLedger } from "../components/consequential/ConsequentialSwitch";
 import { usd } from "../components/consequential/lineStartLedger";
-import { prettifyModelId } from "@codecast/shared/contracts/modelOptions";
+import { prettifyModelId } from "@codecast/agent-clients/modelOptions";
 
 export type PrGuideFile = {
   filename: string;

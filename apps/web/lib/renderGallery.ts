@@ -32,11 +32,11 @@ import {
   SAFETY_BANNER_PREFIX,
   THROTTLE_BANNER_PREFIX,
   CLIENT_ERROR_BANNER_PREFIX,
-  CLOUD_AGENT_ACTION_SUBTYPE,
   MID_WORK_REVIVE_MESSAGE,
   MOVE_INTERRUPT_MESSAGE,
   wrapMentionContext,
 } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,

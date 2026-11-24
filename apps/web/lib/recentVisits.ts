@@ -12,7 +12,7 @@ import { channelDisplayName } from "./chatViews";
 import { dmOtherIds } from "@codecast/chat";
 import { cleanTitle } from "./conversationProcessor";
 import { sessionCardTitle } from "./sessionCard";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { workspaceFeatureEnabled } from "@codecast/policy/teamFeatures";
 import {
   convBucketMap,

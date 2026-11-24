@@ -2,7 +2,7 @@
 // row, or the session row while only that is cached). Surfaces that speak
 // differently to a hosted conversation (the assistant, no machine) ask here
 // rather than threading the agent type down through their parents.
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { useInboxStore } from "../store/inboxStore";
 
 /** The conversation's agent type, "claude_code" while the row is not cached. */

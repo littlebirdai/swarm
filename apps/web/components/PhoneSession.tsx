@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronDown, Cpu, Ellipsis, List } from "lucide-react";
-import { agentDisplayName } from "@codecast/shared/contracts";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 import {
   MOBILE_AGENT_LOGO_BG,
   MOBILE_AGENT_TINT,

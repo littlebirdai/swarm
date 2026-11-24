@@ -8,7 +8,7 @@ import { ExternalLink, Info } from "lucide-react";
 import {
   CLOUD_AGENT_BACKFILL_DAYS,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncOn,

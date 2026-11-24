@@ -1,4 +1,5 @@
-import { isAdoptedChild, isHostedAgentType } from "@codecast/shared/contracts";
+import { isAdoptedChild } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { nestParentIdOf } from "@codecast/convex/convex/ccAccountsShared";
 import type { InboxSession } from "../store/inboxStore";
 import { cleanTitle } from "./conversationProcessor";

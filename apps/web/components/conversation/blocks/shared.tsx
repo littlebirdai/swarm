@@ -1,4 +1,4 @@
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { useState } from "react";
 import { AvatarImg } from "../../../lib/avatarCache";
 import { type NestedStepOutcome } from "@codecast/render/toolCall";

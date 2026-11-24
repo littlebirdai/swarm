@@ -6,7 +6,7 @@ import { KeyRound, ExternalLink, Trash2, Loader2, Check } from "lucide-react";
 import {
   CLOUD_AGENT_PROVIDERS,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import {
   PROVIDER_KEYS,
   getProviderKeySpec,

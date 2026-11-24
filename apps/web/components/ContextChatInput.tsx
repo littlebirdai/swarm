@@ -17,7 +17,7 @@ import {
   fromConvexAgentType,
   isHostedAgentType,
   type AgentClientId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { AskHeldLine, useHostedAskGate } from "./simple/useHostedAskGate";
 
 type AgentKey = AgentClientId;

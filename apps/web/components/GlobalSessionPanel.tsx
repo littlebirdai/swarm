@@ -117,8 +117,8 @@ import {
   restartReloadsContext,
 } from "@codecast/convex/convex/wakeCost";
 import { isClosedSession, withSafetyBlock } from "@codecast/shared/contracts";
+import { contextWindowTokens } from "@codecast/agent-clients/agentClients";
 import {
-  contextWindowTokens,
   restartShareOfRemaining,
   formatCountdown,
 } from "@codecast/shared/contracts";

@@ -21,7 +21,7 @@ import {
   cloudAgentProviderForSyncSource,
   type CloudAgentProviderSpec,
   type CloudAgentSetupKind,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { AgentTypeIcon } from "../AgentTypeIcon";
 import { useLiveSessionMeta } from "../../hooks/useLiveSessionMeta";
 import {
