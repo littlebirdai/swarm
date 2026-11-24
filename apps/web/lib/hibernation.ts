@@ -1,8 +1,8 @@
+import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
 import {
-  HEARTBEAT_ALIVE_MS,
   isHibernated,
   sessionCommandOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/hibernation";
 
 export function hibernationCandidate(
   row: any,

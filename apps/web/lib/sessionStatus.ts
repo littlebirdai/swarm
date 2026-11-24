@@ -31,8 +31,8 @@ import {
   DEAD_AGENT_STATUSES,
   deriveLiveAt,
   isExitAfterDone,
-  type WorkState,
 } from "@codecast/shared/contracts";
+import { type WorkState } from "@codecast/sessions/workState";
 import type { PlanState } from "@codecast/shared/tasks";
 import { agentStatusAt, liveFactsOf } from "./liveness";
 import { apiErrorBadge } from "./apiErrorBadge";

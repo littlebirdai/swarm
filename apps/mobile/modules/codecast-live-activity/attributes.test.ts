@@ -4,7 +4,7 @@ import { join } from "node:path";
 import {
   LIVE_ACTIVITY_ATTRIBUTES_TYPE,
   LIVE_ACTIVITY_SCHEMA_VERSION,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveActivity";
 
 // The ActivityAttributes struct exists twice on purpose (the app's native
 // module and the widget extension cannot share a pod), and ActivityKit

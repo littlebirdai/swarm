@@ -37,7 +37,7 @@ import {
   LIVENESS_VERDICTS,
   authorizesTeardown,
   confineToOwningDevice,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveness";
 import {
   shouldMarkSessionCompleted,
   staleSessionVerdictFromProbe,
@@ -53,7 +53,11 @@ import { authorizesReap } from "./browser/engineReap.js";
 import type { InstanceState } from "./browser/instance.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOTS = [HERE, path.resolve(HERE, "../../../packages/shared/contracts")];
+const ROOTS = {
+  "": HERE,
+  contracts: path.resolve(HERE, "../../../packages/shared/contracts"),
+  sessions: path.resolve(HERE, "../../../packages/sessions/src"),
+};
 
 /** Functions whose result IS a LivenessVerdict. */
 const VERDICT_PRODUCERS = [
@@ -80,7 +84,7 @@ const TEARDOWN_VERBS = [
 
 /** Files allowed to compare verdict literals, each with the reason. */
 const ALLOWED_COMPARISON: Record<string, string> = {
-  "contracts/liveness.ts":
+  "sessions/liveness.ts":
     "defines the vocabulary; authorizesTeardown and confineToOwningDevice are the comparisons everyone else reuses",
   "index.ts":
     "`cast accounts verify` grades a stored credential with its own ProfileAudit verdict, which borrows the word `unverifiable` and decides nothing about a process",
@@ -135,13 +139,9 @@ function walk(dir: string, out: string[] = []): string[] {
 
 function sources(): Array<{ rel: string; text: string }> {
   const out: Array<{ rel: string; text: string }> = [];
-  for (const root of ROOTS) {
+  for (const [prefix, root] of Object.entries(ROOTS)) {
     for (const file of walk(root)) {
-      // Shared contracts keep their directory so the two roots never collide.
-      const rel =
-        root === HERE
-          ? path.relative(HERE, file)
-          : path.join("contracts", path.relative(root, file));
+      const rel = path.join(prefix, path.relative(root, file));
       out.push({ rel, text: fs.readFileSync(file, "utf8") });
     }
   }

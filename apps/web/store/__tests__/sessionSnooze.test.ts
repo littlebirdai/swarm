@@ -8,7 +8,7 @@ import { placeSections } from "./placeTestHarness";
 import {
   SESSION_SNOOZE_CHOICES,
   sessionSnoozeUntil,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/sessionSnooze";
 
 const now = Math.floor(Date.now() / 60_000) * 60_000;
 const id = "s".repeat(32);

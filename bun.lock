@@ -48,6 +48,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
+        "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
         "@codecast/team": "workspace:*",
@@ -124,6 +125,7 @@
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
+        "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
@@ -245,6 +247,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
+        "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
         "@codecast/team": "workspace:*",
@@ -313,6 +316,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
+        "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
         "@codecast/team": "workspace:*",
@@ -663,6 +667,13 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/sessions": {
+      "name": "@codecast/sessions",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/shared": {
       "name": "@codecast/shared",
       "version": "0.0.1",
@@ -677,6 +688,7 @@
         "@codecast/policy": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
+        "@codecast/sessions": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@platform/agent": "file:../../platform/packages/agent",
@@ -1137,6 +1149,8 @@
     "@codecast/pull-requests": ["@codecast/pull-requests@workspace:packages/pull-requests"],
 
     "@codecast/ratchet": ["@codecast/ratchet@workspace:packages/ratchet"],
+
+    "@codecast/sessions": ["@codecast/sessions@workspace:packages/sessions"],
 
     "@codecast/shared": ["@codecast/shared@workspace:packages/shared"],
 

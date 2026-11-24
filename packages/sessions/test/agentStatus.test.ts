@@ -5,7 +5,7 @@ import {
   isQuietSettled,
   isStatusTrustStale,
   STATUS_TRUST_TTL_MS,
-} from "./agentStatus";
+} from "../src/agentStatus";
 
 // isStatusTrustStale is the single staleness predicate shared by the inbox
 // bucket (categorizeSessions) and every UI "working" dot (GlobalSessionPanel

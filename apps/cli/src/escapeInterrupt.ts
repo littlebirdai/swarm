@@ -16,7 +16,7 @@
 //   process, and a double Escape at an idle pane opens the Rewind dialog, so
 //   nothing is sent unless a turn is provably running.
 
-import { MID_TURN_AGENT_STATUSES } from "@codecast/shared/contracts";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 
 // A press older than this is a leftover: a parked command from a closed laptop,
 // a row an offline owner picks up hours later. Whatever it meant to stop is over.

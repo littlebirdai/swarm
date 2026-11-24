@@ -37,15 +37,18 @@ import { uploadBlobToStorage } from "../lib/uploadBlob";
 import { textareaCaretRect } from "../lib/textareaCaret";
 import {
   classifyApiErrorBanner,
-  ACTIVE_AGENT_STATUSES,
   isHostedAgentType,
-  type AgentStatus,
 } from "@codecast/shared/contracts";
+import {
+  ACTIVE_AGENT_STATUSES,
+  type AgentStatus,
+} from "@codecast/sessions/agentStatus";
 import { useRunnerSilence } from "../hooks/useRunnerSilence";
 import { HOSTED_IMAGE_REFUSAL } from "@codecast/shared/contracts/assistant";
 import { useLimitRecovery } from "../hooks/useLimitRecovery";
 import { useCoarseNow, useNowWhen } from "../hooks/useCoarseNow";
-import { formatCountdown, HIBERNATED_COPY } from "@codecast/shared/contracts";
+import { formatCountdown } from "@codecast/shared/contracts";
+import { HIBERNATED_COPY } from "@codecast/sessions/hibernation";
 import { parseLimitResetAt } from "../lib/limitReset";
 import {
   pendingImageUploads,

@@ -5,10 +5,10 @@
 // producing, a trigger or /loop and its countdown), or says plainly that
 // nothing is scheduled and when the row comes back to the person.
 import {
-  DORMANT_CLAIM_TTL_MS,
   threadStateRows,
   threadStateHeadline,
 } from "@codecast/shared/contracts";
+import { DORMANT_CLAIM_TTL_MS } from "@codecast/sessions/agentStatus";
 import type { InboxSession } from "../../store/inboxStore";
 import { fmtClock, fmtDuration } from "../triggerCadence";
 import {

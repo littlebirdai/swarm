@@ -28,8 +28,8 @@ import {
   agentSpokenNames,
   callSpeakerName,
   isAgentFaceIdentity,
-  MID_TURN_AGENT_STATUSES,
 } from "@codecast/shared/contracts";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { agentStatusAt } from "../liveness";
 import { useInboxStore } from "../../store/inboxStore";
 import { characterFor } from "../sessionIdentity";

@@ -23,7 +23,7 @@
  */
 
 import { mapLimit } from "@codecast/async";
-import { MID_TURN_AGENT_STATUSES } from "@codecast/shared/contracts";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import type { MoveRehearsal } from "@codecast/shared/contracts/moveRehearsal";
 
 export type RowDirection = "to_cloud" | "to_local";

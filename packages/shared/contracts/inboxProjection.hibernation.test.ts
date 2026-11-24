@@ -4,7 +4,7 @@ import {
   ACTIVE_AGENT_STATUSES,
   STATUS_TRUST_TTL_MS,
   trustedAgentStatus,
-} from "./agentStatus";
+} from "@codecast/sessions/agentStatus";
 import {
   classifyWorkState,
   DEAD_AGENT_STATUSES,
@@ -12,7 +12,7 @@ import {
   placeInboxRow,
   type InboxPlacementInput,
 } from "./inboxProjection";
-import { HIBERNATED_COPY, isHibernated } from "./hibernation";
+import { HIBERNATED_COPY, isHibernated } from "@codecast/sessions/hibernation";
 
 const base = {
   agentStatus: "hibernated",

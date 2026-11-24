@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sessionCommandOutcome } from "./hibernation";
+import { sessionCommandOutcome } from "../src/hibernation";
 
 describe("intentional hibernation", () => {
   test("command completion distinguishes acknowledgment, refusal, failure and unknown", () => {

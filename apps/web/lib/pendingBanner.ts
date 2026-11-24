@@ -8,12 +8,12 @@
 // there would interrupt and discard live work. Only when the agent is genuinely idle
 // (or gone) and STILL hasn't taken the message is a restart the right escalation.
 
-import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/shared/contracts";
+import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/sessions/pendingStatus";
 import {
-  MID_TURN_AGENT_STATUSES,
   isRecoveryContinueClientId,
   isSessionMessage,
 } from "@codecast/shared/contracts";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 
 export type LiveAgentStatus =
   | "working"

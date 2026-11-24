@@ -2,17 +2,15 @@ import type { Doc } from "./_generated/dataModel";
 // Single source of truth for the "agent is actively producing" set and the
 // stale-status trust TTL. Re-exported so existing `from "./inboxFilters"`
 // importers (incl. the tests) keep working unchanged.
+import { isSessionIdle, isUnservedSession } from "@codecast/shared/contracts";
 import {
   ACTIVE_AGENT_STATUSES,
   TRUST_DECAYING_STATUSES,
   DECLARED_VERDICT_STATUSES,
   STATUS_TRUST_TTL_MS,
   AGENT_IDLE_GRACE_MS,
-  WORK_STATES,
-  isSessionIdle,
-  isUnservedSession,
-  type WorkState,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
+import { WORK_STATES, type WorkState } from "@codecast/sessions/workState";
 
 export {
   ACTIVE_AGENT_STATUSES,
@@ -490,13 +488,13 @@ export {
   isSettleVerdictCurrent,
 } from "@codecast/shared/contracts";
 
-// The `--state` filter vocabulary lives in shared/contracts/workState.ts so the
+// The `--state` filter vocabulary lives in packages/sessions/src/workState.ts so the
 // CLI rejects a value the server would ignore. Re-exported for existing importers.
 export {
   normalizeWorkStateFilter,
   WORK_STATE_FILTERS,
   type WorkStateFilter,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/workState";
 
 // The "waiting" flavor behind a needs_input verdict — the server mirror of the
 // web's waitingSoundKey kind (useSyncInboxSessions), so the needs-input push
@@ -540,8 +538,10 @@ export const ROUTE_UP_STALL_GRACE_MS = 2 * 60_000;
 // is_idle from replicated facts at any instant, so the rule has ONE home).
 // Re-exported so existing `from "./inboxFilters"` importers keep working.
 export {
-  HEARTBEAT_ALIVE_MS,
-  trustedAgentStatus,
   isSessionIdle,
   type SessionIdleInput,
 } from "@codecast/shared/contracts";
+export {
+  HEARTBEAT_ALIVE_MS,
+  trustedAgentStatus,
+} from "@codecast/sessions/agentStatus";

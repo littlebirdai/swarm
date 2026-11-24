@@ -8,10 +8,8 @@
 // Every word this file returns is shown to someone who has never used a
 // developer tool: no agent, session, model, token, repo or device.
 
-import {
-  ACTIVE_AGENT_STATUSES,
-  isHostedAgentType,
-} from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { ASKS } from "./assistantPromise";
 export { ASKS };
 import {

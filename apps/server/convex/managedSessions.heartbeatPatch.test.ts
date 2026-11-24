@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { HEARTBEAT_FLUSH_INTERVAL_MS } from "@codecast/shared/contracts";
+import { HEARTBEAT_FLUSH_INTERVAL_MS } from "@codecast/sessions/agentStatus";
 import { makeFakeDb } from "./testDb";
 import { heartbeatBatch } from "./managedSessions";
 import { buildHeartbeatPatch } from "./lib/heartbeatPatch";

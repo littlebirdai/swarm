@@ -3,13 +3,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  DORMANT_CLAIM_TTL_MS,
-  HEARTBEAT_ALIVE_MS,
-  STATUS_TRUST_TTL_MS,
   deriveLiveAt,
   placeProjectableRow,
   type ProjectableInboxRow,
 } from "@codecast/shared/contracts";
+import {
+  DORMANT_CLAIM_TTL_MS,
+  HEARTBEAT_ALIVE_MS,
+  STATUS_TRUST_TTL_MS,
+} from "@codecast/sessions/agentStatus";
 import {
   acquireSessionProcessOwnership,
   findSessionFile,

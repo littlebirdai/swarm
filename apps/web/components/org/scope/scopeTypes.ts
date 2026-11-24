@@ -3,7 +3,7 @@
 // `org.brief` return these shapes; the page paints from them. Types live here
 // so the fixture, the hooks and the tabs agree on one definition.
 import type { GoalProgress } from "@codecast/shared/contracts/roleGoals";
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import type { RoleWake } from "@codecast/shared/contracts/rolePlaybook";
 import type { OrgReportsTo, StateCounts } from "../orgTypes";
 import { INITIATIVE_ACCENT } from "../../../lib/initiativeColors";

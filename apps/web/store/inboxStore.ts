@@ -234,11 +234,9 @@ import {
   type GestureMessage,
 } from "./gestureBridge";
 // Single source of truth for the agent-status contract, shared with the Convex
-// backend and the CLI daemon. See packages/shared/contracts/agentStatus.ts.
+// backend and the CLI daemon. See packages/sessions/src/agentStatus.ts.
 import { ECHO_SKEW_MS } from "../lib/pendingBanner";
 import {
-  type AgentStatus,
-  ACTIVE_AGENT_STATUSES,
   cascadeTakesDownRow,
   isClosedSession,
   CONVERSATION_FIELD_TWINS,
@@ -259,6 +257,10 @@ import {
   settingsAfterSnippet,
   type DeviceSnippetChange,
 } from "@codecast/shared/contracts";
+import {
+  type AgentStatus,
+  ACTIVE_AGENT_STATUSES,
+} from "@codecast/sessions/agentStatus";
 import {
   managedIdsAfter,
   type ProviderKeyCommand,
@@ -299,17 +301,19 @@ import {
   rowArmedHomes,
   DEAD_AGENT_STATUSES,
   WORKING_SET_RECENCY_MS,
-  isSessionUnread,
   guestIdentity,
-  type SessionActivityFacts,
   type InboxBucket,
   type InboxTally,
   type InboxTruncation,
   type InboxSortTime,
   type ProjectableInboxRow,
   type WorkingSetRow,
-  type WorkState,
 } from "@codecast/shared/contracts";
+import {
+  isSessionUnread,
+  type SessionActivityFacts,
+} from "@codecast/sessions/sessionRead";
+import { type WorkState } from "@codecast/sessions/workState";
 // The declared overlays — the ONLY sanctioned local deviations from the shared
 // projection (sync-convergence C5). Bounds live with the enumeration.
 import {
@@ -357,11 +361,11 @@ import {
 import type {
   LocalMirror,
   MergeBackStatus,
-  OpenTaskReport,
   SessionActivity,
   SubagentCaps,
   SubagentSlot,
 } from "@codecast/shared/contracts";
+import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import {
   cascadeFromAnswer,
   permissionRuleKey,

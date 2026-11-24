@@ -4,7 +4,7 @@ import {
   isSessionUnread,
   sessionActivityAt,
   shouldAcknowledge,
-} from "./sessionRead";
+} from "../src/sessionRead";
 
 // The whole read model is this one comparison, so these cases ARE the spec.
 describe("isSessionUnread", () => {

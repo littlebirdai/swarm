@@ -1,4 +1,4 @@
-import { HIBERNATED_COPY, isHibernated } from "@codecast/shared/contracts";
+import { HIBERNATED_COPY, isHibernated } from "@codecast/sessions/hibernation";
 
 export function HibernatedMarker({
   status,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DORMANT_CLAIM_TTL_MS } from "@codecast/shared/contracts";
+import { DORMANT_CLAIM_TTL_MS } from "@codecast/sessions/agentStatus";
 import { dormantWakeOf } from "./dormantWake";
 import type { TriggerRow } from "../triggerTasks";
 

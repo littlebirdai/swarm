@@ -6,7 +6,7 @@ One iOS Live Activity per phone shows every live session's work state. The serve
 
 | Piece                   | Where                                                                                           | Owns                                                                                                            |
 | ----------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Wire contract and merge | `packages/shared/contracts/liveActivity.ts`                                                     | The content state shape, the ordering (waiting, failed, done, working), the linger clocks, the change keys      |
+| Wire contract and merge | `packages/sessions/src/liveActivity.ts`                                                         | The content state shape, the ordering (waiting, failed, done, working), the linger clocks, the change keys      |
 | Swift twin              | `apps/mobile/targets/widget/CodecastActivityAttributes.swift` and its copy in the native module | The same struct, decoded by name (`attributes-type`)                                                            |
 | Refresh and push        | `apps/server/convex/liveActivity.ts`                                                            | Session collection, the pure start / update / end / wait decision, the APNs send                                |
 | Refresh scheduling      | `apps/server/convex/lib/liveActivityRefresh.ts`                                                 | One job per user; write sites call it                                                                           |

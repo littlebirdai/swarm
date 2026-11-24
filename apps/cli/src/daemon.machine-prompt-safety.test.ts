@@ -9,7 +9,7 @@ import {
   AGENT_CLIENTS,
   localAgentClient,
 } from "../../../packages/shared/contracts/agentClients";
-import { authorizesTeardown } from "../../../packages/shared/contracts/liveness";
+import { authorizesTeardown } from "@codecast/sessions/liveness";
 import {
   isClaudeAutoContinueLine,
   isRecoveryContinueClientId,

@@ -3,7 +3,6 @@ import { internalMutation } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
-  ACTIVE_AGENT_STATUSES,
   WORKER_SETTLE_WORDS,
   formatScheduledTask,
   isToolResultCarrier,
@@ -11,6 +10,7 @@ import {
   threadStateFreshness,
   threadStateHeadline,
 } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { isUserMessageNoise, stripMessageTags } from "./lib/userSend";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { drainFleet } from "./subagentFleet";

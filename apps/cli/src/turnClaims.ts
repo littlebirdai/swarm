@@ -17,11 +17,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import {
-  MID_TURN_AGENT_STATUSES,
   authorizesTeardown,
   type LivenessVerdict,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveness";
 import type { PendingMessageOutcome } from "./tmuxDeliveryJournal.js";
 import {
   REVIVE_BUDGET,

@@ -8,10 +8,8 @@ import {
   isClaudeAutoContinueLine,
   localAgentClient,
 } from "@codecast/shared/contracts";
-import type {
-  AgentClientId,
-  LivenessVerdict,
-} from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/shared/contracts";
+import type { LivenessVerdict } from "@codecast/sessions/liveness";
 import {
   isComposerRow,
   limitDialogOnPane,

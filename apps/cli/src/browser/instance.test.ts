@@ -25,7 +25,7 @@ import {
   chromeLaunchArgs,
   chromeLogTail,
 } from "./instance.js";
-import { authorizesTeardown } from "@codecast/shared/contracts";
+import { authorizesTeardown } from "@codecast/sessions/liveness";
 import { browserHome } from "./profile.js";
 
 const cleanups: Array<() => void> = [];

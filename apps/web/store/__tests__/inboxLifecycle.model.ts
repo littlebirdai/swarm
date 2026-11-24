@@ -31,7 +31,7 @@ import {
   DORMANT_CLAIM_TTL_MS,
   HEARTBEAT_ALIVE_MS,
   STATUS_TRUST_TTL_MS,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import { PENDING_SEND_WORKING_TTL_MS } from "../inboxOverlays";
 import { LIVENESS_SUSPEND_GAP_MS } from "../../hooks/livenessHold";
 

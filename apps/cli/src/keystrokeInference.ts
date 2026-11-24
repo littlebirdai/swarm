@@ -27,7 +27,7 @@ import {
   MID_TURN_AGENT_STATUSES,
   STATUS_TRUST_TTL_MS,
   type AgentStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import fs from "fs";
 import path from "path";
 import { isSafeStatusSessionId } from "./statusSpool.js";

@@ -1,11 +1,13 @@
 import type { Doc, Id } from "./_generated/dataModel";
 import {
-  ACTIVE_AGENT_STATUSES,
-  MID_TURN_AGENT_STATUSES,
   commandsSession,
   isClosedSession,
   localAgentTypeOf,
 } from "@codecast/shared/contracts";
+import {
+  ACTIVE_AGENT_STATUSES,
+  MID_TURN_AGENT_STATUSES,
+} from "@codecast/sessions/agentStatus";
 import {
   enqueuePendingMessage,
   releaseQueuedForUser,

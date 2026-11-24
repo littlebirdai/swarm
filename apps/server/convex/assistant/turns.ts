@@ -60,10 +60,8 @@ import {
   type PlanSpec,
   type TurnReason,
 } from "@codecast/shared/contracts/assistant";
-import {
-  isHostedAgentType,
-  type AgentStatus,
-} from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/shared/contracts";
+import { type AgentStatus } from "@codecast/sessions/agentStatus";
 import {
   internalAction,
   internalMutation,

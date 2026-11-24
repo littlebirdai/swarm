@@ -46,7 +46,7 @@ import {
 import { acquireFileLock } from "../lockFile.js";
 import { linuxDisplayPlan } from "./hostScreen.js";
 import { desktopSession } from "../computer/desktopSession.js";
-import type { LivenessVerdict } from "@codecast/shared/contracts";
+import type { LivenessVerdict } from "@codecast/sessions/liveness";
 
 export interface InstanceState {
   pid: number;

@@ -9,9 +9,10 @@ import {
   agentDisplayName,
   threadStateHeadline,
   parseThreadStateStatus,
-  sessionLivenessVerdict,
 } from "@codecast/shared/contracts";
-import type { AskResult, LivenessVerdict } from "@codecast/shared/contracts";
+import { sessionLivenessVerdict } from "@codecast/sessions/liveness";
+import type { AskResult } from "@codecast/shared/contracts";
+import type { LivenessVerdict } from "@codecast/sessions/liveness";
 import {
   parseToolInput,
   extractFileChanges,

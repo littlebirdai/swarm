@@ -2,27 +2,14 @@
 // the single source of truth shared by the Convex backend, the Node daemon, and
 // the browser. PURE isomorphic data only — no Node or DOM APIs — so the Convex
 // runtime can import them.
-export * from "./agentStatus";
-export * from "./liveness";
-export * from "./hibernation";
-export * from "./openTasks";
-export * from "./pendingStatus";
 export * from "./agentClients";
 export * from "./agentPins";
 export * from "./executionBinding";
 export * from "./modelOptions";
 export * from "./agentDefinitions";
-export * from "./workState";
 // The needs-input digest: the window, the wording and the row grouping, shared
 // by the Convex fold-up and the web bell so both name the same set.
 export * from "./idleDigest";
-// The Lock Screen Live Activity wire contract and the merge that produces it,
-// shared by Convex (the pusher) and the app (the local starter).
-export * from "./liveActivity";
-// Session unread: one predicate over (acknowledged_at, conversations.updated_at)
-// so web, mobile and the CLI light the same cards.
-export * from "./sessionRead";
-export * from "./loopState";
 export * from "./closedSession";
 export * from "./taskStats";
 export * from "./threadState";
@@ -112,11 +99,6 @@ export * from "./triggerLifecycle";
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static
 // graph, so a re-export here is paid by `cast --help`.
 
-export {
-  SESSION_SNOOZE_CHOICES,
-  sessionSnoozeUntil,
-  type SessionSnoozeKey,
-} from "./sessionSnooze";
 export * from "./unattended";
 export * from "./handoffPrompt";
 export type { AskResult, SideAnswerRow } from "./sessionAsk";

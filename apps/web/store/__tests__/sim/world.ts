@@ -19,7 +19,8 @@
 // principal views) a deployed mutation gets.
 
 import { v } from "convex/values";
-import { inboxEpoch, type AgentStatus } from "@codecast/shared/contracts";
+import { inboxEpoch } from "@codecast/shared/contracts";
+import { type AgentStatus } from "@codecast/sessions/agentStatus";
 import { type TeamFeatures } from "@codecast/policy/teamFeatures";
 import {
   GEN_MIN,

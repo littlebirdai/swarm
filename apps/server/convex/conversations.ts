@@ -66,10 +66,8 @@ import {
 import { applyHideTransition, cascadeHideToNestedChildren } from "./cleanup";
 import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type {
-  AgentStatus,
-  ThreadStateStatus,
-} from "@codecast/shared/contracts";
+import type { ThreadStateStatus } from "@codecast/shared/contracts";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import {
   PATCHABLE_CONVERSATION_FIELDS,
   forkSeedClientId,
@@ -78,8 +76,6 @@ import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { normalizeCharacterFields } from "@codecast/shared/contracts/sessionCharacter";
 import { isHotRow, splitRows } from "@codecast/shared/contracts/inboxSplit";
 import {
-  openTasksVouchForWaiting,
-  LOOP_OVERDUE_GRACE_MS,
   computeBucketStale,
   digestProjection,
   inboxEpoch,
@@ -112,6 +108,8 @@ import {
   type InboxTruncation,
   type SessionActivity,
 } from "@codecast/shared/contracts";
+import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
+import { LOOP_OVERDUE_GRACE_MS } from "@codecast/sessions/loopState";
 import { Doc, Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./rateLimit";
 import { verifyApiToken } from "./apiTokens";

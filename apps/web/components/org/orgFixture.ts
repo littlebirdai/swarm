@@ -1,7 +1,7 @@
 // A typed org tree matching S3 exactly. Used for the empty state preview and
 // the layout tests. Ids and ordering are deterministic; timestamps hang off the
 // hour the module loaded so the relative ages read as recent.
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import {
   countStates,
   sortOrgSessions,

@@ -1,4 +1,4 @@
-import type { OpenTaskKind } from "@codecast/shared/contracts";
+import type { OpenTaskKind } from "@codecast/sessions/openTasks";
 
 // A background Agent's id follows its launch notice; its completion is a
 // task-notification under that id, like the others.

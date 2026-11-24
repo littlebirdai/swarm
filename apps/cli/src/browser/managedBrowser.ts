@@ -50,7 +50,7 @@ import { fmt, icons } from "../colors.js";
 import { isReachable } from "./recovery.js";
 import { hostHasNoHumanChrome } from "./bridge/real.js";
 import { loadHostExtension } from "./hostExtension.js";
-import { authorizesTeardown } from "@codecast/shared/contracts";
+import { authorizesTeardown } from "@codecast/sessions/liveness";
 
 const OK = `${fmt.success(icons.check)}`;
 const WARN = `${fmt.warning("!")}`;

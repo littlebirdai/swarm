@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { STATUS_TRUST_TTL_MS } from "@codecast/shared/contracts";
+import { STATUS_TRUST_TTL_MS } from "@codecast/sessions/agentStatus";
 import { classifySession, type InboxSession } from "../inboxStore";
 import { orderSections, placeSections } from "./placeTestHarness";
 

@@ -5,7 +5,7 @@ import {
   DECLARED_VERDICT_STATUSES,
   MID_TURN_AGENT_STATUSES,
   SETTLE_VERDICT_STATUSES,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import * as policy from "../hibernation.js";
 import { functionBlock } from "./sourceRegion.js";
 import { withTmuxSession } from "../tmuxRoute.js";

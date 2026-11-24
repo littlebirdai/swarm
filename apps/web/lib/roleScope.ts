@@ -14,7 +14,7 @@
 // fields). A project's counts follow the ONE rule every surface uses
 // (shared/tasks isOnProjectBoard, projectTaskCounts): the rows its board
 // would show, under the project the task itself names. Pure: no React, no store.
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import { isOnProjectBoard } from "@codecast/shared/tasks";
 import {
   isWholeWorkspaceRole,

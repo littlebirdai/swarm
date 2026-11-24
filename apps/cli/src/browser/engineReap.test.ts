@@ -22,7 +22,7 @@ import {
   withEndedSession,
   type LiveOwners,
 } from "./engineReap.js";
-import type { LivenessVerdict } from "@codecast/shared/contracts";
+import type { LivenessVerdict } from "@codecast/sessions/liveness";
 import { writeBridgeState } from "./bridge/host.js";
 import { FakeExtension, testBridgeHost } from "./bridge/host.testutil.js";
 import { targetIdOfTab } from "./bridge/protocol.js";

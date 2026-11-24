@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { classifyWorkState, type WorkState } from "@codecast/shared/contracts";
+import { classifyWorkState } from "@codecast/shared/contracts";
+import { type WorkState } from "@codecast/sessions/workState";
 import { agentStatusAt } from "../../lib/liveness";
 import {
   classifySession,

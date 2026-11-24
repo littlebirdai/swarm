@@ -5,7 +5,7 @@ import {
   confineToOwningDevice,
   verdictFromProbe,
   sessionLivenessVerdict,
-} from "./liveness";
+} from "../src/liveness";
 
 describe("authorizesTeardown", () => {
   test("only a positive exit authorizes a teardown", () => {

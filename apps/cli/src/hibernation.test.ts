@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import {
   MID_TURN_AGENT_STATUSES,
   type AgentStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import {
   DEFAULT_HIBERNATE_IDLE_MS,
   DEFAULT_MAX_LIVE_SESSIONS,

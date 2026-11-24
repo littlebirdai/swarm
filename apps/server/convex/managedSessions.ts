@@ -17,11 +17,11 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { Doc, Id } from "./_generated/dataModel";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
+import { isHostedAgentType } from "@codecast/shared/contracts";
 import {
   AGENT_STATUSES,
   ACTIVE_AGENT_STATUSES,
-  isHostedAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import { openTaskValidator } from "./lib/openTasksValidator";
 import { internal } from "./_generated/api";
 import {

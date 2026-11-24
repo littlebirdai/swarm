@@ -19,11 +19,11 @@ export {
 };
 import { routeUpHears, routeUpWaitingSession } from "./agentTasks";
 import {
-  openTasksVouchForWaiting,
   IDLE_DIGEST_WINDOW_MS,
   summarizeIdleDigest,
   isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import { v } from "convex/values";
 import { commentIdValidator } from "./lib/conversationCommentRows";
 import { internal } from "./_generated/api";

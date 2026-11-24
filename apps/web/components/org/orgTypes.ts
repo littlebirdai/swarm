@@ -2,7 +2,7 @@
 // `org.tree` returns this shape; the page paints it from the `orgTree` store
 // singleton. Types live here so the fixture, the layout, the cards and the
 // store slice all agree on one definition.
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import type { OrgTenureSpec } from "@codecast/shared/contracts/orgProposal";
 import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
 import type { RoleFailover } from "@codecast/shared/contracts/roleFailover";

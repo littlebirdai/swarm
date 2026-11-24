@@ -28,10 +28,8 @@
 //      completed/failed notification keyed by the original tool-use-id.
 //   Plus a TaskStop tool_use naming the task id → "stopped".
 
-import {
-  AGENT_IDLE_GRACE_MS,
-  type OpenTaskReport,
-} from "@codecast/shared/contracts";
+import { AGENT_IDLE_GRACE_MS } from "@codecast/sessions/agentStatus";
+import { type OpenTaskReport } from "@codecast/sessions/openTasks";
 import { agentStatusAt } from "../lib/liveness";
 
 export type MonitorStatus = "watching" | "ended" | "timed_out" | "stopped";

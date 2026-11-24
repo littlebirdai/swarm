@@ -28,11 +28,11 @@ import {
 } from "./config/managedPolicy.js";
 import { currentTranscriptDeadline } from "./workers/ingestDeadline.js";
 import type {
-  OpenTaskReport,
-  AgentStatus,
   TriggerFiringSource,
   TriggerPrecheckResult,
 } from "@codecast/shared/contracts";
+import type { OpenTaskReport } from "@codecast/sessions/openTasks";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import { withoutDeliveryId } from "@codecast/shared/contracts";
 import { argumentValidationProblem } from "@codecast/convex-errors/convexErrors";
 import type { DeliveryEchoLedger } from "./deliveryEchoLedger.js";

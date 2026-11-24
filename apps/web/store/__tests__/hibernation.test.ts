@@ -9,7 +9,7 @@ import {
   hibernationCandidate,
   hibernationResultCounts,
 } from "../../lib/hibernation";
-import { sessionCommandOutcome } from "@codecast/shared/contracts";
+import { sessionCommandOutcome } from "@codecast/sessions/hibernation";
 
 const owner = {};
 afterEach(() => {

@@ -4,7 +4,7 @@
 // store shots mode (./flag), after the SQLite cache has hydrated so the cache
 // cannot merge stale rows over it.
 
-import { deriveLiveActivityState } from "@codecast/shared/contracts";
+import { deriveLiveActivityState } from "@codecast/sessions/liveActivity";
 import {
   placeAcmeInbox,
   seedAcmeWorld,

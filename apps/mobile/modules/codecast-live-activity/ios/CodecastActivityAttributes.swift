@@ -1,4 +1,4 @@
-// The wire contract with the server (packages/shared/contracts/liveActivity.ts).
+// The wire contract with the server (packages/sessions/src/liveActivity.ts).
 //
 // ActivityKit matches a push-to-start payload to this struct BY NAME
 // (`attributes-type`), and decodes `content-state` with a plain Codable, so

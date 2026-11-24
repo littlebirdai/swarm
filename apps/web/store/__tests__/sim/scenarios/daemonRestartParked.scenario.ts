@@ -9,7 +9,7 @@
 // INV-followers), and the armed trigger stays consistent with its session
 // (INV-triggers).
 
-import { HEARTBEAT_ALIVE_MS } from "@codecast/shared/contracts";
+import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
 import { scenario, type ScenarioWorld } from "../dsl";
 import { daemonDeviceFor } from "../world";
 

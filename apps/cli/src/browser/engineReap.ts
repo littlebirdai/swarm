@@ -46,7 +46,7 @@ import { CdpConnection, readCdpJson, type CdpEndpoint } from "./cdp.js";
 import {
   authorizesTeardown,
   type LivenessVerdict,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveness";
 import { bridgeEndpointIfConfigured, engineBrowserFor } from "./bridge/real.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
@@ -130,7 +130,7 @@ function isAlive(pid: number): boolean {
 /**
  * How to tell whether the agent behind a session key is still around.
  *
- * Answers in the tree's one liveness vocabulary (contracts/liveness.ts): `live`
+ * Answers in the tree's one liveness vocabulary (packages/sessions/src/liveness.ts): `live`
  * is positive contact, `exited` an observed absence, `unverifiable` a question
  * this machine could not answer.
  *

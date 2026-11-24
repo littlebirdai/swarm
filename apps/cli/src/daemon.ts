@@ -47,27 +47,20 @@ import {
   tmuxDeliveryJournal,
 } from "./tmuxDeliveryJournal.js";
 import {
-  ACTIVE_AGENT_STATUSES,
   AGENT_CLIENTS,
   LOCAL_AGENT_CLIENTS,
   RESUME_BURST_SPACING_MS,
   CODEX_EFFORT_LEVELS,
-  DECLARED_VERDICT_STATUSES,
-  HEARTBEAT_FLUSH_INTERVAL_MS,
-  MID_TURN_AGENT_STATUSES,
-  SETTLE_VERDICT_STATUSES,
   SNIPPET_CATALOG,
   STABLE_ENV_CONVERSATION_ID,
   STABLE_ENV_EXCLUDE,
   STABLE_ENV_MODE,
   agentForksNatively,
   agentReconstitutes,
-  authorizesTeardown,
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncOn,
   classifyApiErrorBanner,
   isCloudAgentActionName,
-  confineToOwningDevice,
   findModelOption,
   fromConvexAgentType,
   modelOptionKey,
@@ -81,13 +74,24 @@ import {
   MACHINE_SETTINGS,
   machineSettingValues,
   snippetBySlug,
-  verdictFromProbe,
   worktreeOfPath,
   localAgentClient,
   isHostedAgentType,
 } from "@codecast/shared/contracts";
 import { isValidPaneTarget } from "@codecast/daemon/terminalStream";
 import { isValidBrowserStreamKey } from "@codecast/browser/browserStream";
+import {
+  ACTIVE_AGENT_STATUSES,
+  DECLARED_VERDICT_STATUSES,
+  HEARTBEAT_FLUSH_INTERVAL_MS,
+  MID_TURN_AGENT_STATUSES,
+  SETTLE_VERDICT_STATUSES,
+} from "@codecast/sessions/agentStatus";
+import {
+  authorizesTeardown,
+  confineToOwningDevice,
+  verdictFromProbe,
+} from "@codecast/sessions/liveness";
 import {
   CLOUD_START_RUN_MS,
   canonicalSlashCommand,
@@ -1171,15 +1175,15 @@ import type {
   AgentDefinitionSpec,
   CloudSessionSource,
   AgentPaneReadiness,
-  AgentStatus,
   DeviceSnippetSettings,
-  LivenessVerdict,
   MachineSettingValues,
-  OpenTaskReport,
   PaneTerminalModes,
   ResourceProcess,
   StableLaunchPrefs,
 } from "@codecast/shared/contracts";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
+import type { LivenessVerdict } from "@codecast/sessions/liveness";
+import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import type { HeartbeatTeamPolicy } from "@codecast/policy/managedPolicy";
 import { planGatedSnippets } from "./gatedSnippets";
 import { readThreadStateStamp } from "./threadStateStamp.js";

@@ -3468,7 +3468,7 @@
     "swarm/no-comments": 35
   },
   "apps/cli/src/liveness.guard.test.ts": {
-    "swarm/no-comments": 83
+    "swarm/no-comments": 82
   },
   "apps/cli/src/loadGovernor.test.ts": {
     "swarm/no-comments": 7
@@ -28978,6 +28978,36 @@
   "packages/ratchet/test/ratchet.test.ts": {
     "swarm/no-comments": 9
   },
+  "packages/sessions/src/agentStatus.ts": {
+    "swarm/no-comments": 231
+  },
+  "packages/sessions/src/liveActivity.ts": {
+    "swarm/no-comments": 58
+  },
+  "packages/sessions/src/liveness.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/sessions/src/loopState.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/sessions/src/openTasks.ts": {
+    "swarm/no-comments": 27
+  },
+  "packages/sessions/src/pendingStatus.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/sessions/src/sessionRead.ts": {
+    "swarm/no-comments": 43
+  },
+  "packages/sessions/src/workState.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/sessions/test/agentStatus.test.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/sessions/test/sessionRead.test.ts": {
+    "swarm/no-comments": 27
+  },
   "packages/shared/changes/__fixtures__/commit.ts": {
     "swarm/no-comments": 2
   },
@@ -29067,12 +29097,6 @@
   },
   "packages/shared/contracts/agentPins.ts": {
     "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/agentStatus.test.ts": {
-    "swarm/no-comments": 22
-  },
-  "packages/shared/contracts/agentStatus.ts": {
-    "swarm/no-comments": 231
   },
   "packages/shared/contracts/agentSwitch.ts": {
     "swarm/no-comments": 13
@@ -29420,7 +29444,7 @@
     "swarm/no-comments": 27
   },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 49
+    "swarm/no-comments": 42
   },
   "packages/shared/contracts/ingest.ts": {
     "swarm/no-comments": 80
@@ -29497,17 +29521,8 @@
   "packages/shared/contracts/lineWords.ts": {
     "swarm/no-comments": 15
   },
-  "packages/shared/contracts/liveActivity.ts": {
-    "swarm/no-comments": 58
-  },
-  "packages/shared/contracts/liveness.ts": {
-    "swarm/no-comments": 20
-  },
   "packages/shared/contracts/localMirror.ts": {
     "swarm/no-comments": 17
-  },
-  "packages/shared/contracts/loopState.ts": {
-    "swarm/no-comments": 22
   },
   "packages/shared/contracts/machineMessages.bootstrap.test.ts": {
     "swarm/no-comments": 3
@@ -29577,9 +29592,6 @@
   },
   "packages/shared/contracts/openPlans.ts": {
     "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/openTasks.ts": {
-    "swarm/no-comments": 27
   },
   "packages/shared/contracts/orgAreas.test.ts": {
     "swarm/no-comments": 12
@@ -29682,9 +29694,6 @@
   },
   "packages/shared/contracts/peerTransport.ts": {
     "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/pendingStatus.ts": {
-    "swarm/no-comments": 10
   },
   "packages/shared/contracts/personAsk.test.ts": {
     "swarm/no-comments": 1
@@ -29848,12 +29857,6 @@
   "packages/shared/contracts/sessionProject.ts": {
     "swarm/no-comments": 27
   },
-  "packages/shared/contracts/sessionRead.test.ts": {
-    "swarm/no-comments": 27
-  },
-  "packages/shared/contracts/sessionRead.ts": {
-    "swarm/no-comments": 43
-  },
   "packages/shared/contracts/signalFingerprint.test.ts": {
     "swarm/no-comments": 5
   },
@@ -29961,9 +29964,6 @@
   },
   "packages/shared/contracts/weeklyCard.ts": {
     "swarm/no-comments": 35
-  },
-  "packages/shared/contracts/workState.ts": {
-    "swarm/no-comments": 29
   },
   "packages/shared/contracts/worktrees.ts": {
     "swarm/no-comments": 13

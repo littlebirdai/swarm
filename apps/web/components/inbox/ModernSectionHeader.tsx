@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import {
   SECTION_HEADER_STATUS,
   type SessionStatus,
