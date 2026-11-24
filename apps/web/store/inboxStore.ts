@@ -2539,7 +2539,7 @@ export type ClientUI = {
   // Files the reader has marked viewed on a pull request, by pull request id.
   // A reading mark, so it follows the person to every device.
   pr_viewed_files?: Record<string, string[]>;
-  // The conversation diff pane's base (shared/diff DiffBase), by conversation id.
+  // The conversation diff pane's base (@codecast/diff DiffBase), by conversation id.
   diff_base?: Record<
     string,
     "session" | "branch" | "commit" | "turn" | "review"

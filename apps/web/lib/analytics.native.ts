@@ -10,7 +10,7 @@ import { track as trackNative } from "@platform/analytics/native";
 import type {
   CodecastEventName,
   CodecastEventProps,
-} from "@codecast/shared/analytics";
+} from "@codecast/analytics";
 
 export function initAnalytics() {}
 export function identifyUser(

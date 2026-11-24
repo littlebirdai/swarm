@@ -179,9 +179,7 @@
     "./chat": "./chat/index.ts",
     "./comments": "./comments/index.ts",
     "./blame": "./blame/index.ts",
-    "./diff": "./diff/index.ts",
     "./ratchet": "./ratchet/index.ts",
-    "./analytics": "./analytics/index.ts",
     "./agents": "./agents/index.ts",
     "./search": "./search/index.ts",
     "./async": "./async/index.ts",
@@ -199,7 +197,6 @@
   "dependencies": {
     "@codecast/time": "workspace:*",
     "css-tree": "3.2.1",
-    "@platform/analytics": "file:../../platform/packages/analytics",
     "@platform/agent": "file:../../platform/packages/agent",
     "@platform/assistant": "file:../../platform/packages/assistant",
     "@platform/evals": "file:../../platform/packages/evals",

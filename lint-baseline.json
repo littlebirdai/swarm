@@ -28516,17 +28516,32 @@
   "infra/replay-player/src/worker.ts": {
     "swarm/no-comments": 51
   },
-  "packages/shared/agents/index.ts": {
-    "swarm/no-comments": 41
-  },
-  "packages/shared/analytics/events.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/analytics/events.ts": {
+  "packages/analytics/src/events.ts": {
     "swarm/no-comments": 47
   },
-  "packages/shared/analytics/replay.ts": {
+  "packages/analytics/src/replay.ts": {
     "swarm/no-comments": 5
+  },
+  "packages/analytics/test/events.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/diff/src/foldInputs.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/diff/src/index.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/diff/src/rangeFold.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/diff/test/foldInputs.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/diff/test/rangeFold.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/shared/agents/index.ts": {
+    "swarm/no-comments": 41
   },
   "packages/shared/artifacts/ask.ts": {
     "swarm/no-comments": 8
@@ -29916,21 +29931,6 @@
   },
   "packages/shared/contracts/worktrees.ts": {
     "swarm/no-comments": 13
-  },
-  "packages/shared/diff/foldInputs.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/diff/foldInputs.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/diff/index.ts": {
-    "swarm/no-comments": 21
-  },
-  "packages/shared/diff/rangeFold.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/diff/rangeFold.ts": {
-    "swarm/no-comments": 19
   },
   "packages/shared/docs/docs.test.ts": {
     "swarm/no-comments": 2

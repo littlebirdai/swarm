@@ -19,7 +19,7 @@ import {
   type FileChangeBody,
   type FileChangeRef,
 } from "./fileChanges/extractor";
-import { selectFoldInputs } from "@codecast/shared/diff";
+import { selectFoldInputs } from "@codecast/diff";
 import { bodyOf, readFileChangeBody } from "./lib/fileChangeBody";
 
 export { readFileChangeBody };
@@ -110,7 +110,7 @@ export async function readFileChangeBodies(
 /**
  * The changes a fold of the whole conversation reads, with their text, plus
  * every commit row. Same fold result as the full history at a fraction of
- * the bytes (shared/diff selectFoldInputs); `cast diff` and the web build
+ * the bytes (@codecast/diff selectFoldInputs); `cast diff` and the web build
  * that predates the split consume this. `truncated` means the budget cut
  * some bodies and the tree is missing files.
  */

@@ -19,7 +19,7 @@ import {
 import {
   CODECAST_EVENTS,
   POSTHOG_REPLAY_SAMPLE_RATE,
-} from "@codecast/shared/analytics";
+} from "@codecast/analytics";
 import { MOBILE_EVENTS } from "./mobileEvents";
 import { teamsHoldRegulatedData } from "@codecast/shared/contracts";
 import { useInboxStore } from "@codecast/web/store/inboxStore";

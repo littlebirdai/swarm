@@ -4,7 +4,7 @@ import {
   resolveOptOut,
   validateEvent,
 } from "@platform/analytics/catalog";
-import { CODECAST_EVENTS, TELEMETRY_DISABLED_VAR } from "./events";
+import { CODECAST_EVENTS, TELEMETRY_DISABLED_VAR } from "../src/events";
 
 const gate = () =>
   createTrackGate({ catalog: CODECAST_EVENTS, warn: () => {} });
