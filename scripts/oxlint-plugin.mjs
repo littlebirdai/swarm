@@ -1,4 +1,4 @@
-/* @license Adapted from get-bb/bb. See oxlint-plugin.LICENSE. */
+/* @license MIT. See oxlint-plugin.LICENSE. */
 import { isSemanticComment } from "./lib/semantic-comment.mjs";
 
 const blockingChildProcessCalls = new Set([

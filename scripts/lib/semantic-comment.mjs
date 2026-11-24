@@ -1,3 +1,4 @@
+/* @license MIT. See ../oxlint-plugin.LICENSE. */
 export function isSemanticComment(commentText) {
   const directive = commentText
     .replace(/^\/\/\/?/, "")
