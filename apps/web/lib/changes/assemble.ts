@@ -14,8 +14,8 @@ import type {
 import type {
   CommitCiState,
   QueueCommit,
-} from "@codecast/shared/contracts/deployTargets";
-import type { DeployReach } from "@codecast/shared/contracts/deployReach";
+} from "@codecast/deploys/deployTargets";
+import type { DeployReach } from "@codecast/deploys/deployReach";
 import { parseRepoObjectId } from "@codecast/shared/entities";
 import { commitPageHref, prPageHref, repoCompareHref } from "../repoView";
 import { deploysFocusHref } from "../deploys/focus";

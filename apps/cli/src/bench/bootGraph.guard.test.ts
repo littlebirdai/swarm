@@ -305,7 +305,7 @@ describe("command groups stay off the boot graph", () => {
       // on their main path (none brings another file): claudeConfigDirs.ts (the
       // CLAUDE_CONFIG_DIR projects dirs reconciliation.ts walks), shared/async
       // (the mapLimit knownValueRedaction.ts reads with instead of readdirSync),
-      // contracts/deployTargets.ts (workspace/manifest.ts's deploy targets), and
+      // packages/deploys/src/deployTargets.ts (workspace/manifest.ts's deploy targets), and
       // the barrels' contracts/slashCommand.ts and render/structuredMessage.ts.
       // 338 the same day, three leaves: contracts/vaultMessages.ts (the vault's
       // message tags, split out of the barrel's secrets contract), and
@@ -441,7 +441,7 @@ describe("command groups stay off the boot graph", () => {
       // +1 on 2026-11-01: the `herd take` subcommand registration in index.ts
       // (its module, herdCommand.ts, loads lazily).
       // 4465 on 2026-11-04, never re-pinned while the file count failed first:
-      // the five leaves of 335 (contracts/deployTargets.ts +11.4,
+      // the five leaves of 335 (packages/deploys/src/deployTargets.ts +11.4,
       // claudeConfigDirs.ts +3.2, slashCommand.ts +1.7, shared/async +0.9,
       // structuredMessage.ts +0.5), replayPlayer.ts (+3.3), formatter.ts and
       // knownValueRedaction.ts (+2 each), then the three leaves of 338:
@@ -675,7 +675,7 @@ describe("command groups stay off the boot graph", () => {
       // 493 on 2026-10-20, again after days no run reached this case: the
       // daemon's own modules (interactivePrompt.ts split out of daemon.ts,
       // heicImage, tmuxSuspendedAgent, pendingDeliveryBatches, threadQos,
-      // backgroundPriority, systemdDaemonUnit, localData) and contracts/lineDeploy.ts,
+      // backgroundPriority, systemdDaemonUnit, localData) and packages/deploys/src/lineDeploy.ts,
       // the profile leaf split out of deploys.ts so the line profile no longer
       // brings the deploy history (causeHistory.ts, changeCard.ts) along.
       // 494 on 2026-10-24: resumePlacement.ts, split out of daemon.ts for its
@@ -728,7 +728,7 @@ describe("command groups stay off the boot graph", () => {
       // (the held-send reason the daemon writes). All three are leaves the
       // delivery path calls directly; none is a command group.
       // 576 on 2026-11-08 (minus three that left: tmuxDeliveryTranscript.ts,
-      // workspace/deployTargetsFile.ts, contracts/deployTargets.ts). Thirty-nine
+      // workspace/deployTargetsFile.ts, packages/deploys/src/deployTargets.ts). Thirty-nine
       // arrived, none a command group: the Claude Agent SDK backend the daemon
       // builds in main (claudeSdk/backend, client, paths, pollAnswer, protocol,
       // select, session, switchBackend, all node-builtin leaves); browser/bridge

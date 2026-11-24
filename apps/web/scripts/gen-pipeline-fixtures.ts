@@ -25,7 +25,7 @@ import {
   LINE_DEPLOY_STEPS,
   type LineDeployProfile,
   type LineDeployStep,
-} from "../../../packages/shared/contracts/lineDeploy";
+} from "@codecast/deploys/lineDeploy";
 import type {
   Pipeline,
   PipelineFlow,

@@ -53,7 +53,7 @@ import changeCiConflict from "./templates/change/ci_conflict.md" with { type: "t
 import featureCast from "../../workflows/feature/workflow.cast" with { type: "text" };
 import planAutopilotCast from "../../workflows/plan-autopilot/workflow.cast" with { type: "text" };
 import { JUDGE_REVIEW_GRAPH } from "@codecast/shared/contracts/judgeReview";
-import { LINE_DEPLOY_GRAPH } from "@codecast/shared/contracts/lineDeploy";
+import { LINE_DEPLOY_GRAPH } from "@codecast/deploys/lineDeploy";
 import * as fs from "fs";
 import * as path from "path";
 

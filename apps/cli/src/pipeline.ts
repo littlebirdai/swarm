@@ -1,5 +1,5 @@
 // A repository's pipeline from its checkout (docs/architecture/pipeline.md
-// PL1, PL6; contracts/pipeline.ts): the change flow a session's Ship runs here
+// PL1, PL6; packages/deploys/src/pipeline.ts): the change flow a session's Ship runs here
 // and the release flow a deploy runs here, each as this checkout resolves it,
 // with each station's own/inherited mark read from variantChanges against the
 // library flow it extends, and the deploy targets a release goes out to.
@@ -14,7 +14,7 @@ import {
   LINE_DEPLOY_STEPS,
   type LineDeployProfile,
   type LineDeployStep,
-} from "@codecast/shared/contracts/lineDeploy";
+} from "@codecast/deploys/lineDeploy";
 import {
   EMPTY_RECENT,
   ownWords,
@@ -28,8 +28,8 @@ import {
   type PipelineStation,
   type PipelineTarget,
   type PipelineWho,
-} from "@codecast/shared/contracts/pipeline";
-import type { DeployTarget } from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/pipeline";
+import type { DeployTarget } from "@codecast/deploys/deployTargets";
 import type { FlowEditChange } from "@codecast/flows/flowEdit";
 import { targetDeployProfile } from "./lineDeploy.js";
 import { spawnSync } from "./proc.js";

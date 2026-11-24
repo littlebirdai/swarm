@@ -1,9 +1,6 @@
 // One change in every state the lifecycle draws (changes.md CH2), built at a
 // given `now`, for the tests that pin each state's word, tone and track.
-import type {
-  DeployReach,
-  TargetReach,
-} from "@codecast/shared/contracts/deployReach";
+import type { DeployReach, TargetReach } from "@codecast/deploys/deployReach";
 import type { ChangeFacts } from "./lifecycle";
 
 const MIN = 60_000;

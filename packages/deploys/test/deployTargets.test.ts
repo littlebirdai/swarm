@@ -12,7 +12,7 @@ import {
   releaseOrder,
   targetFromLineDeploy,
   type QueueCommit,
-} from "./deployTargets";
+} from "../src/deployTargets";
 
 describe("deploy targets from config (deploys.md DP10)", () => {
   const SHIP = [

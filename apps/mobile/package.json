@@ -24,6 +24,7 @@
     "@codecast/chat": "workspace:*",
     "@codecast/convex": "workspace:*",
     "@codecast/convex-errors": "workspace:*",
+    "@codecast/deploys": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",
     "@codecast/flows": "workspace:*",

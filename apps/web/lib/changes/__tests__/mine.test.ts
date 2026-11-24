@@ -7,7 +7,7 @@ import type {
   CheckoutRow,
   CheckoutSession,
 } from "@codecast/shared/contracts/checkouts";
-import type { QueueCommit } from "@codecast/shared/contracts/deployTargets";
+import type { QueueCommit } from "@codecast/deploys/deployTargets";
 import { assemble, type ChangePullRequest } from "../assemble";
 import { changeLifecycle, type ChangeTone, type Lifecycle } from "../lifecycle";
 import {

@@ -9,7 +9,7 @@ import {
   type DeployTargetPolicy,
   type QueueGroup,
   type TargetDevPush,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import { prNumberOf } from "@codecast/changes/cluster";
 import type {
   DeployPushSummary,

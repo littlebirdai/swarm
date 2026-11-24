@@ -7,8 +7,8 @@ import {
   actionsRunKey,
   type DeployStatus,
 } from "@codecast/shared/contracts/deploys";
-import type { ReachState } from "@codecast/shared/contracts/deployReach";
-import { LINE_DEPLOY_STEP_LABELS } from "@codecast/shared/contracts/lineDeploy";
+import type { ReachState } from "@codecast/deploys/deployReach";
+import { LINE_DEPLOY_STEP_LABELS } from "@codecast/deploys/lineDeploy";
 
 /** A deploy pill's states: its status, with a live deploy split by whether it still runs on its target. */
 export type DeployPillState =

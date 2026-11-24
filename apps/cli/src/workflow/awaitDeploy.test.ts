@@ -10,7 +10,7 @@ import * as path from "node:path";
 import {
   DEPLOY_WAIT_CAP_MS,
   parseDeployTargets,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import type { MainRedPayload } from "@codecast/shared/contracts/mainRed";
 import { parseWorkflowSource } from "./parser";
 import {

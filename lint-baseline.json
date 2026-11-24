@@ -28960,6 +28960,33 @@
   "packages/decisions/test/personAsk.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/deploys/src/deployAuthority.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/deploys/src/deployReach.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/deploys/src/deployTargets.ts": {
+    "swarm/no-comments": 57
+  },
+  "packages/deploys/src/lineDeploy.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/deploys/src/pipeline.ts": {
+    "swarm/no-comments": 45
+  },
+  "packages/deploys/test/deployReach.test.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/deploys/test/deployTargets.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/deploys/test/deployTargets.workflow.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/deploys/test/pipeline.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -29479,24 +29506,6 @@
   "packages/shared/contracts/deliveryHold.ts": {
     "swarm/no-comments": 11
   },
-  "packages/shared/contracts/deployAuthority.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/deployReach.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/deployReach.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/contracts/deployTargets.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/deployTargets.ts": {
-    "swarm/no-comments": 57
-  },
-  "packages/shared/contracts/deployTargets.workflow.test.ts": {
-    "swarm/no-comments": 2
-  },
   "packages/shared/contracts/deploys.ts": {
     "swarm/no-comments": 40
   },
@@ -29634,9 +29643,6 @@
   },
   "packages/shared/contracts/lineChat.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/lineDeploy.ts": {
-    "swarm/no-comments": 15
   },
   "packages/shared/contracts/lineFunnel.test.ts": {
     "swarm/no-comments": 2
@@ -29802,12 +29808,6 @@
   },
   "packages/shared/contracts/peerTransport.ts": {
     "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/pipeline.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/pipeline.ts": {
-    "swarm/no-comments": 45
   },
   "packages/shared/contracts/plainText.ts": {
     "swarm/no-comments": 9

@@ -235,7 +235,7 @@ export type DeployTargetsPublish = {
 export async function publishDeployTargets(
   deps: PublishDeps,
   root: string,
-  targets: import("@codecast/shared/contracts/deployTargets").DeployTarget[],
+  targets: import("@codecast/deploys/deployTargets").DeployTarget[],
   teamId?: string,
 ): Promise<DeployTargetsPublish> {
   const { readLocalGitContext } = await import("./prCommand.js");
@@ -250,8 +250,7 @@ export async function publishDeployTargets(
   const skipped = head ? publishRefusal(root, []) : "not a git checkout";
   if (skipped)
     return { team_id: teamId ?? "", repository, targets: [], skipped };
-  const { publishableTarget } =
-    await import("@codecast/shared/contracts/deployTargets");
+  const { publishableTarget } = await import("@codecast/deploys/deployTargets");
   const r: DeployTargetsPublish = await apiPost(
     deps,
     "/cli/deploys/targets/publish",

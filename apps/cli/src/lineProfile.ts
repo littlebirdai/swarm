@@ -19,7 +19,7 @@ import {
   normalizeDeployTarget,
   normalizeRoleHandle,
   type LineDeployTrigger,
-} from "@codecast/shared/contracts/lineDeploy";
+} from "@codecast/deploys/lineDeploy";
 import {
   CAPS_KEYS,
   CODECAST_PRINCIPLES,

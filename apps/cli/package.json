@@ -33,6 +33,7 @@
     "@codecast/convex-errors": "workspace:*",
     "@codecast/daemon": "workspace:*",
     "@codecast/decisions": "workspace:*",
+    "@codecast/deploys": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/evals-api": "workspace:*",

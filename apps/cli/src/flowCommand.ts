@@ -508,7 +508,10 @@ export function registerFlowCommands(
       "--publish",
       "Also publish it for the app's pipeline page (every deploy targets publish does this too)",
     )
-    .option("--json", "Print the pipeline as JSON (contracts/pipeline.ts)")
+    .option(
+      "--json",
+      "Print the pipeline as JSON (packages/deploys/src/pipeline.ts)",
+    )
     .action(
       async (opts: { team?: string; publish?: boolean; json?: boolean }) => {
         const {

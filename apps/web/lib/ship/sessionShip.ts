@@ -5,10 +5,7 @@
 // whose commits went out without a flow still says it made it out. Pure:
 // hooks/useSessionShipState reads it over the store.
 import { segmentTopOf } from "@codecast/flows/flowPool";
-import type {
-  DeployReach,
-  ReachState,
-} from "@codecast/shared/contracts/deployReach";
+import type { DeployReach, ReachState } from "@codecast/deploys/deployReach";
 import { sessionsOf, type TeamDeployRow } from "../deploys/targets";
 import {
   canAnswer,

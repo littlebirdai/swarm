@@ -4,7 +4,7 @@
 // The surface mounts the feeder once; the readers only read the store.
 import { useCallback, useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type { Pipeline } from "@codecast/shared/contracts/pipeline";
+import type { Pipeline } from "@codecast/deploys/pipeline";
 import { useSyncCollection } from "./useSyncCollection";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 

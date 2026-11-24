@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseDeployTargets } from "@codecast/shared/contracts/deployTargets";
+import { parseDeployTargets } from "@codecast/deploys/deployTargets";
 import {
   planRelease,
   runRelease,

@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  DeployReach,
-  TargetReach,
-} from "@codecast/shared/contracts/deployReach";
+import type { DeployReach, TargetReach } from "@codecast/deploys/deployReach";
 import {
   isDormant,
   prDeployRows,

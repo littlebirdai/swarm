@@ -6,7 +6,7 @@ import {
   type ReachChange,
   type ReachDeploy,
   type ReachState,
-} from "./deployReach";
+} from "../src/deployReach";
 
 // How far a change has gone toward production (deploys.md DP16), read from a
 // target's deploys. Synthetic data only.

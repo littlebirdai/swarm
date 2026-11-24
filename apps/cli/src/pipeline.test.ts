@@ -10,10 +10,7 @@ import {
   publishRefusal,
 } from "./pipeline.js";
 import { targetDeployProfile } from "./lineDeploy.js";
-import {
-  recentFiles,
-  type PipelineFlow,
-} from "@codecast/shared/contracts/pipeline";
+import { recentFiles, type PipelineFlow } from "@codecast/deploys/pipeline";
 
 // A repository's pipeline from its checkout (pipeline.md PL6). Synthetic repositories only: a bare one (shipped
 // flows), a variant of the shipped change written with the PL3 edits, and acme/widgets (a flow written whole behind
