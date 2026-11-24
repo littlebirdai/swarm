@@ -71,8 +71,8 @@ import {
   orgRecordRedundancyErrors,
   ORG_SESSION_KINDS,
   roleActedOn,
-} from "@codecast/shared/contracts/orgProposal";
-import { orgAppliedDiff } from "@codecast/shared/contracts/orgChange";
+} from "@codecast/org/orgProposal";
+import { orgAppliedDiff } from "@codecast/org/orgChange";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { roleCharterOf } from "./lib/roleCharter";
 

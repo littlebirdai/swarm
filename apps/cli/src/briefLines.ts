@@ -10,14 +10,14 @@ import { usedOf } from "@codecast/org/orgCapacity";
 import { roleIdentity } from "@codecast/org/orgIdentity";
 import { autonomyOn, autonomyWords } from "@codecast/org/roleAutonomy";
 import { formatDateSmart, formatShortDate, relTimeShort } from "@codecast/time";
-import { metricClimbLines } from "@codecast/shared/contracts/rolePlaybook";
+import { metricClimbLines } from "@codecast/org/rolePlaybook";
 import {
   WAKE_TUNE_HINT,
   playbookGuideLines,
   roleWakeOf,
   wakeWords,
   type RoleWake,
-} from "@codecast/shared/contracts/rolePlaybook";
+} from "@codecast/org/rolePlaybook";
 
 /** A role in one line, as every `cast role` and `cast brief` read heads it. */
 export function roleLine(r: any): string {

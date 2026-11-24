@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import { parseOrgProposalSpec } from "@codecast/shared/contracts/orgProposal";
+import { parseOrgProposalSpec } from "@codecast/org/orgProposal";
 
 // The checker an org-review agent runs on each proposal file it writes (the
 // port of ~/.cache/org-eval/bin/check.ts): the prod contract's parse, and the

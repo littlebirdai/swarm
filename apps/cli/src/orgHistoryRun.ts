@@ -1,13 +1,10 @@
-import {
-  orgLogEntryLine,
-  type OrgLogEntry,
-} from "@codecast/shared/contracts/orgChange";
+import { orgLogEntryLine, type OrgLogEntry } from "@codecast/org/orgChange";
 import {
   groupOrgLogByDay,
   orgLogClock,
   orgLogDoorWords,
-} from "@codecast/shared/contracts/orgLog";
-import { orgEveryToMs } from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgLog";
+import { orgEveryToMs } from "@codecast/org/orgProposal";
 import type { OrgInitDeps } from "./orgInit.js";
 
 type OrgLogArgs = {

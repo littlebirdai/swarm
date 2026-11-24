@@ -10,7 +10,7 @@ import {
   kindDescription,
   kindLabel,
 } from "./orgMeta";
-import { ORG_CHANGE_KINDS } from "@codecast/shared/contracts/orgProposal";
+import { ORG_CHANGE_KINDS } from "@codecast/org/orgProposal";
 
 const P = ORG_STAFFING_FIXTURE_PROPOSAL;
 

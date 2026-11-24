@@ -15,7 +15,7 @@ import {
   METRIC_CLIMB_GUIDANCE,
   experimentDue,
   parsePlaybook,
-} from "./rolePlaybook";
+} from "@codecast/org/rolePlaybook";
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 27, 12);

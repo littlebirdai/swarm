@@ -13,7 +13,7 @@ import { useSyncCollection } from "./useSyncCollection";
 import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { isMissingFunctionError } from "./useSyncOrgTree";
-import type { OrgUndoPreview } from "@codecast/shared/contracts/orgChange";
+import type { OrgUndoPreview } from "@codecast/org/orgChange";
 
 const api = _api as any;
 

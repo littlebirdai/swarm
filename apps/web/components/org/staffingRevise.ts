@@ -1,4 +1,4 @@
-import { isOrgQuietChange } from "@codecast/shared/contracts/orgProposal";
+import { isOrgQuietChange } from "@codecast/org/orgProposal";
 // The conversation is part of the proposal (docs/architecture/org-staffing.md
 // S18): the pane reads the author's thread off the proposal, and reads what
 // the author's revise did to each change so the list shows it under the

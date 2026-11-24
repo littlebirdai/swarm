@@ -55,7 +55,7 @@ import {
   type Redirect,
   type WorkspaceFacts,
 } from "@codecast/shared/contracts/orgTemplateLearning";
-import { parsePlaybook } from "@codecast/shared/contracts/rolePlaybook";
+import { parsePlaybook } from "@codecast/org/rolePlaybook";
 import {
   CODECAST_TEMPLATE_ACCESS,
   callerWorkspace,

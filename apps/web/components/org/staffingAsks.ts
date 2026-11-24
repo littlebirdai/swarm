@@ -7,7 +7,7 @@ import {
   resolveOrgAsks,
   type OrgAskNames,
   isOrgQuietChange,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import type { OrgProposalChange, OrgProposalRow } from "./orgStaffingTypes";
 import type { OrgTree } from "./orgTypes";
 import {

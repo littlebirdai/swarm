@@ -13,7 +13,7 @@ import {
   orgLogEntryLine,
   type OrgLogEntry,
   type OrgLogRow,
-} from "@codecast/shared/contracts/orgChange";
+} from "@codecast/org/orgChange";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";
 import { useCollectionRows } from "../../../hooks/useCollectionRows";

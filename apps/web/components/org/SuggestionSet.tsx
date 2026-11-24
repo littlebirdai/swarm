@@ -11,8 +11,8 @@
 // named under the set: the first to withdraw, the second to open.
 import React, { useMemo, useState } from "react";
 import { Check, ChevronRight } from "lucide-react";
-import { proposalTotals } from "@codecast/shared/contracts/orgChangeWords";
-import { ORG_REPLY_WORDS } from "@codecast/shared/contracts/orgProposal";
+import { proposalTotals } from "@codecast/org/orgChangeWords";
+import { ORG_REPLY_WORDS } from "@codecast/org/orgProposal";
 import { useInboxStore } from "../../store/inboxStore";
 import { useSyncOrgProposal } from "../../hooks/useSyncOrgProposals";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

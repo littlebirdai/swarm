@@ -1,9 +1,9 @@
 import { formatScheduledTask, type WaitingSession } from "./machineMessages";
 import type { RoleCard } from "@codecast/org/roleCard";
-import type { AreaChange } from "./orgAreas";
+import type { AreaChange } from "@codecast/org/orgAreas";
 import { orgReviewFocusOf } from "@codecast/org/orgReview";
 import { fenceForeignText } from "@codecast/fence/fence";
-import { roleFocusBlock } from "./rolePlaybook";
+import { roleFocusBlock } from "@codecast/org/rolePlaybook";
 
 // Appended to a trigger run's frame when its session is stashed: the agent
 // must know nobody is watching, and that declaring its state is its only way

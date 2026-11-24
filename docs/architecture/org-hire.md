@@ -721,7 +721,7 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
 - **The half that changes existing behaviour** (2026-09-21, the org program's
   wave having left the files):
   - `authority`, `hire` and `upgrade` change kinds in
-    `shared/contracts/orgProposal.ts` with their validator, apply rank
+    `packages/org/src/orgProposal.ts` with their validator, apply rank
     (authority after trust; hire after routine; upgrade before retire), keys,
     dependency notes, chip and sentence words; the web's kind records and the
     undo inverse map carry them; `orgInit.applyOrgChange` applies them.

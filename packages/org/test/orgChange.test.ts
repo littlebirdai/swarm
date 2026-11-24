@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { changeLine, takeoverPhrase } from "./orgProposal";
+import { changeLine, takeoverPhrase } from "../src/orgProposal";
 import {
   dependentBatches,
   invertRow,
@@ -21,7 +21,7 @@ import {
   type OrgLogKind,
   type OrgLogRow,
   type OrgOpenRow,
-} from "./orgChange";
+} from "../src/orgChange";
 
 const LABELS = {
   r1: "@growth",

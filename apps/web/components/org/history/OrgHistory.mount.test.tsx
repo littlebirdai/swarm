@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterAll, describe, it, mock } from "bun:test";
-import type { OrgUndoPreview } from "@codecast/shared/contracts/orgChange";
+import type { OrgUndoPreview } from "@codecast/org/orgChange";
 import { orgLogFixture } from "./orgLogFixture";
 import { mockInboxStore } from "../../__tests__/mockInboxStore";
 

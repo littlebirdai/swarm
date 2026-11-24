@@ -11,7 +11,7 @@ import {
   structuralSignals,
   workspaceTerms,
 } from "./orgTemplateLearning";
-import { parsePlaybook } from "./rolePlaybook";
+import { parsePlaybook } from "@codecast/org/rolePlaybook";
 import type { OrgTemplate } from "./orgTemplateManifest";
 
 // The learning loop's rules (org-hire.md H12): what counts as a signal, what a

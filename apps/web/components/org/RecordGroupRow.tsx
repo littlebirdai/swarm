@@ -9,7 +9,7 @@ import { ChevronRight } from "lucide-react";
 import type {
   OrgChangeStatus,
   OrgReplyVerdict,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { cn } from "../../lib/utils";
 import { useOrgHover } from "./proposalContexts";
 import type { RecordGroupCard, RecordRow } from "./proposalSubjects";

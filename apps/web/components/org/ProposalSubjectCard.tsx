@@ -29,7 +29,7 @@ import {
   passageDiff,
   type ChangeField,
   type PassagePart,
-} from "@codecast/shared/contracts/orgChangeWords";
+} from "@codecast/org/orgChangeWords";
 import {
   isOrgChangeApprovable,
   isOrgChangeDecidable,
@@ -38,7 +38,7 @@ import {
   type OrgChangeReply,
   type OrgChangeStatus,
   type OrgReplyVerdict,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { EntityIdPill } from "../EntityIdPill";
 import { useOverflows } from "../../hooks/useOverflows";

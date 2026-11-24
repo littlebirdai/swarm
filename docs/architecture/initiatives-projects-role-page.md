@@ -163,7 +163,7 @@ It proposes an owner when an active initiative has none, naming the person
 or the role that already drives that work. It still applies nothing: each is
 a change on a proposal, and nothing exists until a person accepts it.
 
-**Three change kinds** (`shared/contracts/orgProposal.ts`):
+**Three change kinds** (`packages/org/src/orgProposal.ts`):
 
 - `initiative`: `{ title, description, projects: [ref], owner?: "@handle" |
 "me" | a member's name, target_date?: unix ms }`. The description is the
@@ -331,7 +331,7 @@ alert line is a plain series: it keeps points and never opens a group.
   show the same value. A role's lines carry the trend and, for a goal behind
   its date, the pace it needs against the pace it moves at.
 - **Climbing.** When a role's area is read by any number, `cast brief` prints
-  the guidance in contracts/rolePlaybook (METRIC_CLIMB_GUIDANCE): read the number whole, work the
+  the guidance in @codecast/org/rolePlaybook (METRIC_CLIMB_GUIDANCE): read the number whole, work the
   limiting stage, one change at a time against a written prediction and a
   fixed read day, keep or revert, log it under `## Experiments` (a playbook
   section, rolePlaybook), hold the guardrails, never change the measurement,

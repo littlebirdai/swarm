@@ -4,7 +4,7 @@ import {
   briefBudget,
   briefBudgetWords,
   briefOverBudgetMessage,
-} from "@codecast/shared/contracts/rolePlaybook";
+} from "@codecast/org/rolePlaybook";
 
 import { patchBriefNarrative } from "../../../../../apps/cli/src/briefLines";
 import { parseFindings } from "../../../../../apps/cli/src/reviewFindings";

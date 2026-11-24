@@ -1,10 +1,7 @@
 import { expect, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  BRIEF_BUDGET_CHARS,
-  parsePlaybook,
-} from "@codecast/shared/contracts/rolePlaybook";
+import { BRIEF_BUDGET_CHARS, parsePlaybook } from "@codecast/org/rolePlaybook";
 import { RolePlaybook, RoleWakeLine } from "./RolePlaybook";
 
 // The playbook on a role's Overview (org-staffing.md S38): the page paints

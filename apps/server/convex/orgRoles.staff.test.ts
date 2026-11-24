@@ -1,7 +1,7 @@
 import { HEAD_INBOX_TITLE } from "./lib/orgRoutine";
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { headOfPeopleOpening } from "@codecast/shared/contracts/headOfPeoplePrompt";
+import { headOfPeopleOpening } from "@codecast/org/headOfPeoplePrompt";
 import {
   HEAD_OF_PEOPLE_HANDLE,
   isHeadOfPeopleRole,

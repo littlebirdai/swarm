@@ -2,7 +2,7 @@
 // a proposal binds, what a revise did to a row, and what landed since the
 // reader last looked. Run: bun test components/org/staffingRevise.test.ts
 import { describe, expect, test } from "bun:test";
-import { latestOrgRevisionAt } from "@codecast/shared/contracts/orgProposal";
+import { latestOrgRevisionAt } from "@codecast/org/orgProposal";
 import {
   proposalThread,
   revisedLine,
@@ -21,7 +21,7 @@ import {
   aboutChangeHeader,
   parseAboutChange,
   withAboutChange,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 
 const headOfPeopleTree = {
   ...ORG_FIXTURE,

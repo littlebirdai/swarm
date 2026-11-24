@@ -93,7 +93,7 @@ argument of `orgRoles.update`, `setScope`, `setProjectLead` and `create`
 (`--leave-sessions` on `cast role scope` and `cast role create`).
 `orgInit.takeoverPreview` is the dry count before accept. It takes every row a
 page shows in one call and scans the workspace's sessions once for all of
-them; `contracts/orgProposal.orgChangeTakeover` says which changes take over
+them; `@codecast/org/orgProposal.orgChangeTakeover` says which changes take over
 and what to ask, and `takeoverPhrase` there writes the sentence before and
 after. On the web the count and the edit are one component
 (`components/org/TakeoverEdit`): on the proposal's asks and rows, in the hire

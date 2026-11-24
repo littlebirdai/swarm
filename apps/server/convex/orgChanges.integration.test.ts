@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
 import schema from "./schema";
-import { orgLogEntryLine } from "@codecast/shared/contracts/orgChange";
+import { orgLogEntryLine } from "@codecast/org/orgChange";
 
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),

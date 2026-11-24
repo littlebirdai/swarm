@@ -11,7 +11,7 @@ import {
   slimWorkTasks,
 } from "./orgHealth";
 import { collectOrgSessions } from "./org";
-import { reachedSentence } from "@codecast/shared/contracts/orgAreas";
+import { reachedSentence } from "@codecast/org/orgAreas";
 
 // org.health (docs/architecture/org-staffing.md S3): the flow signals per
 // role, per person and for the company, read from the same scan org.tree uses

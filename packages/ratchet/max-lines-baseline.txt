@@ -775,6 +775,12 @@ packages/ingest/src/ingest.ts 1100
 packages/keyboard/src/shortcutCatalog.ts 1550
 packages/mods/src/authoring.d.ts 900
 packages/mods/src/mods.ts 900
+packages/org/src/orgChange.ts 1450
+packages/org/src/orgChangeWords.ts 1500
+packages/org/src/orgProposal.ts 3750
+packages/org/test/orgChange.test.ts 1300
+packages/org/test/orgChangeWords.test.ts 1300
+packages/org/test/orgProposal.test.ts 3700
 packages/policy/src/permissionRules.ts 900
 packages/render/src/toolCall.ts 1350
 packages/render/test/render.test.ts 850
@@ -790,12 +796,6 @@ packages/shared/contracts/inboxProjection.test.ts 1700
 packages/shared/contracts/inboxProjection.ts 1900
 packages/shared/contracts/judges.test.ts 1050
 packages/shared/contracts/machineMessages.ts 1200
-packages/shared/contracts/orgChange.test.ts 1300
-packages/shared/contracts/orgChange.ts 1450
-packages/shared/contracts/orgChangeWords.test.ts 1300
-packages/shared/contracts/orgChangeWords.ts 1500
-packages/shared/contracts/orgProposal.test.ts 3700
-packages/shared/contracts/orgProposal.ts 3750
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
 packages/shared/contracts/snippets.ts 2050

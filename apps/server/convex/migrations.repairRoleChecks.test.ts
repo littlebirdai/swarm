@@ -20,7 +20,7 @@ import schema from "./schema";
 import { allModules } from "./testModules.testkit";
 import { performRepairRoleChecks } from "./roleCheckRepair";
 import { findRoleRoutineInAnyStatus, roleRoutineFor } from "./lib/orgRoutine";
-import { checkFaultOf } from "@codecast/shared/contracts/orgAreas";
+import { checkFaultOf } from "@codecast/org/orgAreas";
 
 const DAY = 24 * 60 * 60 * 1000;
 const REFUSED =

@@ -33,13 +33,13 @@ import {
   type OrgLogEntry,
   type OrgLogRow,
   type OrgUndoPreview,
-} from "@codecast/shared/contracts/orgChange";
+} from "@codecast/org/orgChange";
 import {
   groupOrgLogByDay,
   orgLogClock,
   orgLogDoorWords,
   orgUndoCannotLine,
-} from "@codecast/shared/contracts/orgLog";
+} from "@codecast/org/orgLog";
 import { cn } from "../../../lib/utils";
 import { OrgButton } from "../OrgButton";
 import { ORG_LOG_FOLD_ROWS } from "../../../lib/orgHistoryView";

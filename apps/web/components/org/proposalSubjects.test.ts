@@ -7,12 +7,12 @@
 // web adapter: the befores it hands over, the faces, the grouping.
 // Run: bun test components/org/proposalSubjects.test.ts
 import { describe, expect, test } from "bun:test";
-import type { OrgAppliedDiffRow } from "@codecast/shared/contracts/orgChange";
+import type { OrgAppliedDiffRow } from "@codecast/org/orgChange";
 import {
   changeWords,
   type ChangeField,
   type FieldText,
-} from "@codecast/shared/contracts/orgChangeWords";
+} from "@codecast/org/orgChangeWords";
 import { ORG_FIXTURE } from "./orgFixture";
 import {
   ORG_RECORDS_FIXTURE_LIVE,

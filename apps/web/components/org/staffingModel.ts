@@ -7,7 +7,7 @@ import {
   AREA_STATUS_WORDS,
   type AreaStatus,
   type RoleArea,
-} from "@codecast/shared/contracts/orgAreas";
+} from "@codecast/org/orgAreas";
 import type { QueueItem } from "../../lib/decisionQueue";
 import {
   ORG_SYNC_KINDS,
@@ -16,7 +16,7 @@ import {
   isOrgChangeDecidable,
   orderOrgChanges,
   type OrgTenureSpec,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { avatarOf } from "@codecast/org/orgAvatars";
 import { CHECK_CADENCES, cadenceLabel } from "../../lib/cadence";
 export { CHECK_CADENCES, cadenceLabel };

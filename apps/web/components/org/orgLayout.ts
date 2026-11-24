@@ -16,7 +16,7 @@ import type {
   StateCounts,
 } from "./orgTypes";
 import type { OrgChangeKind, OrgChangeStatus } from "./orgStaffingTypes";
-import type { OrgRoleSeat } from "@codecast/shared/contracts/orgProposal";
+import type { OrgRoleSeat } from "@codecast/org/orgProposal";
 import { roleTenureChip, stateWords } from "./orgMeta";
 import type { ZoomLevel } from "./orgZoom";
 import {

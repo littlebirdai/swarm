@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { Command } from "commander";
-import {
-  orgLogEntryLine,
-  type OrgLogEntry,
-} from "@codecast/shared/contracts/orgChange";
+import { orgLogEntryLine, type OrgLogEntry } from "@codecast/org/orgChange";
 import { orgLogFixture } from "../../../apps/web/components/org/history/orgLogFixture";
 import { registerOrgInitCommands, type OrgInitDeps } from "./orgInit";
 import { refuseOrgUndo, showOrgLog } from "./orgHistoryRun";

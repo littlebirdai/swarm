@@ -48,7 +48,7 @@ import {
   playbookIsEmpty,
   roleWakeOf,
   type RoleWake,
-} from "@codecast/shared/contracts/rolePlaybook";
+} from "@codecast/org/rolePlaybook";
 import { RolePlaybook, RoleWakeLine } from "./RolePlaybook";
 import { ScopeSettings } from "./ScopeSettings";
 import { ScopeLineTab } from "./ScopeLineTab";

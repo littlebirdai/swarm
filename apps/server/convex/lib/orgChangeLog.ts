@@ -5,7 +5,7 @@
 //
 // One gesture is one row however many cores it ran through: the outermost
 // core opens the row (`withOrgChange`), and what a nested core reports
-// (`noteOrgChange`) folds into it (contracts/orgChange `mergeFact`). A core
+// (`noteOrgChange`) folds into it (@codecast/org/orgChange `mergeFact`). A core
 // called on its own, with no row open, writes a row of its own, so no door
 // can forget the log. The open row and the open batch ride the mutation's
 // ctx under a symbol.
@@ -27,7 +27,7 @@ import {
   type OrgOpenRow,
   type OrgPartyRef,
   type OrgSessionParent,
-} from "@codecast/shared/contracts/orgChange";
+} from "@codecast/org/orgChange";
 import { personName } from "./sessionTell";
 import { computeWorkspaceKey } from "./access";
 import { capsFor, trustOf } from "./orgCaps";

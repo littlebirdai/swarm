@@ -81,8 +81,7 @@ const { ProposalSubjectCard, LedgerClosingRow, StateWord } =
   await import("./ProposalSubjectCard");
 const { StagedBand } = await import("./StagedBand");
 const { OrgHoverContext } = await import("./proposalContexts");
-const { passageDiff } =
-  await import("@codecast/shared/contracts/orgChangeWords");
+const { passageDiff } = await import("@codecast/org/orgChangeWords");
 type OrgProposalChange = import("./orgStaffingTypes").OrgProposalChange;
 type SubjectLive = import("./proposalSubjects").SubjectLive;
 type SubjectCard = import("./proposalSubjects").SubjectCard;

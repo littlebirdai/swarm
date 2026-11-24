@@ -9,10 +9,7 @@ import type {
   OrgParentRef,
 } from "./orgTypes";
 import type { OrgChange, OrgProposalChange } from "./orgStaffingTypes";
-import {
-  editedOrgChange,
-  isOrgQuietChange,
-} from "@codecast/shared/contracts/orgProposal";
+import { editedOrgChange, isOrgQuietChange } from "@codecast/org/orgProposal";
 import { changeLine, chipLine } from "./orgMeta";
 import {
   personNodeId,

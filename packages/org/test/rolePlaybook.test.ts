@@ -14,9 +14,9 @@ import {
   threadOverdue,
   wakeTuneRefusal,
   wakeWords,
-} from "./rolePlaybook";
-import { parseStandingSection } from "@codecast/org/briefStanding";
-import { orgEveryToMs } from "./orgProposal";
+} from "../src/rolePlaybook";
+import { parseStandingSection } from "../src/briefStanding";
+import { orgEveryToMs } from "../src/orgProposal";
 
 // A role's playbook (org-staffing.md S38): five sections of its brief, one
 // dated line per entry, read by one parser.

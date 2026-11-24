@@ -6,8 +6,8 @@ import {
   HEAD_OF_PEOPLE_PROMPT,
   headOfPeopleOpening,
   headOfPeoplePrompt,
-} from "./headOfPeoplePrompt";
-import { ORG_CHANGE_KINDS, parseOrgProposalSpec } from "./orgProposal";
+} from "../src/headOfPeoplePrompt";
+import { ORG_CHANGE_KINDS, parseOrgProposalSpec } from "../src/orgProposal";
 
 // The Head of People's prompt is the product decision written in
 // docs/architecture/head-of-people-prompt.md; the code carries it word for word.
