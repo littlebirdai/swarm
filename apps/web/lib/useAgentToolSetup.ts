@@ -76,29 +76,23 @@ export function useAgentToolSetup(
   const startCmd = useWatchedCommand(CHECK_TIMEOUT_MS);
   const [waitingSince, setWaitingSince] = useState<number | null>(null);
 
-  const send = useCallback(
-    async (op: "check" | "start"): Promise<string | null> => {
-      if (!target) return null;
-      try {
-        const res = await enqueue({
-          ...("conversationId" in target
-            ? { conversation_id: target.conversationId as Id<"conversations"> }
-            : { device_id: target.deviceId }),
-          tool,
-          op,
-        });
-        return res.command_id;
-      } catch (err) {
-        captureError(err instanceof Error ? err : new Error(String(err)));
-        put(key, {
-          error: err instanceof Error ? err.message : "Couldn't reach codecast",
-        });
-        return null;
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    },
-    [targetKey, enqueue, key, tool],
-  );
+  // oxfmt-ignore
+  const send = useCallback(async (op: "check" | "start"): Promise<string | null> => {
+    if (!target) return null;
+    try {
+      const res = await enqueue({
+        ...("conversationId" in target ? { conversation_id: target.conversationId as Id<"conversations"> } : { device_id: target.deviceId }),
+        tool,
+        op,
+      });
+      return res.command_id;
+    } catch (err) {
+      captureError(err instanceof Error ? err : new Error(String(err)));
+      put(key, { error: err instanceof Error ? err.message : "Couldn't reach codecast" });
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetKey, enqueue, key, tool]);
 
   const check = useCallback(async () => {
     put(key, { askedAt: Date.now() });

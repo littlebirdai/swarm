@@ -283,15 +283,8 @@ export default function SheetView({
   }, [filter, tab, wb, version, activeTabId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Layout ────────────────────────────────────────────────────────────────
-  const cols = useMemo(
-    () =>
-      new AxisLayout(
-        Math.min(18_278, Math.max(26, tab.cols + 8)),
-        DEF_COL_W,
-        layoutWidths(tab),
-      ),
-    [tab.cols, tab.colWidths, tab.hiddenCols],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const cols = useMemo(() => new AxisLayout(Math.min(18_278, Math.max(26, tab.cols + 8)), DEF_COL_W, layoutWidths(tab)), [tab.cols, tab.colWidths, tab.hiddenCols]); // eslint-disable-line react-hooks/exhaustive-deps
   const rows = useMemo(() => {
     const custom = new Map(tab.rowHeights);
     // Wrapped text grows its row (unless someone set the height), so wrapping never hides text.
@@ -973,12 +966,8 @@ export default function SheetView({
   }, [edit]);
 
   // Leaving a tab or the doc commits the edit in progress.
-  useWatchEffect(
-    () => () => {
-      if (edit.get()) commitEdit();
-    },
-    [activeTabId],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  useWatchEffect(() => () => { if (edit.get()) commitEdit(); }, [activeTabId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Live query tabs refresh themselves while open ─────────────────────────
   const { refreshing, refresh, lastError } = useQueryTabRefresh(
@@ -989,10 +978,8 @@ export default function SheetView({
   const now = useCoarseNow(15_000);
 
   // ── Selection summary ─────────────────────────────────────────────────────
-  const summary = useMemo(
-    () => selectionSummary(model, wb, tab, rect, hiddenRows),
-    [rect.c0, rect.r0, rect.c1, rect.r1, wb, version, tab, hiddenRows],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const summary = useMemo(() => selectionSummary(model, wb, tab, rect, hiddenRows), [rect.c0, rect.r0, rect.c1, rect.r1, wb, version, tab, hiddenRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeInfo = wb.cell(activeTabId, active.col, active.row);
   const refLabel =

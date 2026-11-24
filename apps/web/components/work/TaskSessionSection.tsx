@@ -61,13 +61,13 @@ export function TaskSessionSection({
       ? `${r.status}|${r.session_id}|${r.agent_type}|${r.user_id}|${r.message_count}`
       : "";
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- rowSig stands in for the churny row ref
   const inbox = useMemo(
     () =>
       (useInboxStore.getState().sessions[session._id] ?? {
         ...session,
         status: "active",
       }) as any,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rowSig stands in for the churny row ref
     [rowSig, session],
   );
   // The session says it is finished while the task still reads as underway:

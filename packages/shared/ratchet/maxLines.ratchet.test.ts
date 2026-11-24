@@ -118,8 +118,7 @@ import { join } from "node:path";
 // lib/mods/collectionQuery.ts). PIN 245.
 // 2026-11-20: a role's charter moved to its doc and its fold migration ran,
 // taking convex/migrations.ts under the cap. PIN 244.
-// 2026-11-23: idbCache.ts split into store/persistence/ modules, under the
-// cap. PIN 243.
+// 2026-11-23: idbCache.ts split into store/persistence/ modules, under the cap. PIN 243.
 // 2026-11-23: oxfmt re-based the line counts at 80 columns. PIN 798.
 
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..");

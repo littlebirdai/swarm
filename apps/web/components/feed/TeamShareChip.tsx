@@ -22,9 +22,9 @@ function useTeamMembership(teamId: string) {
       ? `${t.visibility ?? ""}|${JSON.stringify(t.visibility_history ?? [])}`
       : "";
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the churny list
   return useMemo(
     () => teamVisibilityFor(useInboxStore.getState().teams, teamId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the churny list
     [sig, teamId],
   );
 }

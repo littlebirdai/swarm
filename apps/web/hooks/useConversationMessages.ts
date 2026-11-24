@@ -419,34 +419,17 @@ export function useConversationMessages(
     ),
   );
   // eslint-disable-next-line no-restricted-syntax -- one-shot heal per visit; the tail subscription is the live path
+  // oxfmt-ignore
   useEffect(() => {
-    if (
-      !useNormalMode ||
-      !hostedVisit ||
-      tailState.id !== conversationId ||
-      tailState.anchor === null
-    )
-      return;
-    const from = rereadAnchor(
-      useInboxStore.getState().messages[conversationId],
-      HOSTED_AGENT_TYPE,
-    );
+    if (!useNormalMode || !hostedVisit || tailState.id !== conversationId || tailState.anchor === null) return;
+    const from = rereadAnchor(useInboxStore.getState().messages[conversationId], HOSTED_AGENT_TYPE);
     if (from === null) return;
     readForward(convex, convId, from).catch((err: unknown) => {
-      console.warn("[useConversationMessages] hosted heal failed", {
-        conversationId,
-        err,
-      });
+      console.warn("[useConversationMessages] hosted heal failed", { conversationId, err });
     });
     // Once per visit: the anchor settling is the visit's start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    useNormalMode,
-    hostedVisit,
-    tailState.id,
-    tailState.anchor === null,
-    conversationId,
-  ]);
+  }, [useNormalMode, hostedVisit, tailState.id, tailState.anchor === null, conversationId]);
 
   // The live tail. Anchored one ms before the newest known row so the
   // in-flight streaming row is always inside the subscribed range and its

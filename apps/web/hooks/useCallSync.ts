@@ -77,10 +77,10 @@ export function useCallSync(): void {
         .join("|"),
     (st: any) => st.currentUser?._id,
   ]);
+  // oxfmt-ignore
   const roomKeys = useMemo(() => {
     const keys = new Set<string>();
-    for (const m of teamMembersOf(s))
-      if (m?.in_room_key) keys.add(m.in_room_key);
+    for (const m of teamMembersOf(s)) if (m?.in_room_key) keys.add(m.in_room_key);
     const current = s.currentSessionId && s.getConvexId(s.currentSessionId);
     if (current) keys.add(sessionRoomKey(current));
     // Chat rooms — the rail is the team's few channels, bounded. A DM or
@@ -99,14 +99,7 @@ export function useCallSync(): void {
     if (s.call.roomKey) keys.add(s.call.roomKey);
     return [...keys].sort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    teamMembersOf(s),
-    s.currentSessionId,
-    s.call.roomKey,
-    s.chatRail,
-    s.chatChannels,
-    s.currentUser?._id,
-  ]);
+  }, [teamMembersOf(s), s.currentSessionId, s.call.roomKey, s.chatRail, s.chatChannels, s.currentUser?._id]);
 
   const { data: occupancy } = useQueryNoThrow(
     api.calls.getRoomOccupancy,

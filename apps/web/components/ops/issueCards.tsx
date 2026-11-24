@@ -84,12 +84,8 @@ function SessionPrsFeeder({ id }: { id: string }) {
 
 function FixPullRequests({ sessionIds }: { sessionIds: string[] }) {
   const key = sessionIds.join(",");
-  const where = useMemo(
-    () => (p: any) =>
-      Array.isArray(p.linked_session_ids) &&
-      p.linked_session_ids.some((s: string) => sessionIds.includes(s)),
-    [key],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const where = useMemo(() => (p: any) => Array.isArray(p.linked_session_ids) && p.linked_session_ids.some((s: string) => sessionIds.includes(s)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const prs = useCollectionRows<any>("pullRequests", { where, sig: prSig });
   return (
     <>
@@ -1038,10 +1034,8 @@ export function CheckCard({
           branch: group.meta.last_ok_branch ?? null,
         }
       : null;
-  const brk = useMemo(
-    () => ciBreak(runs, { failingSince: strip.failingSince, lastOk }),
-    [runs, strip.failingSince, lastOk?.at, lastOk?.sha],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const brk = useMemo(() => ciBreak(runs, { failingSince: strip.failingSince, lastOk }), [runs, strip.failingSince, lastOk?.at, lastOk?.sha]); // eslint-disable-line react-hooks/exhaustive-deps
   const branchRuns = useMemo(() => {
     const own = brk
       ? runs.filter((r) => (r.branch ?? null) === brk.branch)

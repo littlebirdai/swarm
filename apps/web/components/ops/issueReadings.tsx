@@ -82,10 +82,8 @@ export function ReadingsCard({
     threshold: watch?.threshold ?? group.meta?.threshold,
     direction: watch?.direction ?? group.meta?.direction,
   };
-  const raw = useMemo(
-    () => readingRows(group, samples, line),
-    [group, samples, line.threshold, line.direction],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const raw = useMemo(() => readingRows(group, samples, line), [group, samples, line.threshold, line.direction]); // eslint-disable-line react-hooks/exhaustive-deps
   // An app check that says one sentence with moving figures: the sentence once, the figures as columns and a trend.
   const template = useMemo(
     () =>

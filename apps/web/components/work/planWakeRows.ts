@@ -23,9 +23,9 @@ export function usePlanStoreTasks(
     }
     return out;
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature stands in for the churny map
   return useMemo(
     () => useInboxStore.getState().tasks as Record<string, any>,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature stands in for the churny map
     [sig],
   );
 }

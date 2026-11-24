@@ -295,10 +295,8 @@ export const SessionCard = memo(function SessionCard({
   const liveTitle = liveCardTitle(st, cardId, hosted, session);
   const prSig = sessionPullRequestsSig(st as any, cardId);
   // Titles off the rows at render: a rename alone need not wake the card.
-  const linkedPrs = useMemo(
-    () => titledSessionPullRequests(st as any, cardId),
-    [prSig, cardId],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const linkedPrs = useMemo(() => titledSessionPullRequests(st as any, cardId), [prSig, cardId]); // eslint-disable-line react-hooks/exhaustive-deps
   const meId = st.currentUser?._id?.toString?.() ?? null;
   const viewers = viewersOf(teamMembersOf(st), cardId, meId);
   const stoppedKind = hosted
@@ -416,32 +414,10 @@ export const SessionCard = memo(function SessionCard({
   const identity = useLiveIdentityRow(identityBase);
   // A role's own card names the role on its title line, so the meta row adds
   // no author chip repeating it.
+  // oxfmt-ignore
   const author = useMemo(
-    () =>
-      identity.standing_role_id && identity.role
-        ? null
-        : resolveSessionAuthor(
-            {
-              ...session,
-              standing_role_id: identity.standing_role_id,
-              role: identity.role,
-            },
-            convMeta,
-            currentUser,
-            teamMembers,
-            identityPrefsOf({ show_characters: chromeSig[6] === "1" }),
-          ),
-    [
-      session.user_id,
-      session.author_name,
-      session.author_avatar,
-      session.acting_user_id,
-      identity,
-      convMeta,
-      currentUser,
-      teamMembers,
-      chromeSig,
-    ], // eslint-disable-line react-hooks/exhaustive-deps
+    () => identity.standing_role_id && identity.role ? null : resolveSessionAuthor({ ...session, standing_role_id: identity.standing_role_id, role: identity.role }, convMeta, currentUser, teamMembers, identityPrefsOf({ show_characters: chromeSig[6] === "1" })),
+    [session.user_id, session.author_name, session.author_avatar, session.acting_user_id, identity, convMeta, currentUser, teamMembers, chromeSig], // eslint-disable-line react-hooks/exhaustive-deps
   );
   // An anchor's own row is marked as such — the glyph in place of the agent
   // icon, and the scope pill (Personal / team name) beside the title — so a

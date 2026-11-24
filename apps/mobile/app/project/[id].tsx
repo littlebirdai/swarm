@@ -113,8 +113,9 @@ function ProjectBody({
         [project._id],
         tree ? sessionsUnder(tree, [project._id]) : [],
       ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sessionsSig, tree, project._id],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const goals = useInitiatives();
   const serves = useMemo(
     () => initiativesOfProject(goals, project._id),

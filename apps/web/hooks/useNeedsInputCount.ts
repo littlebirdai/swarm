@@ -75,21 +75,10 @@ export function useMinePlacement(enabled = true): PlacedInbox | null {
   // ride its deadline signature — keep them alive with a coarse clock (shared
   // timer, so extra subscribers are free).
   const coarseNow = useCoarseNow(15_000);
+  // oxfmt-ignore
   return useMemo(
-    () =>
-      enabled ? placeInboxRows(s, { scope: "mine", now: coarseNow }) : null,
+    () => (enabled ? placeInboxRows(s, { scope: "mine", now: coarseNow }) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      enabled,
-      sessionsWakeSig(s.sessions),
-      meId,
-      s.sessionsWithQueuedMessages,
-      s.blockedReviveRequestedAt,
-      pendingSendWakeSig(s.pendingMessages),
-      resolveShowOld(s.clientState.ui),
-      placementDecisionsSig(s.sessionDecisions),
-      s.questionResolutions,
-      coarseNow,
-    ],
+    [enabled, sessionsWakeSig(s.sessions), meId, s.sessionsWithQueuedMessages, s.blockedReviveRequestedAt, pendingSendWakeSig(s.pendingMessages), resolveShowOld(s.clientState.ui), placementDecisionsSig(s.sessionDecisions), s.questionResolutions, coarseNow],
   );
 }

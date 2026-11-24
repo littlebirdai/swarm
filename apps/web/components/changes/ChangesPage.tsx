@@ -496,10 +496,8 @@ export function ChangesPage() {
     [people, fallbackName],
   );
 
-  const viewUrl = useMemo(
-    () => ({ ...url, story: undefined }),
-    [changesHref({ ...url, story: undefined })],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const viewUrl = useMemo(() => ({ ...url, story: undefined }), [changesHref({ ...url, story: undefined })]); // eslint-disable-line react-hooks/exhaustive-deps
   const items = useMemo(
     () =>
       buildTimeline({ stories, editions, weeks, url: viewUrl, person, today }),

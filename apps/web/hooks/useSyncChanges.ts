@@ -585,11 +585,9 @@ export function useStoryEvidence(story: StoryCommitScope | undefined): any[] {
   const key = story
     ? `${String(story.team_id)}|${story.repository}|${story.commit_shas.join(",")}`
     : "";
+  // oxfmt-ignore
   // eslint-disable-next-line react-hooks/exhaustive-deps -- key is the story's team, repository and shas
-  const where = useMemo(
-    () => (story ? storyCommitMatcher(story) : () => false),
-    [key],
-  );
+  const where = useMemo(() => (story ? storyCommitMatcher(story) : () => false), [key]);
   const rows = useCollectionRows<any>("commits", {
     where,
     sig: evidenceSig,

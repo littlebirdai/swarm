@@ -350,10 +350,8 @@ export function useProblemRows(
   const found: FoundFilter = selection.found === "more" ? "more" : bar;
   const foundKey = found === "more" ? "more" : found ? String(found.from) : "";
   const group = problemGroupOf(selection.group);
-  const filter: ProblemFilter = useMemo(
-    () => ({ status, quiet, q, found, group }),
-    [status, quiet, q, foundKey, group],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const filter: ProblemFilter = useMemo(() => ({ status, quiet, q, found, group }), [status, quiet, q, foundKey, group]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const projectName = useMemo(
     () => projectNamer(workspace.projects),

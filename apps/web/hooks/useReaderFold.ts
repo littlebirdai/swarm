@@ -16,11 +16,9 @@ export function useReaderFold<T>(
 ) {
   const [showAll, setShowAll] = useState(false);
   // timeOf is read with the items; callers pass an inline accessor.
+  // oxfmt-ignore
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const fold = useMemo(
-    () => readerFold(items.map(timeOf), newSince),
-    [items, newSince],
-  );
+  const fold = useMemo(() => readerFold(items.map(timeOf), newSince), [items, newSince]);
   const hidden = showAll ? 0 : fold.hidden;
   const visible = useMemo(
     () => (hidden > 0 ? items.slice(hidden) : items),

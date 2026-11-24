@@ -2567,29 +2567,13 @@ function SessionListPanelImpl({
   // questions bucket replaces the old liftQuestions pass, and the
   // armed-trigger/loop facts replace the trigger-absorption pass — placement
   // now says DORMANT for a machine-owned home identically on every client.
+  // oxfmt-ignore
   const placed = useMemo(
-    () =>
-      placeInboxRows(s, { focusedId, now: Math.max(coarseNow, Date.now()) }),
+    () => placeInboxRows(s, { focusedId, now: Math.max(coarseNow, Date.now()) }),
     // Structural change + the view keys + the question inputs + the epoch tick
     // (coarseNow drives the deadline signature).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      sessionsWakeSig(s.sessions),
-      inboxScope,
-      meId,
-      teamInboxIdsOf(s),
-      showAllSessions,
-      focusedId,
-      s.sessionsWithQueuedMessages,
-      pendingSendWakeSig(s.pendingMessages),
-      blankOpts,
-      placementDecisionsSig(s.sessionDecisions),
-      s.questionResolutions,
-      s.killedShelf.ids,
-      s.newSessionHolds,
-      coarseNow,
-      nestsWorkers(s.clientState.ui),
-    ],
+    [sessionsWakeSig(s.sessions), inboxScope, meId, teamInboxIdsOf(s), showAllSessions, focusedId, s.sessionsWithQueuedMessages, pendingSendWakeSig(s.pendingMessages), blankOpts, placementDecisionsSig(s.sessionDecisions), s.questionResolutions, s.killedShelf.ids, s.newSessionHolds, coarseNow, nestsWorkers(s.clientState.ui)],
   );
   // The section a held row is headed for, as its accent: the fuse and the
   // landing wash speak in the color of where the row is going.

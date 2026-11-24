@@ -283,38 +283,17 @@ export function EventRail({
     muted.size > 0 &&
     !isFailure(e) &&
     muted.has(endpointOf(e));
-  const hiddenHere = useMemo(
-    () => (muted.size ? events.filter(isMuted).length : 0),
-    [events, muted],
-  ); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
-  const counts = useMemo(
-    () =>
-      railCounts(
-        muted.size ? events.filter((e) => !isMuted(e)) : events,
-        hiddenKinds,
-      ),
-    [events, muted, hiddenKinds],
-  ); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
+  // oxfmt-ignore
+  const hiddenHere = useMemo(() => (muted.size ? events.filter(isMuted).length : 0), [events, muted]); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
+  // oxfmt-ignore
+  const counts = useMemo(() => railCounts(muted.size ? events.filter((e) => !isMuted(e)) : events, hiddenKinds), [events, muted, hiddenKinds]); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
   const kindCounts = useMemo(() => allKindCounts(events), [events]);
   const failedCount = useMemo(
     () => events.filter(isFailedRequest).length,
     [events],
   );
-  const rows = useMemo(
-    () =>
-      tab === "page"
-        ? []
-        : events
-            .map((e, i) => [e, i] as const)
-            .filter(
-              ([e]) =>
-                railAdmits(tab, e, hiddenKinds) &&
-                !(tab === "network" && failedOnly && !isFailedRequest(e)) &&
-                !isMuted(e) &&
-                eventHas(e, q.trim()),
-            ),
-    [events, tab, q, muted, hiddenKinds, failedOnly],
-  ); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
+  // oxfmt-ignore
+  const rows = useMemo(() => (tab === "page" ? [] : events.map((e, i) => [e, i] as const).filter(([e]) => railAdmits(tab, e, hiddenKinds) && !(tab === "network" && failedOnly && !isFailedRequest(e)) && !isMuted(e) && eventHas(e, q.trim()))), [events, tab, q, muted, hiddenKinds, failedOnly]); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
   // Repeats of one request or console line fold into one row with a count, so a burst of failures does not bury the clicks around it.
   const runs = useMemo(() => foldRail(rows), [rows]);
   const [openRuns, setOpenRuns] = useState<ReadonlySet<number>>(

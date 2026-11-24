@@ -107,10 +107,10 @@ export function CastCanvas({ code }: { code: string }) {
   const excerpt = useMemo(() => extractExcerpt(code), [code]);
   // Build the document only when the modal opens; it bakes the palette's
   // --sol-* tokens, so a scheme or look flip rebuilds it.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const shell = useMemo(
     () =>
       fullscreen ? buildCanvasShell(code, solTokensCss(), CONVEX_ORIGIN) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [fullscreen, code, appearance],
   );
 

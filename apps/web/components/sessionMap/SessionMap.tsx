@@ -651,8 +651,9 @@ function SessionMapInner() {
     useInboxStore((s) => s.clientState.ui?.session_map_view) ?? EMPTY_VIEW;
   const { sessions, roles, people } = useMemo(
     () => collect(useInboxStore.getState().sessions, tree),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sig, tree, now],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const group = view.group ?? "org";
   const order = view.order ?? defaultOrder(group);
@@ -1185,8 +1186,9 @@ function SessionMapInner() {
     () =>
       selected.length > 0 &&
       selected.every((id) => useInboxStore.getState().sessions[id]?.is_pinned),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selected, sig],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const act = useMemo<SelectionActions>(
     () => ({
       pile: () => pileSelection(false),

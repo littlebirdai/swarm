@@ -52,9 +52,9 @@ export function SharedWithMark({
       ? `${t.icon ?? ""}|${t.icon_color ?? ""}|${t.visibility ?? ""}|${JSON.stringify(t.visibility_history ?? [])}`
       : "";
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the churny list
   const membership = useMemo(
     () => teamVisibilityFor(useInboxStore.getState().teams, teamId) as any,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the churny list
     [sig, teamId],
   );
   if (!teamId || !team || !membership) return null;

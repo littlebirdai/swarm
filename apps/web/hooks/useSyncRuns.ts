@@ -30,22 +30,12 @@ export function useSyncRuns(
 ) {
   const { args: ws } = useFeederWorkspace(workspace);
   const teamId = ws === "skip" ? undefined : ws.team_id;
+  // oxfmt-ignore
   const queryArgs = useMemo(
-    () =>
-      ws === "skip" || !enabled
-        ? "skip"
-        : { ...(teamId ? { team_id: teamId } : {}), ...args },
+    () => (ws === "skip" || !enabled ? "skip" : { ...(teamId ? { team_id: teamId } : {}), ...args }),
     // args is a plain object literal at most call sites; key it by value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      ws === "skip",
-      enabled,
-      teamId,
-      args.task_id,
-      args.plan_id,
-      args.status,
-      args.limit,
-    ],
+    [ws === "skip", enabled, teamId, args.task_id, args.plan_id, args.status, args.limit],
   );
   return useSyncCollection(
     "workflowRuns",

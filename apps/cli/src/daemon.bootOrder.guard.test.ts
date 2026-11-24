@@ -71,8 +71,7 @@ describe("daemon boot order", () => {
     const lines = codeLines(slice.text).length;
     expect(
       lines,
-      `${lines} code lines run before the loopback server listens`,
-      // At 80 columns, the same boot window occupies 38 more physical lines.
+      `${lines} code lines run before the loopback server listens (80-column layout)`,
     ).toBeLessThan(118);
   });
 

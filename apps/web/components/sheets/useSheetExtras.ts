@@ -230,25 +230,18 @@ export function useSheetExtras({
       r1: wholeCols ? Math.max(rl.count, 1000) : r.r1,
     };
   }, [S]);
-  const onValidate = useCallback(
-    (kind: "list" | "date" | "none") => {
-      const { model: m, activeTabId: id, sel } = S.current;
-      // Editing or removing an existing dropdown acts on its own range, not just the clicked cell.
-      const r =
-        validationAt(m, id, sel.anchor.col, sel.anchor.row)?.rect ??
-        validationRect();
-      if (kind === "list") {
-        const at = menu.menu ?? {
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 3,
-        };
-        dvPop.openAt(at.x, at.y, { tab: id, rect: r });
-        return;
-      }
-      apply(validationOps(m, id, r, kind === "date" ? "date" : null));
-    },
-    [apply, dvPop, validationRect],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const onValidate = useCallback((kind: "list" | "date" | "none") => {
+    const { model: m, activeTabId: id, sel } = S.current;
+    // Editing or removing an existing dropdown acts on its own range, not just the clicked cell.
+    const r = validationAt(m, id, sel.anchor.col, sel.anchor.row)?.rect ?? validationRect();
+    if (kind === "list") {
+      const at = menu.menu ?? { x: window.innerWidth / 2, y: window.innerHeight / 3 };
+      dvPop.openAt(at.x, at.y, { tab: id, rect: r });
+      return;
+    }
+    apply(validationOps(m, id, r, kind === "date" ? "date" : null));
+  }, [apply, dvPop, validationRect]); // eslint-disable-line react-hooks/exhaustive-deps
   /** What the editor opens with: the range's dropdown, else the distinct values already typed there. */
   const dropdownSeed = (p: { tab: string; rect: Rect }) => {
     const existing = validationAt(model, p.tab, p.rect.c0, p.rect.r0);

@@ -127,6 +127,7 @@ export function useRoleScope(
       ),
       role,
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sig,
     charterDoc,
@@ -138,5 +139,5 @@ export function useRoleScope(
     initiatives,
     today,
     roleRef,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+  ]);
 }

@@ -502,7 +502,6 @@ export function TaskDetailContent({
   );
   // The task's one owning session (convex lib/taskOwner.ts), read off the
   // live session rows: it heads the page as the other face of this task.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- linkedSig stands in for the churny sessions ref
   const ownerSession = useMemo(
     () =>
       taskOwnerOf(
@@ -510,6 +509,7 @@ export function TaskDetailContent({
         useInboxStore.getState().sessions,
         (data as any)?._id,
       ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- linkedSig stands in for the churny sessions ref
     [linkedConversations, (data as any)?._id, linkedSig],
   );
   // External events for this task are their own synced collection: mount the task

@@ -80,23 +80,13 @@ function WindowManagerView() {
   );
   // Scoped enumeration — the cache holds rows from other inbox scopes/teams.
   // Newest first, so "open the newest" and the list below agree.
+  // oxfmt-ignore
   const availableSessions = useMemo(
-    () =>
-      Object.values(filterInboxScopeFromState(s))
-        .filter(
-          (sess) => !openSessionIds.has(sess._id) && sess.message_count > 0,
-        )
-        .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0)),
+    () => Object.values(filterInboxScopeFromState(s))
+      .filter(sess => !openSessionIds.has(sess._id) && sess.message_count > 0)
+      .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0)),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rowsSig stands in for the churny sessions ref
-    [
-      rowsSig,
-      modern ? sessionsWakeSig(s.sessions) : null,
-      s.clientState.ui,
-      s.currentUser?._id,
-      teamInboxIdsOf(s),
-      s.currentSessionId,
-      openSessionIds,
-    ],
+    [rowsSig, modern ? sessionsWakeSig(s.sessions) : null, s.clientState.ui, s.currentUser?._id, teamInboxIdsOf(s), s.currentSessionId, openSessionIds],
   );
 
   const handleOpenSession = useCallback(

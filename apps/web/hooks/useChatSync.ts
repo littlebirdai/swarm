@@ -689,16 +689,12 @@ export function useChatAuthorLookups(): {
   const rolesSig = roleRowsSig(st as never);
   const prefs = useIdentityPrefs();
   // The signatures are the real deps: the raw collection refs flip on every push.
+  // oxfmt-ignore
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const sessionFor = useMemo(
-    () => sessionPersonasFrom(st.sessions, roleRowsOf(st as never), prefs),
-    [sessionsSig, rolesSig, prefs],
-  );
+  const sessionFor = useMemo(() => sessionPersonasFrom(st.sessions, roleRowsOf(st as never), prefs), [sessionsSig, rolesSig, prefs]);
+  // oxfmt-ignore
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const seatFor = useMemo(
-    () => roleSeatsFrom((st as any).anchors, roleRowsOf(st as never), prefs),
-    [seatsSig, rolesSig, prefs],
-  );
+  const seatFor = useMemo(() => roleSeatsFrom((st as any).anchors, roleRowsOf(st as never), prefs), [seatsSig, rolesSig, prefs]);
   return useMemo(() => ({ sessionFor, seatFor }), [sessionFor, seatFor]);
 }
 

@@ -948,13 +948,8 @@ function StoppedView({
   const stopped = stoppedAsk(need.fail);
   const fallback = prose(own) || stopped?.said || need.ask;
   // The step's advice: its routing JSON's, else its own closing words (a run from before prove.md asked for `next`).
-  const ask = useMemo(
-    () =>
-      stopped && !stopped.advice
-        ? { ...stopped, advice: proseAdvice(text || fallback) }
-        : stopped,
-    [stopped?.line, stopped?.advice, text, fallback],
-  ); // eslint-disable-line react-hooks/exhaustive-deps -- stoppedAsk is pure over need.fail
+  // oxfmt-ignore
+  const ask = useMemo(() => (stopped && !stopped.advice ? { ...stopped, advice: proseAdvice(text || fallback) } : stopped), [stopped?.line, stopped?.advice, text, fallback]); // eslint-disable-line react-hooks/exhaustive-deps -- stoppedAsk is pure over need.fail
   const named =
     label ||
     ask?.step ||

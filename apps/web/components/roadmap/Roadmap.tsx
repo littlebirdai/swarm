@@ -132,8 +132,9 @@ export function Roadmap({
         string,
         TaskSession
       >,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sessionSig],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const [zoom, setZoom] = useState<Zoom>("months");
   const [group, setGroup] = useState<"goals" | "roles">(

@@ -194,8 +194,9 @@ function GoalBody({
         scopeIds,
         tree ? sessionsUnder(tree, scopeIds) : [],
       ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sessionsSig, tree, scopeIds],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const status = goalStatusVisual(goal.status, Theme);
   const health = healthVisual(goal.health, Theme);

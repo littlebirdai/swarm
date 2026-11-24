@@ -567,7 +567,6 @@ describe("command groups stay off the boot graph", () => {
       // pin lists that let a newer client through (+1).
       // 4851 (2026-11-23): contracts/closedSession.ts, the shared Close verdict,
       // and the daemon's close-aware lifecycle reads (+6).
-      // oxfmt adds 196 KB of layout to the same import graph.
       expect(
         Math.round(graph.totalBytes / 1024),
         "KB of source on index.ts's static graph",

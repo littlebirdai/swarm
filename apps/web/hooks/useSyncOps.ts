@@ -52,15 +52,8 @@ export function useOpsScope():
   const ws = useWorkspaceArgs();
   const stamp = workspaceStamp(ws);
   const teamId = "team_id" in stamp ? String(stamp.team_id) : undefined;
-  return useMemo(
-    () =>
-      ws === "skip"
-        ? "skip"
-        : teamId
-          ? { workspace: "team" as const, team_id: teamId }
-          : { workspace: "personal" as const },
-    [ws === "skip", teamId],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  return useMemo(() => (ws === "skip" ? "skip" : teamId ? { workspace: "team" as const, team_id: teamId } : { workspace: "personal" as const }), [ws === "skip", teamId]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function withScope<T extends object>(
@@ -270,18 +263,8 @@ export function useSyncOpsOpenGroups() {
           (before === null || g.last_seen < before),
       };
     };
-  const first = useSyncCollection(
-    "opsGroups",
-    api.ingest.listGroups,
-    useMemo(
-      () => withScope(scope, { status: "open", limit: OPS_OPEN_GROUPS_LIMIT }),
-      [scope],
-    ),
-    useMemo(
-      () => ({ syncOpts: (rows: any) => onPage(0)(rows, null) }),
-      [scopeKey, cur.workspace],
-    ),
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const first = useSyncCollection("opsGroups", api.ingest.listGroups, useMemo(() => withScope(scope, { status: "open", limit: OPS_OPEN_GROUPS_LIMIT }), [scope]), useMemo(() => ({ syncOpts: (rows: any) => onPage(0)(rows, null) }), [scopeKey, cur.workspace])); // eslint-disable-line react-hooks/exhaustive-deps
   useOpenPage(
     scope,
     cur.cursors[0] ?? null,
@@ -331,10 +314,8 @@ function useOpenPage(
         : "skip",
     [scope, before],
   );
-  const opts = useMemo(
-    () => ({ syncOpts: (rows: any) => onPage(rows, before) }),
-    [before, scopeKey, workspace],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const opts = useMemo(() => ({ syncOpts: (rows: any) => onPage(rows, before) }), [before, scopeKey, workspace]); // eslint-disable-line react-hooks/exhaustive-deps
   useSyncCollection("opsGroups", api.ingest.listGroups, args, opts);
 }
 

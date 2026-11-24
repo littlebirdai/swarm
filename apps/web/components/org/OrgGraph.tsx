@@ -566,10 +566,8 @@ function OrgGraphInner(props: OrgGraphProps) {
   /** What the fit and the focus pan read: the drawn lens' cards. */
   const boxes = goals?.nodes ?? layout.nodes;
   // The open sheet's card keeps its ring while the sheet is on top (D15).
-  const ringNodeId = useMemo(
-    () => nodeIdOfObject(boxes, ring),
-    [boxes, ring?.kind, ring?.id],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const ringNodeId = useMemo(() => nodeIdOfObject(boxes, ring), [boxes, ring?.kind, ring?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const selectedId = ringNodeId ?? pickedId;
   // Flags reach the cards by identity, so they are rebuilt only when a flag
   // changes (the signature), not on every health push (spend counters move).
@@ -585,13 +583,8 @@ function OrgGraphInner(props: OrgGraphProps) {
         `${r.role_id}:${r.ledger.open_tasks}/${r.ledger.in_flight}/${r.ledger.active_plans}`,
     )
     .join("|");
-  const ledgerByNode = useMemo(
-    () =>
-      Object.fromEntries(
-        (health?.roles ?? []).map((r) => [roleNodeId(r.role_id), r.ledger]),
-      ),
-    [ledgerSig],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const ledgerByNode = useMemo(() => Object.fromEntries((health?.roles ?? []).map((r) => [roleNodeId(r.role_id), r.ledger])), [ledgerSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   // Cards marked to move together: Cmd/Ctrl/Shift-click toggles one, a Shift-drag box marks every movable card in it.

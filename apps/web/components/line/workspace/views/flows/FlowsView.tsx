@@ -183,10 +183,10 @@ function useLiveQueue(live: LiveFlow): LiveQueueRow[] {
       })
       .join("\n");
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature carries every field the rows read
   return useMemo(
     () =>
       liveQueue(live, useInboxStore.getState().tasks as Record<string, any>),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature carries every field the rows read
     [live, queueSig],
   );
 }

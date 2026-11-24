@@ -158,10 +158,8 @@ function RoleOfferRow({
   const faked = useSyncExternalStore(subscribeFake, readFake, readFake);
   const tasks = useSeatTriggers(conversationId);
   const workspace = tree.workspace;
-  const inWorkspace = useCallback(
-    (p: OrgProposalListRow) => sameWorkspace(proposalWorkspace(p), workspace),
-    [workspace.kind, workspace.id],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const inWorkspace = useCallback((p: OrgProposalListRow) => sameWorkspace(proposalWorkspace(p), workspace), [workspace.kind, workspace.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const proposals = useCollectionRows<OrgProposalListRow>("orgProposals", {
     where: inWorkspace,
     sig: proposalSig,

@@ -187,17 +187,8 @@ export function TimelineView({
   const sources = csv(selection.source);
   const stations = selection.show === "steps";
   const projectId = ws.project?._id ?? null;
-  const rows = useMemo(
-    () =>
-      timelineRows(events, {
-        groups,
-        sources,
-        project: projectId,
-        floor: feed.floor,
-        stations,
-      }),
-    [events, selection.kind, selection.source, projectId, feed.floor, stations],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const rows = useMemo(() => timelineRows(events, { groups, sources, project: projectId, floor: feed.floor, stations }), [events, selection.kind, selection.source, projectId, feed.floor, stations]); // eslint-disable-line react-hooks/exhaustive-deps
   const counts = useMemo(
     () => groupCounts(events, feed.floor),
     [events, feed.floor],

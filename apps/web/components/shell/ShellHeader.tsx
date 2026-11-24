@@ -76,18 +76,11 @@ const ActiveAgentsBadge = memo(function ActiveAgentsBadge({
   const meId = s.currentUser?._id?.toString?.() ?? null;
   // Deps are the wake signatures (memoized by ref — free to re-call here), not
   // the raw s.sessions/s.pendingMessages refs those flip on every heartbeat.
+  // oxfmt-ignore
   const working = useMemo(
     () => placeInboxRows(s, { scope: "mine", now: coarseNow }).working,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      sessionsWakeSig(s.sessions),
-      meId,
-      s.sessionsWithQueuedMessages,
-      s.blockedReviveRequestedAt,
-      pendingSendWakeSig(s.pendingMessages),
-      resolveShowOld(s.clientState.ui),
-      coarseNow,
-    ],
+    [sessionsWakeSig(s.sessions), meId, s.sessionsWithQueuedMessages, s.blockedReviveRequestedAt, pendingSendWakeSig(s.pendingMessages), resolveShowOld(s.clientState.ui), coarseNow],
   );
   // The hover breakdown: every agent of mine with a process behind it,
   // subagents included, by the same live rule the dots and buckets read.

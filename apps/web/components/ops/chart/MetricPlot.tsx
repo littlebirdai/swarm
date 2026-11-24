@@ -118,29 +118,8 @@ export function MetricPlot(props: MetricChartProps) {
     live,
     unit,
   };
-  const model = useMemo(
-    () => plotModel(input),
-    [
-      points,
-      win.from,
-      win.to,
-      interval_ms,
-      threshold,
-      warn,
-      direction,
-      compare,
-      full,
-      loading,
-      preview,
-      ghostLine,
-      gap,
-      episodes,
-      transitions,
-      poll_ms,
-      live,
-      unit,
-    ],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const model = useMemo(() => plotModel(input), [points, win.from, win.to, interval_ms, threshold, warn, direction, compare, full, loading, preview, ghostLine, gap, episodes, transitions, poll_ms, live, unit]); // eslint-disable-line react-hooks/exhaustive-deps
   const [drag, setDrag] = useState<number | null>(null);
   const [plotW, setPlotW] = useState(800);
   const wrap = useRef<HTMLDivElement>(null);

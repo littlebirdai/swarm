@@ -108,6 +108,7 @@ export function useLiveRoomRows(
     5_000,
   );
 
+  // oxfmt-ignore
   return useMemo(() => {
     const rooms: LiveRoom[] = s.liveRooms ?? [];
     return rooms.map((room) => {
@@ -125,14 +126,5 @@ export function useLiveRoomRows(
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    s.liveRooms,
-    s.callRooms,
-    teamMembersOf(s),
-    s.chatChannels,
-    s.currentUser?._id,
-    myRoom,
-    knocked,
-    now,
-  ]);
+  }, [s.liveRooms, s.callRooms, teamMembersOf(s), s.chatChannels, s.currentUser?._id, myRoom, knocked, now]);
 }

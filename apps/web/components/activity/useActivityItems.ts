@@ -119,11 +119,9 @@ export function useActivityItems(
   const events = useExternalEvents(eventsWhere, externalEventsNewestFirst);
 
   const prs = useMemo(() => prThreads(events), [events]);
+  // oxfmt-ignore
   // eslint-disable-next-line react-hooks/exhaustive-deps -- decisionSig stands in for the churny map
-  const decisions = useMemo(
-    () => Object.values(decisionMap) as DecisionRowLike[],
-    [decisionSig],
-  );
+  const decisions = useMemo(() => Object.values(decisionMap) as DecisionRowLike[], [decisionSig]);
   const outcomes = useMemo(
     () =>
       indexOutcomes({

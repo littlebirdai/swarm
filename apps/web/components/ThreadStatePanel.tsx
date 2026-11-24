@@ -98,8 +98,9 @@ export const ThreadStatePanel = memo(function ThreadStatePanel({
         useInboxStore.getState() as any,
         conversationId,
       ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [prSig, conversationId],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // The decision docked under this panel, when there is one: the `You` line
   // usually names it ("answer the card…"), so pressing the line opens it.

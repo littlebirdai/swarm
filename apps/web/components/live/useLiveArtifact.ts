@@ -1100,8 +1100,8 @@ export function useLiveArtifact(docId: string): LiveHandle {
         },
       },
       comment,
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- stackTick re-derives canUndo/canRedo
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stackTick re-derives canUndo/canRedo
     [
       docId,
       ready,

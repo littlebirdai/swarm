@@ -622,39 +622,27 @@ export function InboxView({
 
   // One heading for every lens: sentence case in the interface face, muted
   // ink, the count beside it, and a dot in the section's colour.
-  const renderListItem = useCallback<ListRenderItem<InboxListItem>>(
-    ({ item }) => {
-      if (item.kind === "row") return renderSessionItem(item.session);
-      if (item.kind === "node") return <>{item.node}</>;
-      const { section, label, color, count, collapsed } = item;
-      return (
-        <TouchableOpacity
-          style={styles.sectionHeader}
-          onPress={() => {
-            void Haptics.selectionAsync();
-            toggleCollapsedSection(section);
-          }}
-          activeOpacity={0.6}
-          accessibilityRole="header"
-          accessibilityState={{ expanded: !collapsed }}
-        >
-          {color ? (
-            <RNView style={[styles.sectionDot, { backgroundColor: color }]} />
-          ) : null}
-          <RNText style={styles.sectionTitle}>{label}</RNText>
-          <RNText style={styles.sectionCount}>{count}</RNText>
-          <Feather
-            name={collapsed ? "chevron-right" : "chevron-down"}
-            size={15}
-            color={Theme.textMuted0}
-            style={{ marginLeft: "auto" }}
-          />
-        </TouchableOpacity>
-      );
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- appearance re-reads the palette baked into the heading
-    },
-    [renderSessionItem, toggleCollapsedSection, appearance],
-  );
+  // oxfmt-ignore
+  const renderListItem = useCallback<ListRenderItem<InboxListItem>>(({ item }) => {
+    if (item.kind === 'row') return renderSessionItem(item.session);
+    if (item.kind === 'node') return <>{item.node}</>;
+    const { section, label, color, count, collapsed } = item;
+    return (
+      <TouchableOpacity
+        style={styles.sectionHeader}
+        onPress={() => { void Haptics.selectionAsync(); toggleCollapsedSection(section); }}
+        activeOpacity={0.6}
+        accessibilityRole="header"
+        accessibilityState={{ expanded: !collapsed }}
+      >
+        {color ? <RNView style={[styles.sectionDot, { backgroundColor: color }]} /> : null}
+        <RNText style={styles.sectionTitle}>{label}</RNText>
+        <RNText style={styles.sectionCount}>{count}</RNText>
+        <Feather name={collapsed ? "chevron-right" : "chevron-down"} size={15} color={Theme.textMuted0} style={{ marginLeft: 'auto' }} />
+      </TouchableOpacity>
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- appearance re-reads the palette baked into the heading
+  }, [renderSessionItem, toggleCollapsedSection, appearance]);
 
   const filteredPinned = useMemo(
     () => chipFilter(pinned),

@@ -83,47 +83,17 @@ function useRoleFace(
       ? `${r._id}|${r.name}|${r.avatar ?? ""}|${roleIconSig(r.icon)}`
       : "";
   });
+  // oxfmt-ignore
   return useMemo(() => {
     // An empty signature means no row names this role, so there is nothing to
     // read (the homepage poster renders on the server with an empty store).
-    const live = sig
-      ? findRole(useInboxStore.getState() as FaceState, role)
-      : null;
+    const live = sig ? findRole(useInboxStore.getState() as FaceState, role) : null;
     const named = !!(role._id || role.short_id);
-    if (characters)
-      return {
-        kind: "animal",
-        avatar: avatarOf({
-          handle: role.handle,
-          avatar: named
-            ? (live?.avatar ?? role.avatar)
-            : (role.avatar ?? live?.avatar),
-        }),
-      };
-    const name =
-      (named ? (live?.name ?? role.name) : (role.name ?? live?.name)) ??
-      role.handle;
-    const icon = named
-      ? live
-        ? live.icon
-        : role.icon
-      : role.icon !== undefined
-        ? role.icon
-        : live?.icon;
-    return {
-      kind: "tile",
-      tile: roleTile({ handle: role.handle, name, icon }),
-    };
-  }, [
-    sig,
-    characters,
-    role._id,
-    role.short_id,
-    role.handle,
-    role.name,
-    role.avatar,
-    role.icon,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (characters) return { kind: "animal", avatar: avatarOf({ handle: role.handle, avatar: named ? live?.avatar ?? role.avatar : role.avatar ?? live?.avatar }) };
+    const name = (named ? live?.name ?? role.name : role.name ?? live?.name) ?? role.handle;
+    const icon = named ? (live ? live.icon : role.icon) : role.icon !== undefined ? role.icon : live?.icon;
+    return { kind: "tile", tile: roleTile({ handle: role.handle, name, icon }) };
+  }, [sig, characters, role._id, role.short_id, role.handle, role.name, role.avatar, role.icon]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /**

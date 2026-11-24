@@ -55,6 +55,7 @@ export function useFleetSummaries(): Map<string, FleetSummary> {
   const sessionsSig = fleetSessionsWakeSig(s.sessions);
   const pendingSig = pendingSendWakeSig(s.pendingMessages);
   const viewerId = s.currentUser?._id ? String(s.currentUser._id) : null;
+  // oxfmt-ignore
   return useMemo(() => {
     // The signatures are the real deps; the raw collections are read fresh here.
     const st = useInboxStore.getState();
@@ -66,14 +67,7 @@ export function useFleetSummaries(): Map<string, FleetSummary> {
     const counted = fleetCountedSessions(st, opts);
     return fleetSummariesByMember(counted, opts);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the signatures stand in for the churny collections
-  }, [
-    sessionsSig,
-    pendingSig,
-    s.sessionsWithQueuedMessages,
-    teamInboxIdsOf(s),
-    viewerId,
-    now,
-  ]);
+  }, [sessionsSig, pendingSig, s.sessionsWithQueuedMessages, teamInboxIdsOf(s), viewerId, now]);
 }
 
 export interface MemberActivity {

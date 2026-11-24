@@ -74,9 +74,9 @@ export function TeamShareModePicker({
       ? `${t._id}|${t.name}|${t.member_count ?? 0}|${currentMembershipVisibility(t)}`
       : "";
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- teamSig stands in for the churny list
   const team = useMemo(
     () => teamVisibilityFor(useInboxStore.getState().teams, teamId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- teamSig stands in for the churny list
     [teamSig, teamId],
   );
   const setTeamMembershipVisibility = useInboxStore(

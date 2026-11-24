@@ -212,10 +212,8 @@ export function useWorkspacesCollection<T = any>(
 ): T[] {
   const fieldSig =
     sig === null ? null : (sig ?? (defaultFieldSig as (row: T) => string));
-  const list = useMemo(
-    () => [...new Set(keys.filter((k): k is WorkspaceKey => !!k))].sort(),
-    [keys.join("\n")],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  // oxfmt-ignore
+  const list = useMemo(() => [...new Set(keys.filter((k): k is WorkspaceKey => !!k))].sort(), [keys.join("\n")]); // eslint-disable-line react-hooks/exhaustive-deps
   const s = useTrackedStore([
     (st) =>
       list
@@ -226,9 +224,7 @@ export function useWorkspacesCollection<T = any>(
   const memberSig = list
     .map((k) => membershipSig(coll, k, fieldSig, table))
     .join("\u0001");
+  // oxfmt-ignore
   // eslint-disable-next-line react-hooks/exhaustive-deps -- memberSig stands in for the churny collection ref
-  return useMemo(
-    () => list.flatMap((k) => workspaceRows(table, coll, k)),
-    [memberSig, list, fieldSig ? coll : null],
-  );
+  return useMemo(() => list.flatMap((k) => workspaceRows(table, coll, k)), [memberSig, list, fieldSig ? coll : null]);
 }

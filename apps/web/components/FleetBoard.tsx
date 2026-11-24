@@ -504,22 +504,11 @@ export function FleetBoard() {
   // THE placement chokepoint (placeInboxRows, sync-convergence C5): scope →
   // shared working-set selection → fold → placed sections — the same set the
   // panel renders, one call for the whole board.
+  // oxfmt-ignore
   const categorized = useMemo(
     () => placeInboxRows(s, { focusedId, now: coarseNow }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      sessionsWakeSig(s.sessions),
-      inboxScope,
-      meId,
-      teamInboxIdsOf(s),
-      showOld,
-      focusedId,
-      s.sessionsWithQueuedMessages,
-      pendingSendWakeSig(s.pendingMessages),
-      s.pendingSessionCreates,
-      s.blockedReviveRequestedAt,
-      coarseNow,
-    ],
+    [sessionsWakeSig(s.sessions), inboxScope, meId, teamInboxIdsOf(s), showOld, focusedId, s.sessionsWithQueuedMessages, pendingSendWakeSig(s.pendingMessages), s.pendingSessionCreates, s.blockedReviveRequestedAt, coarseNow],
   );
   const pendingSendIds = useMemo(
     () => sessionsWithPendingSend(s.pendingMessages, coarseNow),

@@ -140,28 +140,11 @@ function RoleRow({ line }: { line: RoleLine }) {
     draftCards ?? cards,
     valid ? draftDay : perDay,
   );
+  // oxfmt-ignore
   const onLedger: SwitchLedger = useMemo(() => {
-    const l = lineStartLedger({
-      project: line.projects.map((p) => p.title).join(", "),
-      admission: drafted,
-      roleOwnSwitchOff: !autonomyOn(role.trust),
-      waiting: line.waiting,
-      ready: line.ready,
-      cost,
-    });
+    const l = lineStartLedger({ project: line.projects.map((p) => p.title).join(", "), admission: drafted, roleOwnSwitchOff: !autonomyOn(role.trust), waiting: line.waiting, ready: line.ready, cost });
     return { ...l, subject, rows: [...limitRows, ...l.rows] };
-  }, [
-    drafted.slots,
-    drafted.handsCap,
-    admission.queued,
-    admission.busy,
-    admission.hands,
-    line.waiting,
-    line.ready,
-    cost,
-    role.trust,
-    subject,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [drafted.slots, drafted.handsCap, admission.queued, admission.busy, admission.hands, line.waiting, line.ready, cost, role.trust, subject]); // eslint-disable-line react-hooks/exhaustive-deps
   const write = (on: boolean | null) => {
     const caps = {
       cards: draftCards ?? cards,

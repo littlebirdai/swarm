@@ -30,19 +30,11 @@ export function useSessionThreadCards(enabled: boolean): ThreadCardModel[] {
   // The chokepoint's time-driven flips (trust TTL, revive expiry, the epoch)
   // ride its deadline signature; a coarse clock keeps them honest.
   const coarseNow = useCoarseNow(15_000);
+  // oxfmt-ignore
   return useMemo(() => {
     if (!enabled) return [];
     const placed = placeInboxRows(s as any, { scope: "mine", now: coarseNow });
     return sessionCards(placed.needsInput);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    enabled,
-    sessionsWakeSig(s.sessions),
-    meId,
-    s.sessionsWithQueuedMessages,
-    s.blockedReviveRequestedAt,
-    pendingSendWakeSig(s.pendingMessages),
-    resolveShowOld(s.clientState.ui),
-    coarseNow,
-  ]);
+  }, [enabled, sessionsWakeSig(s.sessions), meId, s.sessionsWithQueuedMessages, s.blockedReviveRequestedAt, pendingSendWakeSig(s.pendingMessages), resolveShowOld(s.clientState.ui), coarseNow]);
 }
