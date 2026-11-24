@@ -88,7 +88,7 @@ import {
   MID_TURN_AGENT_STATUSES,
   trustedAgentStatus,
 } from "@codecast/sessions/agentStatus";
-import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
+import { characterOf } from "@codecast/org/sessionCharacter";
 import {
   canAccessConversation,
   canAccessDoc,

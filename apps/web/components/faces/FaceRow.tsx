@@ -63,10 +63,7 @@ import {
   Plus,
   Sparkle,
 } from "lucide-react";
-import {
-  defaultAvatarFor,
-  isAvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
+import { defaultAvatarFor, isAvatarKey } from "@codecast/org/orgAvatars";
 import { AVATAR_URLS } from "../../lib/orgAvatars";
 import { useInboxStore } from "../../store/inboxStore";
 import { markFaceRead } from "../../lib/faces/faceDmUnread";

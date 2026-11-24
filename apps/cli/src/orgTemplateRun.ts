@@ -14,7 +14,7 @@ import {
   autonomySentence,
   defaultTrustFor,
 } from "@codecast/shared/contracts/roleAutonomy";
-import { keepsReportsInside } from "@codecast/shared/contracts/orgLead";
+import { keepsReportsInside } from "@codecast/org/orgLead";
 import type { OrgInitDeps } from "./orgInit.js";
 import { acquireFileLock } from "./lockFile.js";
 import { sessionIdFromEnv } from "./sessionIdentity.js";

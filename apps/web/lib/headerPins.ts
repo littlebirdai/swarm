@@ -9,7 +9,7 @@
 // stands, else the active workspace's agent, which is what the header showed
 // before pins. An empty list is a person who unpinned everything.
 
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
+import { roleIdentity } from "@codecast/org/orgIdentity";
 import { useInboxStore } from "../store/inboxStore";
 import {
   agentName,

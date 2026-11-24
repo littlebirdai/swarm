@@ -1,5 +1,5 @@
-import { avatarOf } from "@codecast/shared/contracts/orgAvatars";
-import { isRoleIcon } from "@codecast/shared/contracts/roleIcon";
+import { avatarOf } from "@codecast/org/orgAvatars";
+import { isRoleIcon } from "@codecast/org/roleIcon";
 
 /**
  * The identity a row resolves to (docs/architecture/session-characters.md

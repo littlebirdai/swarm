@@ -3,10 +3,7 @@
 // the face knows who they are, the person hover card; a role is its face
 // (RoleFace: its animal or its icon tile, as the viewer chose) and the role hover card one hover away. `info` is what lib/liveEntities resolveAssigneeInfo returns, so the
 // face follows an optimistic reassignment in the same tick.
-import {
-  isRoleAssignee,
-  type AssigneeInfo,
-} from "@codecast/shared/contracts/orgAssignee";
+import { isRoleAssignee, type AssigneeInfo } from "@codecast/org/orgAssignee";
 import { AvatarImg } from "../../lib/avatarCache";
 import { RoleFace } from "../org/RoleFace";
 import { RoleHoverCard } from "./RoleHoverCard";

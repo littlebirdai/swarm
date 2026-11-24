@@ -6,7 +6,7 @@ import {
   roleIconStroke,
   roleIconSvg,
   type RoleIcon,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 import { ICONS, type IconKey } from "./icons";
 import {
   ACCENT,

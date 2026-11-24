@@ -1,6 +1,6 @@
 import { query } from "./functions";
 import { memberHandle } from "@codecast/chat";
-import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
+import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import { sessionProjectId } from "@codecast/shared/contracts/sessionProject";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
@@ -26,7 +26,7 @@ import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import { accessJudgeFor, canAccessDoc, workspaceKey } from "./lib/access";
 import { userCanAccessRole } from "./lib/orgAccess";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
-import { avatarOf } from "@codecast/shared/contracts/orgAvatars";
+import { avatarOf } from "@codecast/org/orgAvatars";
 import {
   overlapsAmong,
   planProjectsOf,

@@ -1,5 +1,5 @@
 /*
- * The routing section's data: four rules tried in order (shared/contracts/orgRoute.ts
+ * The routing section's data: four rules tried in order (packages/org/src/orgRoute.ts
  * routeWork) and the incoming items a reader can drop through them. Each item
  * carries what each rule found when it was tested, the line that decides, and
  * for line 4 the router's read (ROUTER_CONFIDENT 0.8, ROUTER_MARGIN 0.3).

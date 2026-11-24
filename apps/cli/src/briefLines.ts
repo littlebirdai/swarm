@@ -8,9 +8,9 @@ import {
   goalStateLine,
   type GoalProgress,
 } from "@codecast/shared/contracts/roleGoals";
-import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
+import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import { usedOf } from "@codecast/shared/contracts/orgCapacity";
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
+import { roleIdentity } from "@codecast/org/orgIdentity";
 import {
   autonomyOn,
   autonomyWords,

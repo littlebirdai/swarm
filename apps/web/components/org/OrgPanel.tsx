@@ -15,7 +15,7 @@
 import { useMemo, type ReactNode } from "react";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
+import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { useInboxStore } from "../../store/inboxStore";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {

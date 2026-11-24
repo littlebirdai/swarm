@@ -8,15 +8,12 @@
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Shuffle, RotateCcw } from "lucide-react";
-import {
-  AVATAR_KEYS,
-  type AvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS, type AvatarKey } from "@codecast/org/orgAvatars";
 import {
   CHARACTER_NAME_MAX,
   characterNameFor,
   cleanCharacterName,
-} from "@codecast/shared/contracts/sessionCharacter";
+} from "@codecast/org/sessionCharacter";
 import { AVATAR_LABELS } from "../../lib/orgAvatars";
 import { RoleAvatar } from "../org/avatars";
 import { useInboxStore } from "../../store/inboxStore";

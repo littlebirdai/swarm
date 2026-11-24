@@ -8,7 +8,7 @@ the tab strip, a mention in chat, the org chart and a decision card.
 
 ## S1. What a character is
 
-A character is a pair: `avatar` (a key from `shared/contracts/orgAvatars`)
+A character is a pair: `avatar` (a key from `@codecast/org/orgAvatars`)
 and `name` (up to 24 characters, one line). Both live on the conversation:
 
 ```
@@ -27,7 +27,7 @@ always wear their face.
 
 **The default is stable and costs nothing.** A hash of the conversation id
 picks the face, and a second slice of the same hash picks the name from a
-bank of six names per face (`shared/contracts/sessionCharacter.ts`,
+bank of six names per face (`packages/org/src/sessionCharacter.ts`,
 `CHARACTER_NAMES`), so a session is one of 144 characters, identical on every
 device and surface, without anyone choosing. The
 bank is curated: short, whimsical, never a name that reads as a teammate's,

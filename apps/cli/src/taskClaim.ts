@@ -2,7 +2,7 @@ import {
   ASSIGNEE_MEANS,
   isRoleAssignee,
   type AssigneeInfo,
-} from "@codecast/shared/contracts/orgAssignee";
+} from "@codecast/org/orgAssignee";
 import type { ChangeGuide } from "@codecast/ship/changeGuide";
 import { STALE_TASK_WORDS, TASK_EFFORTS } from "@codecast/shared/tasks";
 

@@ -9,7 +9,7 @@
 // Each comes with a signature over exactly the fields it reads, so the chart
 // re-lays out when a line, a task or a message changes and never on a heartbeat.
 import { threadStateCardLine } from "@codecast/shared/contracts";
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import type { InboxSession, Message } from "../../store/inboxStore";
 import type { OrgSessionDetail, RoleOpenDetail } from "./orgCardModel";
 import type { OrgRole } from "./orgTypes";

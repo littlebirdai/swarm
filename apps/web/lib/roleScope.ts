@@ -20,7 +20,7 @@ import {
   isWholeWorkspaceRole,
   projectLeadOf,
   type LeadRole,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
 import { computePlanProgress } from "./liveEntities";
 import { roleInitiatives, type RoleInitiative } from "./roleInitiatives";

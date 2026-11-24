@@ -4,7 +4,7 @@ import {
   EXECUTIVE_ASSISTANT_HANDLE,
   HEAD_OF_PEOPLE_HANDLE,
   LEGACY_HEAD_OF_PEOPLE_HANDLE,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 import {
   executiveAssistantCharter,
   defaultAssistantHandle,

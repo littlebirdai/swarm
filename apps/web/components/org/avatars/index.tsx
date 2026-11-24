@@ -1,6 +1,6 @@
 // Personified roles (docs/architecture/org-staffing.md S13): the art for each
 // avatar key. The key list and the default-for-a-handle live in the shared
-// contract (packages/shared/contracts/orgAvatars.ts); the ART lives here,
+// contract (packages/org/src/orgAvatars.ts); the ART lives here,
 // web-only, because it is React and image files.
 //
 // The 24 WebP files beside this module are the single source of the art: a
@@ -22,10 +22,7 @@
 //   The ground contrasts with the figure. Eleven grounds rotate through the
 //     set and also tell two similar silhouettes apart in a list.
 
-import {
-  defaultAvatarFor,
-  isAvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
+import { defaultAvatarFor, isAvatarKey } from "@codecast/org/orgAvatars";
 import {
   AVATAR_URLS,
   AVATAR_LABELS,

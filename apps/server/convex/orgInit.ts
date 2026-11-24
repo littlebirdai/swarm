@@ -13,7 +13,7 @@ import {
   applyFileSession,
   looseSessionsOf,
 } from "./lib/orgSessionFiling";
-import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
+import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import { matchHandle } from "@codecast/chat";
 import { movedFields } from "@codecast/shared/contracts/orgChange";
 import { action, mutation, query } from "./functions";

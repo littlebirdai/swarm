@@ -14,7 +14,7 @@ import {
   roleAssigneeInfo,
   type AssigneeInfo,
   type AssigneeRole,
-} from "@codecast/shared/contracts/orgAssignee";
+} from "@codecast/org/orgAssignee";
 import type { FilterOption } from "../components/FilterDropdown";
 import { AssigneeFace } from "../components/identity/AssigneeFace";
 import { memberAvatarUrl, memberDisplayName } from "./liveEntities";

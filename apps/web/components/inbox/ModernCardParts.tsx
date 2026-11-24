@@ -29,7 +29,7 @@ import { RoleFace } from "../org/RoleFace";
 import { SessionCloseTip } from "./SessionCloseTip";
 import type { IdentityPrefs } from "../../lib/sessionIdentity";
 import type { InboxSession, SessionRoleSnapshot } from "../../store/inboxStore";
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
 
 // The pieces of the Modern session card (ModernSessionCard): the quiet chips of
 // its third line and the one-row toolbar. Each draws from the row and the few

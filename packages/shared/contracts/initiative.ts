@@ -7,7 +7,7 @@
 //
 // The row is raw. Everything a page shows beside it is derived at render from
 // the store: progress (tasks done over tasks in its projects), each project's
-// lead (contracts/orgLead.ts), the owner's face and name, and sub initiatives
+// lead (packages/org/src/orgLead.ts), the owner's face and name, and sub initiatives
 // (rows whose `parent_initiative_id` names this one).
 //
 // The intent record (I5) is the row's second half: why it matters, what done

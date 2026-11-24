@@ -9,10 +9,7 @@ import Link from "next/link";
 import { Briefcase, ChevronDown, UserPlus } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { OrgRole } from "../org/orgTypes";
-import {
-  watchersLabel,
-  type ProjectLead,
-} from "@codecast/shared/contracts/orgLead";
+import { watchersLabel, type ProjectLead } from "@codecast/org/orgLead";
 import { RoleFace } from "../org/RoleFace";
 import { RoleHoverCard } from "../identity";
 import {

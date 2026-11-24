@@ -4,7 +4,7 @@
 // Run: bun test store/__tests__/initiativeSlice.test.ts
 import { beforeEach, describe, expect, it } from "bun:test";
 import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
-import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
+import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 import { ORG_FIXTURE } from "../../components/org/orgFixture";
 import { useInboxStore } from "../inboxStore";
 

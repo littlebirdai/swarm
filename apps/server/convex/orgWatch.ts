@@ -23,7 +23,7 @@ import {
   type AreaChange,
   type AreaStatus,
 } from "@codecast/shared/contracts/orgAreas";
-import { isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
+import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import {
   computeOrgHealth,
   HEALTH_CAPS,

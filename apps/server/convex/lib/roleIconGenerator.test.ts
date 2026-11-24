@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
-import {
-  roleIconSvg,
-  type RoleIcon,
-} from "@codecast/shared/contracts/roleIcon";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
+import { roleIconSvg, type RoleIcon } from "@codecast/org/roleIcon";
 import {
   DIRECTIONS,
   contactSheet,

@@ -6,8 +6,8 @@ import { v } from "convex/values";
 import {
   characterOf,
   normalizeCharacterFields,
-} from "@codecast/shared/contracts/sessionCharacter";
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+} from "@codecast/org/sessionCharacter";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { fail } from "./lib/errors";

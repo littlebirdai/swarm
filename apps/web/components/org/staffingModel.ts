@@ -17,7 +17,7 @@ import {
   orderOrgChanges,
   type OrgTenureSpec,
 } from "@codecast/shared/contracts/orgProposal";
-import { avatarOf } from "@codecast/shared/contracts/orgAvatars";
+import { avatarOf } from "@codecast/org/orgAvatars";
 import { CHECK_CADENCES, cadenceLabel } from "../../lib/cadence";
 export { CHECK_CADENCES, cadenceLabel };
 import type { OrgParentRef, OrgRole, OrgTree } from "./orgTypes";

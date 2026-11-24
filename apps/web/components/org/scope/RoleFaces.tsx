@@ -4,8 +4,8 @@
 // with an optional hint; a redraw is a paid model run, so it goes through
 // the shared confirm flow (components/consequential).
 import { useState } from "react";
-import { avatarOf } from "@codecast/shared/contracts/orgAvatars";
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
+import { avatarOf } from "@codecast/org/orgAvatars";
+import { roleIdentity } from "@codecast/org/orgIdentity";
 import { AVATAR_LABELS } from "../../../lib/orgAvatars";
 import { roleTile } from "../../../lib/sessionIdentity";
 import { RoleAvatar } from "../avatars";

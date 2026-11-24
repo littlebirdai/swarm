@@ -26,7 +26,7 @@ import {
 } from "./lib/linePriority";
 import { problemSourceOf } from "./workflows";
 import { isJudgeProblem } from "@codecast/shared/contracts/judgeReview";
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import { flowRouteFor } from "./lib/flowRoute";
 import { graphOfVersion, versionToPin } from "./lib/runGraph";
 import {

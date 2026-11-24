@@ -251,11 +251,8 @@ export {
   HEAD_OF_PEOPLE_HANDLE,
   HEAD_OF_PEOPLE_NAME,
   isHeadOfPeopleRole,
-} from "@codecast/shared/contracts/orgLead";
-import {
-  roleIdentity,
-  type RoleIdentity,
-} from "@codecast/shared/contracts/orgIdentity";
+} from "@codecast/org/orgLead";
+import { roleIdentity, type RoleIdentity } from "@codecast/org/orgIdentity";
 export { roleIdentity, type RoleIdentity };
 
 /** How a role is named on every web surface (S30): its given name, with its

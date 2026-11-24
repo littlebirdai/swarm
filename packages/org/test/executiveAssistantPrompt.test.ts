@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   EXECUTIVE_ASSISTANT_JOB,
   executiveAssistantOpening,
-} from "./executiveAssistantPrompt";
+} from "../src/executiveAssistantPrompt";
 
 // The Executive Assistant's opening (org-staffing.md S30): the right hand, named,
 // with its reach and the access rule for it filled in.

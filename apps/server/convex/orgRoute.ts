@@ -1,6 +1,6 @@
 // `cast route` and `POST /cli/route` (docs/architecture/org-staffing.md S35):
 // one request in, the owner out, with the line of the rule that placed it.
-// The rule is contracts/orgRoute routeWork; the semantic router
+// The rule is @codecast/org/orgRoute routeWork; the semantic router
 // (lib/orgRouter) reads what the rule cannot place. A landing is a task in
 // the owner's area, assigned to the owner, and a role is woken with one line
 // naming it, so the role starts it or recommends it by its switch (S23.1).
@@ -27,14 +27,8 @@ import {
   routerRequest,
   type RouterRoster,
 } from "./lib/orgRouter";
-import {
-  routeWork,
-  type RouteLanding,
-} from "@codecast/shared/contracts/orgRoute";
-import {
-  isWholeWorkspaceRole,
-  type OwnedWork,
-} from "@codecast/shared/contracts/orgLead";
+import { routeWork, type RouteLanding } from "@codecast/org/orgRoute";
+import { isWholeWorkspaceRole, type OwnedWork } from "@codecast/org/orgLead";
 import { parseStandingSection } from "@codecast/shared/contracts/briefStanding";
 import { roleCharterOf } from "./lib/roleCharter";
 

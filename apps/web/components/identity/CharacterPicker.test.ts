@@ -2,8 +2,8 @@
 // face each" must actually give a squad distinct animals, and each row a name
 // that belongs to the face it got.
 import { describe, expect, test } from "bun:test";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
-import { CHARACTER_NAMES } from "@codecast/shared/contracts/sessionCharacter";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
+import { CHARACTER_NAMES } from "@codecast/org/sessionCharacter";
 import { spreadCharacters } from "../../lib/spreadCharacters";
 
 const ids = (n: number) =>

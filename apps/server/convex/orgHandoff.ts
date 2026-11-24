@@ -15,13 +15,13 @@
 //      before decommissioning (orgRoles.performRetireRole reads
 //      `handing_over.retire`; the sweep below closes handoffs past deadline).
 //
-// The move itself is read from the one ownership rule (contracts/orgLead
+// The move itself is read from the one ownership rule (@codecast/org/orgLead
 // ownerOf): a snapshot of who owns each area before the write, and who after.
 
 import { internalMutation, mutation } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { ownerOf, type OwnedWork } from "@codecast/shared/contracts/orgLead";
+import { ownerOf, type OwnedWork } from "@codecast/org/orgLead";
 import {
   parseStandingSection,
   standingLineFor,

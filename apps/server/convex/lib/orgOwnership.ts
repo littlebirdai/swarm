@@ -1,5 +1,5 @@
 // The ownership rule's readers on the server (org-staffing.md S26, S35): what
-// a task or a session is working on, as contracts/orgLead ownerOf reads it,
+// a task or a session is working on, as @codecast/org/orgLead ownerOf reads it,
 // which sessions a role may take by the rule, and the hold a binding gives or
 // takes. A leaf over the db and the shared rule, so org.ts, orgInit.ts,
 // orgRoles.ts, tasks.ts, plans.ts and orgLine.ts all import it without
@@ -13,13 +13,13 @@ import {
   ownerOf,
   ownsWork,
   type OwnedWork,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 import { rolesInBoundary } from "./orgAccess";
 
 type Ctx = { db: any; scheduler?: any };
 
 // The work a task or a session is doing, as the ownership rule reads it
-// (contracts/orgLead ownerOf, org-staffing.md S26): the plan it is filed
+// (@codecast/org/orgLead ownerOf, org-staffing.md S26): the plan it is filed
 // under and the project it belongs to. A session's is its active task's,
 // else its plan's. Its folder is not part of the work (S35): a session bound
 // to nothing has no owner by the rule, whatever directory it runs in.

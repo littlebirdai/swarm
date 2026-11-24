@@ -34,7 +34,7 @@ import {
   REVIEW_START_GRACE_MS,
 } from "./staffingModel";
 import type { OrgTree } from "./orgTypes";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 import { ORG_CHANGE_APPLY_RANK } from "@codecast/shared/contracts/orgProposal";
 
 const P = ORG_STAFFING_FIXTURE_PROPOSAL;

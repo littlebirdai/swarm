@@ -2065,8 +2065,8 @@ export default defineSchema(
       // (orgInit.roleByRef), while a role holding the handle now always wins.
       previous_handles: v.optional(v.array(v.string())),
       // The person like name the role wears (S30), chosen by a person; absent
-      // rows wear the character name of their face (shared/contracts/
-      // orgIdentity.roleIdentity). Every surface reads the name through it.
+      // rows wear the character name of their face (@codecast/org/orgIdentity
+      // roleIdentity). Every surface reads the name through it.
       given_name: v.optional(v.string()),
       // Set on an Executive Assistant, the person's right hand (S30): what it reaches.
       // Its row's boundary (scope_type) is ACCESS; `reach` is what its brief and
@@ -2100,7 +2100,7 @@ export default defineSchema(
       ),
       // Scope is opt in (org-staffing.md S26): empty arrays name no area, and
       // the role owns no work. Only the Head of People with empty arrays covers
-      // the whole workspace (isWholeWorkspaceRole, shared/contracts/orgLead.ts).
+      // the whole workspace (isWholeWorkspaceRole, packages/org/src/orgLead.ts).
       scope: v.object({
         project_ids: v.array(v.id("projects")),
         plan_ids: v.array(v.id("plans")),
@@ -2260,7 +2260,7 @@ export default defineSchema(
       // one keeps its scope inside this role's, and a scope edit, a move or an
       // undo that breaks that is refused. Off (absent) unless a person turns it
       // on: the org is open by default (2026-10-22). Read through
-      // shared/contracts/orgLead keepsReportsInside.
+      // @codecast/org/orgLead keepsReportsInside.
       keeps_reports_inside: v.optional(v.boolean()),
       // Knowledge handoff when an area moves (org-staffing.md S32). On the
       // RECEIVING role: which role it succeeded for which project or plan, so
@@ -2378,10 +2378,10 @@ export default defineSchema(
           }),
         ),
       ),
-      // The face (org-staffing.md S13): a key from shared/contracts/orgAvatars;
+      // The face (org-staffing.md S13): a key from @codecast/org/orgAvatars;
       // absent rows draw the default for their handle.
       avatar: v.optional(v.string()),
-      // The practical face (S13, shared/contracts/roleIcon): a drawn icon of
+      // The practical face (S13, @codecast/org/roleIcon): a drawn icon of
       // what the role looks after, as validated shapes. Every role wears both
       // faces; each viewer's setting picks one. Absent until drawn (the hire
       // schedules roleIcons.generateForRole); readers fall back to the monogram.

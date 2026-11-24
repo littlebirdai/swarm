@@ -13,7 +13,7 @@ import {
   ROLE_ICON_TILE,
   roleIconStroke,
   roleIconSvg,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 import type { RoleTile } from "@codecast/web/lib/sessionIdentity";
 import { Text as RNText } from "@/components/Themed";
 import { mixHex, useActiveScheme, useTheme } from "@/constants/Theme";

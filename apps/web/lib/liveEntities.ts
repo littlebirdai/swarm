@@ -35,8 +35,8 @@ import {
   sameAssigneeInfo,
   type AssigneeInfo as ResolvedAssignee,
   type AssigneeRole,
-} from "@codecast/shared/contracts/orgAssignee";
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+} from "@codecast/org/orgAssignee";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
 import { roleAuthorOf, type IdentityPrefs } from "./sessionIdentity";
 import { deployMatchesRef } from "./deploys/deployPill";
 import { teamMembersOf } from "./activeTeam";

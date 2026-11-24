@@ -4,11 +4,8 @@
 // icon from the role rows when the caller only knows the handle.
 import assert from "node:assert/strict";
 import { afterAll, test } from "bun:test";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
-import {
-  roleIconSvg,
-  roleIconStroke,
-} from "@codecast/shared/contracts/roleIcon";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
+import { roleIconSvg, roleIconStroke } from "@codecast/org/roleIcon";
 
 const ICON = ROLE_ICON_EXAMPLES[0].icon;
 

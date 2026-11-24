@@ -7,7 +7,7 @@ import {
   query,
 } from "./functions";
 import { internal } from "./_generated/api";
-import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
+import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import { lineStartsOn } from "@codecast/shared/contracts/roleAutonomy";
 import { isTerminalTaskStatus, isUnblocked } from "@codecast/shared/tasks";
 import { readinessLookups } from "./lib/taskGraph";
@@ -51,8 +51,8 @@ import {
   userCanAccessRole,
 } from "./lib/orgAccess";
 import { taskWork } from "./lib/orgOwnership";
-import { ownerOf, projectLeadOf } from "@codecast/shared/contracts/orgLead";
-import { chainHeadOf } from "@codecast/shared/contracts/orgAssignee";
+import { ownerOf, projectLeadOf } from "@codecast/org/orgLead";
+import { chainHeadOf } from "@codecast/org/orgAssignee";
 import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
 import { byStartOrder, startValue } from "./lib/linePriority";
 import { getAuthenticatedUserId } from "./pendingMessages";

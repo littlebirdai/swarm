@@ -16,10 +16,7 @@ import {
 } from "./agentTasks";
 import { handRoleTriggersToRunner } from "./lib/agentTaskRows";
 import { HEAD_OF_PEOPLE_JOB } from "@codecast/shared/contracts/headOfPeoplePrompt";
-import {
-  defaultAvatarFor,
-  isAvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
+import { defaultAvatarFor, isAvatarKey } from "@codecast/org/orgAvatars";
 import {
   andList,
   orgAuthorityGrantsError,
@@ -48,10 +45,10 @@ import {
   EXECUTIVE_ASSISTANT_NAME,
   leadScopeChange,
   type AssistantReach,
-} from "@codecast/shared/contracts/orgLead";
-import { EXECUTIVE_ASSISTANT_JOB } from "@codecast/shared/contracts/executiveAssistantPrompt";
-import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
-import { cleanCharacterName } from "@codecast/shared/contracts/sessionCharacter";
+} from "@codecast/org/orgLead";
+import { EXECUTIVE_ASSISTANT_JOB } from "@codecast/org/executiveAssistantPrompt";
+import { roleIdentity } from "@codecast/org/orgIdentity";
+import { cleanCharacterName } from "@codecast/org/sessionCharacter";
 import { v } from "convex/values";
 import { requireWorkspaceFeature } from "./lib/teamFeatureGuard";
 import { Id } from "./_generated/dataModel";
@@ -640,7 +637,7 @@ export function normalizeAvatar(
   if (!trimmed) return defaultAvatarFor(handle);
   if (!isAvatarKey(trimmed))
     throw new Error(
-      `"${trimmed}" is not an avatar key (see shared/contracts/orgAvatars)`,
+      `"${trimmed}" is not an avatar key (see @codecast/org/orgAvatars)`,
     );
   return trimmed;
 }

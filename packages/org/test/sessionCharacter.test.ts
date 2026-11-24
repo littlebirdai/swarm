@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { AVATAR_KEYS } from "./orgAvatars";
+import { AVATAR_KEYS } from "../src/orgAvatars";
 import {
   ALL_CHARACTER_NAMES,
   CHARACTER_NAMES,
   characterOf,
   cleanCharacterName,
   defaultCharacterFor,
-} from "./sessionCharacter";
+} from "../src/sessionCharacter";
 
 describe("session characters", () => {
   test("the name bank has six distinct names per face and no name shared between faces", () => {
@@ -62,7 +62,8 @@ describe("session characters", () => {
 
 describe("normalizeCharacterFields", () => {
   test("keeps valid parts, clears invalid or empty ones, leaves other fields alone", async () => {
-    const { normalizeCharacterFields } = await import("./sessionCharacter");
+    const { normalizeCharacterFields } =
+      await import("../src/sessionCharacter");
     expect(
       normalizeCharacterFields({
         character_avatar: "owl",
@@ -84,7 +85,7 @@ describe("normalizeCharacterFields", () => {
 
 describe("characterNameFor", () => {
   test("is the default's name on the default face, stays in the face's bank, and nudges through all six", async () => {
-    const { characterNameFor } = await import("./sessionCharacter");
+    const { characterNameFor } = await import("../src/sessionCharacter");
     const id = "k97xcyp74gaa0q43my0mpnvnsd8ekyj4";
     const d = defaultCharacterFor(id);
     expect(characterNameFor(id, d.avatar)).toBe(d.name);

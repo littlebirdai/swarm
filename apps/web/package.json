@@ -40,6 +40,7 @@
     "@codecast/keyboard": "workspace:*",
     "@codecast/memory": "workspace:*",
     "@codecast/network": "workspace:*",
+    "@codecast/org": "workspace:*",
     "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/provider-keys": "workspace:*",

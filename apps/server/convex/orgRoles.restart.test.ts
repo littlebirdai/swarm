@@ -9,7 +9,7 @@ import {
 } from "./orgRoles";
 import { performUndo } from "./orgChanges";
 import { isBootstrapPrompt } from "@codecast/shared/contracts";
-import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
+import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 import { HEAD_INBOX_TITLE, ROLE_AGENDA_TITLE } from "./lib/orgRoutine";
 import { queueOrder } from "./lib/sessionQueue";
 

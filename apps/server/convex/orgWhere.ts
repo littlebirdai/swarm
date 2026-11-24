@@ -11,10 +11,7 @@
 import { v } from "convex/values";
 import { query } from "./functions";
 import type { Id } from "./_generated/dataModel";
-import {
-  isWholeWorkspaceRole,
-  ownerOf,
-} from "@codecast/shared/contracts/orgLead";
+import { isWholeWorkspaceRole, ownerOf } from "@codecast/org/orgLead";
 import type {
   OrgChatRoom,
   OrgSeatHow,
