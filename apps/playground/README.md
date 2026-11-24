@@ -49,7 +49,7 @@ production deployment of the `codecast-playground` Convex project
 uploads it to the `clayground` Cloudflare Worker (`wrangler.jsonc`). Convex
 goes first so the public shell never calls functions prod lacks.
 
-This package is its own Convex project. `packages/convex/deploy.sh` and the
+This package is its own Convex project. `apps/server/deploy.sh` and the
 codecast prod deployment have nothing to do with it.
 
 Production environment (set once, `npx convex env set --prod NAME`):

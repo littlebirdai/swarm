@@ -126,7 +126,7 @@ const loops = (
 // people were active (app open, send or daemon) in the last 7 days.
 function convexRows(args: string[]): any[] {
   const out = execFileSync("npx", ["convex", ...args], {
-    cwd: join(import.meta.dir, "../packages/convex"),
+    cwd: join(import.meta.dir, "../apps/server"),
     env: { ...process.env, CONVEX_DEPLOYMENT: "" },
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,

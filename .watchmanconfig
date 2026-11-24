@@ -19,7 +19,7 @@
     "apps/browser-extension/dist",
     "apps/vscode-extension/dist",
     "apps/desktop/dist",
-    "packages/convex/.conductor",
+    "apps/server/.conductor",
     "apps/mobile/.conductor",
     "apps/mobile/android/.gradle",
     "apps/mobile/android/build",

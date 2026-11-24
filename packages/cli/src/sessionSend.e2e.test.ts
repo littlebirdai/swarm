@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
-import { makeFakeDb } from "../../convex/convex/testDb";
-import { performSessionSend, claimPendingMessageForDaemon, markPendingDelivered } from "../../convex/convex/pendingMessages";
+import { makeFakeDb } from "../../../apps/server/convex/testDb";
+import { performSessionSend, claimPendingMessageForDaemon, markPendingDelivered } from "../../../apps/server/convex/pendingMessages";
 import { registerSessionSendCommand } from "./sessionSendCommand";
 import { sessionIdFromEnv } from "./sessionIdentity";
 import { expandCommandStdinDashes } from "./sendBody";

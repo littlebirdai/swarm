@@ -83,7 +83,7 @@ describe("heartbeat carries agent_status", () => {
     // change-only agent_status_updated_at rule), or the batched path could
     // reintroduce the latched-status bug. Both go through applyHeartbeat, which
     // builds the patch with buildHeartbeatPatch.
-    const convexDir = path.join(path.dirname(daemonPath), "..", "..", "convex", "convex");
+    const convexDir = path.join(path.dirname(daemonPath), "..", "..", "..", "apps", "server", "convex");
     const managedSessionsSource = fs.readFileSync(path.join(convexDir, "managedSessions.ts"), "utf8");
     const patchSource = fs.readFileSync(path.join(convexDir, "lib", "heartbeatPatch.ts"), "utf8");
     expect(patchSource).toContain("export function buildHeartbeatPatch(");

@@ -6,7 +6,7 @@
 // cheap to write and goes nowhere until you send the batch, so reading and
 // dispatching stop competing.
 //
-// A note is a review_comments row (packages/convex/convex/reviewNotes.ts), so
+// A note is a review_comments row (apps/server/convex/reviewNotes.ts), so
 // the web diff view shows the same notes this command lists. The batch is
 // scoped to the worktree: two worktrees of one repository hold different
 // diffs, so they hold different batches.

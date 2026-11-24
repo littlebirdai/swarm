@@ -527,7 +527,7 @@ describe("projectsTouching", () => {
       const projects = [
         { name: "web", tsconfig: "packages/web/tsconfig.json" },
         { name: "cli", tsconfig: "packages/cli/tsconfig.json" },
-        { name: "convex", tsconfig: "packages/convex/tsconfig.json" },
+        { name: "convex", tsconfig: "apps/server/tsconfig.json" },
       ];
       const info = (name: string, files: string[]) => {
         const dir = watchDir(root, name);
@@ -536,7 +536,7 @@ describe("projectsTouching", () => {
       };
       info("web", ["packages/web/app.tsx", "packages/shared/x.ts"]);
       info("cli", ["packages/cli/src/a.ts"]);
-      info("convex", ["packages/convex/f.ts", "packages/shared/x.ts"]);
+      info("convex", ["apps/server/f.ts", "packages/shared/x.ts"]);
       const names = (changed: string[]) => projectsTouching(root, projects, changed).map((p) => p.name);
       expect(names(["packages/shared/x.ts"])).toEqual(["web", "convex"]);
       expect(names(["packages/cli/src/new.ts"])).toEqual(["cli"]);

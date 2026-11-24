@@ -28,7 +28,7 @@ export const NO_CLEAR = Symbol("no-clear");
 
 type WireTable = Record<string, unknown>;
 
-// tasks.webUpdate (packages/convex/convex/tasks.ts): "" unsets status_id,
+// tasks.webUpdate (apps/server/convex/tasks.ts): "" unsets status_id,
 // execution_status, project_id, project_path, duplicate_of and parent; it
 // stores "" for assignee and description and [] for labels (clears below);
 // it ignores an empty priority, title or triage_status and has no clear for

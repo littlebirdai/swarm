@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import type { CheckResult, ConvoMessage, Freeze, ReplyJudge, Verdict } from '@platform/evals';
 
-import { parseJsonBlock } from '../../../../packages/convex/convex/lib/anthropic';
+import { parseJsonBlock } from '../../../../apps/server/convex/lib/anthropic';
 import { JUDGE_MODEL } from '../models';
 import { homePaths } from '../paths';
 import type { SurfaceImpl } from '../surface';

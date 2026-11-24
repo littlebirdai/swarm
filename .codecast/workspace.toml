@@ -12,7 +12,7 @@
 copy = [
   ".env",
   ".env.local",
-  "packages/convex/.env.local",
+  "apps/server/.env.local",
   "packages/web/.env.local",
   "packages/cli/.env.local",
 ]
@@ -65,4 +65,4 @@ stage = "before_push"
 
 # Convex: Swarm deploys its backend separately with scripts/deploy-backend.sh,
 # and deploys are deferred, so cast ship runs no backend deploy before a push.
-# packages/convex/deploy.sh is Codecast's and refuses in Swarm.
+# apps/server/deploy.sh is Codecast's and refuses in Swarm.

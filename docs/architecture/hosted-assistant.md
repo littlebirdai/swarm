@@ -443,7 +443,7 @@ How the engine (`assistant/turns.ts`, `assistant/history.ts`) does it:
 
 ## Where it plugs into existing code
 
-All paths under `packages/convex/convex` unless noted. Mapped 2026-10-04.
+All paths under `apps/server/convex` unless noted. Mapped 2026-10-04.
 
 - **Creating a hosted conversation.** `createQuickSession`
   (`conversations.ts:~1511`) always ends in `enqueueStartSession`, which hands

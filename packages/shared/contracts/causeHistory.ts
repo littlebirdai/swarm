@@ -8,7 +8,7 @@
 // station is handed never disagree. Pure.
 //
 // What codecast cannot know, it says. A deploy is known only when someone
-// records it (`cast ship mark`, which packages/convex/deploy.sh runs, or a
+// records it (`cast ship mark`, which apps/server/deploy.sh runs, or a
 // source that reports deploys); a merge with no recorded deploy after it is
 // "merged, deploy not recorded", never assumed live. A regression is measured
 // from the deploy that carried the fix when one is known, else from the merge,

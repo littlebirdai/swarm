@@ -5,8 +5,8 @@
 // Run: bun test plugins/castTimeline.test.ts
 import { expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
-import { CAST_MOTION_JS } from "../../convex/convex/lib/castMotion";
-import { castPlayerScript } from "../../convex/convex/lib/castPlayer";
+import { CAST_MOTION_JS } from "../../../apps/server/convex/lib/castMotion";
+import { castPlayerScript } from "../../../apps/server/convex/lib/castPlayer";
 
 const COMPOSITION = `<!doctype html><html><head><base href="https://pages.test/cli/a/slug/"><title>Hill docks</title></head><body>
 <div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="10">

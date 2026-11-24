@@ -45,14 +45,14 @@ import {
   waitFor,
 } from "./test-helpers/messagingHarness.js";
 import type { SyncService } from "./syncService.js";
-import { makeFakeDb } from "../../convex/convex/testDb";
+import { makeFakeDb } from "../../../apps/server/convex/testDb";
 import {
   claimPendingMessageForDaemon,
   performSessionSend,
   updatePendingMessageStatusForDaemon,
-} from "../../convex/convex/pendingMessages";
-import { findEchoedPendingMessage, pendingRowsForEcho, settleEchoedPending } from "../../convex/convex/messages";
-import { redactSecrets } from "../../convex/convex/redact";
+} from "../../../apps/server/convex/pendingMessages";
+import { findEchoedPendingMessage, pendingRowsForEcho, settleEchoedPending } from "../../../apps/server/convex/messages";
+import { redactSecrets } from "../../../apps/server/convex/redact";
 import { isolateCodecastDir } from "./test-helpers/codecastDir.js";
 
 // The delivery echo ledger these deliveries record into lives in CODECAST_DIR.

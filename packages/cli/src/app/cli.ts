@@ -431,10 +431,10 @@ function cliConfig(): { user_id?: string; convex_url?: string; web_url?: string 
   }
 }
 
-/** The repo checkout that owns packages/convex/run.sh, or null. */
+/** The repo checkout that owns apps/server/run.sh, or null. */
 async function codecastCheckout(): Promise<string | null> {
   const root = await repoRootFor(process.env.CODECAST_CWD || process.cwd());
-  if (root && fs.existsSync(path.join(root, "packages", "convex", "run.sh"))) return root;
+  if (root && fs.existsSync(path.join(root, "apps", "server", "run.sh"))) return root;
   return null;
 }
 
@@ -735,12 +735,12 @@ async function asUser(who: string | undefined, o: TargetOpts & { restore?: boole
   if (!o.restore) {
     if (!who) die("who? an email or a user id", "cast app as-user someone@example.com");
     const root = await codecastCheckout();
-    if (!root) die("minting a session needs the codecast checkout (packages/convex/run.sh with the admin key)", "run from ~/src/codecast");
+    if (!root) die("minting a session needs the codecast checkout (apps/server/run.sh with the admin key)", "run from ~/src/codecast");
     const args = who.includes("@") ? { email: who } : { user_id: who };
-    const res = spawnSync("bash", [path.join(root, "packages", "convex", "run.sh"), "verification:mintSession", JSON.stringify(args)], {
+    const res = spawnSync("bash", [path.join(root, "apps", "server", "run.sh"), "verification:mintSession", JSON.stringify(args)], {
       encoding: "utf-8", cwd: root, timeout: 60_000,
     });
-    if (res.status !== 0) die(`minting failed: ${(res.stderr || res.stdout).trim().split("\n").slice(-3).join(" | ")}`, "is verification.ts deployed? packages/convex/deploy.sh");
+    if (res.status !== 0) die(`minting failed: ${(res.stderr || res.stdout).trim().split("\n").slice(-3).join(" | ")}`, "is verification.ts deployed? apps/server/deploy.sh");
     try {
       minted = JSON.parse(res.stdout.slice(res.stdout.indexOf("{")));
     } catch {

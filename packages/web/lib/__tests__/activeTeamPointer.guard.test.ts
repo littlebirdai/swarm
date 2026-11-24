@@ -72,7 +72,7 @@ describe("active-team pointer", () => {
     ]);
 
     const dispatch = readFileSync(
-      join(ROOT, "..", "convex", "convex", "dispatch.ts"),
+      join(ROOT, "..", "..", "apps", "server", "convex", "dispatch.ts"),
       "utf8",
     );
     const pointer = dispatch.match(/^ {2}setActiveTeamPointer: async \([\s\S]*?^ {2}\},/m)?.[0] ?? "";
@@ -82,7 +82,7 @@ describe("active-team pointer", () => {
     expect(handler).toContain("api.teams.createTeam");
     expect(handler).toContain("active_team_id: teamId");
 
-    const teams = readFileSync(join(ROOT, "..", "convex", "convex", "teams.ts"), "utf8");
+    const teams = readFileSync(join(ROOT, "..", "..", "apps", "server", "convex", "teams.ts"), "utf8");
     const mutation = teams.match(/export const createTeam = mutation\([\s\S]*?^\}\);/m)?.[0] ?? "";
     expect(mutation).toContain("active_team_id: teamId");
 

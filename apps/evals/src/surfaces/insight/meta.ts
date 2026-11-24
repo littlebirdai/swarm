@@ -6,7 +6,7 @@ export const meta: SurfaceMeta = {
   title: 'Session insight: goal, blockers, next action',
   route: 'call',
   model: CALL_MODEL,
-  sources: surfaceSources('insight', 'packages/convex/convex/sessionInsights.ts', 'packages/convex/convex/lib/anthropic.ts'),
+  sources: surfaceSources('insight', 'apps/server/convex/sessionInsights.ts', 'apps/server/convex/lib/anthropic.ts'),
   reps: { check: 5 },
   maxUsdPerRep: 0.04,
   criteria: "the headline and each turn are supported by the transcript: every ask is the user's, every did item happened",

@@ -41,11 +41,11 @@ function write(root: string, rel: string, content: string | Buffer, mode = 0o644
 
 describe("nodeRequirement — engines resolution order", () => {
   test("the installed convex package's engines first, then repo pins, then the laptop's node; never below the floor", () => {
-    write(repo, "packages/convex/node_modules/convex/package.json", JSON.stringify({ version: "1.30.0", engines: { node: ">=22.0.0" } }));
+    write(repo, "apps/server/node_modules/convex/package.json", JSON.stringify({ version: "1.30.0", engines: { node: ">=22.0.0" } }));
     write(repo, ".nvmrc", "20\n");
     write(repo, "package.json", JSON.stringify({ engines: { node: ">=18" } }));
     expect(nodeRequirement(repo, 24)).toEqual({ minMajor: 22, install: NODE_22_VERSION, source: "convex 1.30.0 engines" });
-    fs.rmSync(path.join(repo, "packages"), { recursive: true });
+    fs.rmSync(path.join(repo, "apps/server"), { recursive: true });
     expect(nodeRequirement(repo, 24)).toEqual({ minMajor: 20, install: NODE_22_VERSION, source: ".nvmrc" });
     fs.unlinkSync(path.join(repo, ".nvmrc"));
     expect(nodeRequirement(repo, 24).source).toBe("package.json engines (raised to 20)");
@@ -57,7 +57,7 @@ describe("nodeRequirement — engines resolution order", () => {
     expect(nodeRequirement(undefined, undefined)).toEqual({ minMajor: 20, install: NODE_22_VERSION, source: "floor 20" });
   });
   test("a convex engines of >=18 (today's) is raised to the floor and says so", () => {
-    write(repo, "packages/convex/node_modules/convex/package.json", JSON.stringify({ version: "1.2.3", engines: { node: ">=18.0.0" } }));
+    write(repo, "apps/server/node_modules/convex/package.json", JSON.stringify({ version: "1.2.3", engines: { node: ">=18.0.0" } }));
     expect(nodeRequirement(repo, 18)).toEqual({ minMajor: 20, install: NODE_22_VERSION, source: "convex 1.2.3 engines (raised to 20)" });
   });
   test("minMajorOfRange", () => {

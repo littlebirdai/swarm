@@ -128,7 +128,7 @@ check_rapid_restarts() {
     fi
 }
 
-# The convex pusher (packages/convex/scripts/gated-push.ts, behind `bun run
+# The convex pusher (apps/server/scripts/gated-push.ts, behind `bun run
 # dev`) pushes whole-tree snapshots to the configured dev deployment.
 # Never start it from a stale tree; it re-checks freshness before every push
 # too, and only pushes a tree that has been quiet and typechecks whole (a raw
@@ -169,7 +169,7 @@ start_convex() {
     $SHUTTING_DOWN && return
 
     [ -n "$CONVEX_PID" ] && kill_tree $CONVEX_PID
-    cd "$ROOT_DIR/packages/convex"
+    cd "$ROOT_DIR/apps/server"
     bun run dev &
     CONVEX_PID=$!
     cd "$ROOT_DIR"

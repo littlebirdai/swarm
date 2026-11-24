@@ -13,7 +13,7 @@ export const meta: SurfaceMeta = {
     'packages/cli/src/workflow/templates/intent.cast',
     'packages/cli/src/workflow/templates/intent/asker.md',
     'packages/cli/src/workflow/flowAsker.ts',
-    'packages/convex/convex/lib/originatorChain.ts',
+    'apps/server/convex/lib/originatorChain.ts',
   ),
   reps: { check: 5 },
   // One Opus call over a session's typed lines (up to the station's 63 KB record) and a diff.

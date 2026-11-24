@@ -1,6 +1,6 @@
 # Public entrypoint inventory
 
-Generated 2026-11-10T08:12:29.139Z by packages/convex/scripts/security-inventory.ts. Lexical classification of every exported Convex function and HTTP route; "unresolved" means no one has shown the boundary holds, never that it is safe.
+Generated 2026-11-10T08:12:29.139Z by apps/server/scripts/security-inventory.ts. Lexical classification of every exported Convex function and HTTP route; "unresolved" means no one has shown the boundary holds, never that it is safe.
 
 | | count |
 |---|---|

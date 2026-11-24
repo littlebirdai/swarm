@@ -67,7 +67,7 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/accessLog.test.ts"
+        "apps/server/convex/accessLog.test.ts"
       ],
       "routes": [],
       "line": 97
@@ -123,7 +123,7 @@
       "risk": "none",
       "reason": "judged by checkConversationAccess",
       "testedBy": [
-        "packages/convex/convex/accessLog.test.ts"
+        "apps/server/convex/accessLog.test.ts"
       ],
       "routes": [],
       "line": 26
@@ -1599,7 +1599,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 508
@@ -1623,7 +1623,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 184
@@ -1649,7 +1649,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 265
@@ -1875,7 +1875,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 223
@@ -1924,7 +1924,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 526
@@ -2020,7 +2020,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 97
@@ -2044,7 +2044,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 457
@@ -2068,7 +2068,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts"
+        "apps/server/convex/agentReviews.test.ts"
       ],
       "routes": [],
       "line": 545
@@ -2686,7 +2686,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/agentTasks.notifications.test.ts"
+        "apps/server/convex/agentTasks.notifications.test.ts"
       ],
       "routes": [],
       "line": 1534
@@ -2821,7 +2821,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 1265
@@ -3207,7 +3207,7 @@
       "risk": "none",
       "reason": "judged by getManageableTask",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 1893
@@ -3347,7 +3347,7 @@
       "risk": "none",
       "reason": "judged by getManageableTask",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 2385
@@ -3373,7 +3373,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 2331
@@ -3582,7 +3582,7 @@
       "risk": "none",
       "reason": "judged by getManageableTask",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 2368
@@ -3664,7 +3664,7 @@
       "risk": "none",
       "reason": "judged by getManageableTask",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 2369
@@ -3692,7 +3692,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for agent_tasks with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 2373
@@ -3722,7 +3722,7 @@
       "risk": "none",
       "reason": "judged by getManageableTask",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 2686
@@ -4368,7 +4368,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/regulatedDeletion.test.ts"
+        "apps/server/convex/regulatedDeletion.test.ts"
       ],
       "routes": [],
       "line": 1963
@@ -4466,7 +4466,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/artifacts.teamGate.test.ts",
+        "apps/server/convex/artifacts.teamGate.test.ts",
         "packages/web/components/__tests__/publishedPageEmbed.degrade.test.tsx",
         "packages/web/components/__tests__/publishedPageEmbed.test.tsx"
       ],
@@ -4494,7 +4494,7 @@
       "risk": "low",
       "reason": "published page read by slug capability by design (plan 006 owns the publishing surface)",
       "testedBy": [
-        "packages/convex/convex/artifacts.teamGate.test.ts"
+        "apps/server/convex/artifacts.teamGate.test.ts"
       ],
       "routes": [],
       "line": 2094
@@ -4594,7 +4594,7 @@
       "risk": "none",
       "reason": "judged by isTeamMember",
       "testedBy": [
-        "packages/convex/convex/artifacts.teamGate.test.ts"
+        "apps/server/convex/artifacts.teamGate.test.ts"
       ],
       "routes": [],
       "line": 1274
@@ -4642,7 +4642,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/artifacts.teamGate.test.ts"
+        "apps/server/convex/artifacts.teamGate.test.ts"
       ],
       "routes": [],
       "line": 2014
@@ -4721,8 +4721,8 @@
       "risk": "low",
       "reason": "slug plus gate tokens, rate limited (plan 006)",
       "testedBy": [
-        "packages/convex/convex/accessLog.test.ts",
-        "packages/convex/convex/artifacts.teamGate.test.ts"
+        "apps/server/convex/accessLog.test.ts",
+        "apps/server/convex/artifacts.teamGate.test.ts"
       ],
       "routes": [],
       "line": 1048
@@ -4896,7 +4896,7 @@
       "risk": "none",
       "reason": "judged by isTeamMember",
       "testedBy": [
-        "packages/convex/convex/dispatch.test.ts"
+        "apps/server/convex/dispatch.test.ts"
       ],
       "routes": [],
       "line": 1428
@@ -5516,7 +5516,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/assistant/freeGate.test.ts"
+        "apps/server/convex/assistant/freeGate.test.ts"
       ],
       "routes": [],
       "line": 158
@@ -5544,7 +5544,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/assistant/turns.test.ts"
+        "apps/server/convex/assistant/turns.test.ts"
       ],
       "routes": [],
       "line": 99
@@ -5594,13 +5594,13 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts",
-        "packages/convex/convex/assistant/freeGate.test.ts",
-        "packages/convex/convex/assistant/hostedWriter.test.ts",
-        "packages/convex/convex/assistant/longHistory.test.ts",
-        "packages/convex/convex/assistant/stop.test.ts",
-        "packages/convex/convex/assistant/tools/workspace.test.ts",
-        "packages/convex/convex/assistant/turns.test.ts"
+        "apps/server/convex/assistant.entry.test.ts",
+        "apps/server/convex/assistant/freeGate.test.ts",
+        "apps/server/convex/assistant/hostedWriter.test.ts",
+        "apps/server/convex/assistant/longHistory.test.ts",
+        "apps/server/convex/assistant/stop.test.ts",
+        "apps/server/convex/assistant/tools/workspace.test.ts",
+        "apps/server/convex/assistant/turns.test.ts"
       ],
       "routes": [],
       "line": 39
@@ -5630,7 +5630,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/assistant/stop.test.ts"
+        "apps/server/convex/assistant/stop.test.ts"
       ],
       "routes": [],
       "line": 132
@@ -6464,7 +6464,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/authorityEvents.test.ts"
+        "apps/server/convex/authorityEvents.test.ts"
       ],
       "routes": [],
       "line": 17
@@ -6510,7 +6510,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/billing.test.ts"
+        "apps/server/convex/billing.test.ts"
       ],
       "routes": [],
       "line": 154
@@ -6562,7 +6562,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/billing.test.ts"
+        "apps/server/convex/billing.test.ts"
       ],
       "routes": [],
       "line": 284
@@ -6590,7 +6590,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/billing.test.ts"
+        "apps/server/convex/billing.test.ts"
       ],
       "routes": [],
       "line": 233
@@ -7250,7 +7250,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for transcripts with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 53
@@ -7604,7 +7604,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 648
@@ -7676,7 +7676,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 499
@@ -7792,7 +7792,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 1064
@@ -8032,7 +8032,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 929
@@ -8391,7 +8391,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 853
@@ -8439,7 +8439,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 662
@@ -8535,7 +8535,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 365
@@ -8583,7 +8583,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 295
@@ -8755,7 +8755,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 570
@@ -8805,7 +8805,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 175
@@ -8879,7 +8879,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 275
@@ -8993,7 +8993,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 501
@@ -9095,7 +9095,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 1166
@@ -9196,7 +9196,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 467
@@ -9303,7 +9303,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 547
@@ -9474,7 +9474,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 1023
@@ -10732,7 +10732,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/changesQueries.test.ts"
+        "apps/server/convex/changesQueries.test.ts"
       ],
       "routes": [],
       "line": 442
@@ -10758,7 +10758,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/changesQueries.test.ts"
+        "apps/server/convex/changesQueries.test.ts"
       ],
       "routes": [],
       "line": 177
@@ -10784,7 +10784,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/changesQueries.test.ts"
+        "apps/server/convex/changesQueries.test.ts"
       ],
       "routes": [],
       "line": 117
@@ -10810,7 +10810,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/changesQueries.test.ts"
+        "apps/server/convex/changesQueries.test.ts"
       ],
       "routes": [],
       "line": 242
@@ -10836,7 +10836,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/changesQueries.test.ts"
+        "apps/server/convex/changesQueries.test.ts"
       ],
       "routes": [],
       "line": 312
@@ -10886,7 +10886,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/changesStorySessions.test.ts"
+        "apps/server/convex/changesStorySessions.test.ts"
       ],
       "routes": [],
       "line": 550
@@ -13317,7 +13317,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 117
@@ -16024,8 +16024,8 @@
       "risk": "none",
       "reason": "judged by canAccessConversation",
       "testedBy": [
-        "packages/convex/convex/conversations.movedSession.test.ts",
-        "packages/convex/convex/conversations.subagentPrivacy.test.ts"
+        "apps/server/convex/conversations.movedSession.test.ts",
+        "apps/server/convex/conversations.subagentPrivacy.test.ts"
       ],
       "routes": [],
       "line": 1206
@@ -16232,7 +16232,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/conversations.readRange.test.ts"
+        "apps/server/convex/conversations.readRange.test.ts"
       ],
       "routes": [],
       "line": 5177
@@ -16313,7 +16313,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 5761
@@ -16343,7 +16343,7 @@
       "risk": "none",
       "reason": "judged by canOwnerOrTeamAccess",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 5900
@@ -16373,7 +16373,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 3219
@@ -17077,7 +17077,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/conversations.sessionLinks.test.ts"
+        "apps/server/convex/conversations.sessionLinks.test.ts"
       ],
       "routes": [],
       "line": 4218
@@ -17415,8 +17415,8 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for users,teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/runLogLists.test.ts",
-        "packages/convex/convex/teamFeedActingAuthor.test.ts",
+        "apps/server/convex/runLogLists.test.ts",
+        "apps/server/convex/teamFeedActingAuthor.test.ts",
         "packages/web/components/__tests__/inbox.degrade.test.tsx"
       ],
       "routes": [],
@@ -17565,7 +17565,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/simBackend.test.ts",
+        "apps/server/convex/simBackend.test.ts",
         "packages/web/components/__tests__/inbox.degrade.test.tsx",
         "packages/web/lib/__tests__/syncCoreParity.guard.test.ts",
         "packages/web/store/__tests__/idbCache.native.test.ts",
@@ -17621,7 +17621,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/runLogLists.test.ts"
+        "apps/server/convex/runLogLists.test.ts"
       ],
       "routes": [],
       "line": 6732
@@ -17831,7 +17831,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/simBackend.test.ts"
+        "apps/server/convex/simBackend.test.ts"
       ],
       "routes": [],
       "line": 9654
@@ -17909,7 +17909,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/conversations.markCompleted.test.ts"
+        "apps/server/convex/conversations.markCompleted.test.ts"
       ],
       "routes": [],
       "line": 11278
@@ -18016,7 +18016,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/authorityEvents.test.ts"
+        "apps/server/convex/authorityEvents.test.ts"
       ],
       "routes": [],
       "line": 3270
@@ -18097,7 +18097,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 12184
@@ -18333,7 +18333,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/sessionQuery.test.ts"
+        "apps/server/convex/sessionQuery.test.ts"
       ],
       "routes": [],
       "line": 3574
@@ -18363,7 +18363,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/runLogLists.test.ts"
+        "apps/server/convex/runLogLists.test.ts"
       ],
       "routes": [],
       "line": 3772
@@ -18394,8 +18394,8 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/runLogLists.test.ts",
-        "packages/convex/convex/sessionQuery.test.ts"
+        "apps/server/convex/runLogLists.test.ts",
+        "apps/server/convex/sessionQuery.test.ts"
       ],
       "routes": [],
       "line": 4259
@@ -18856,7 +18856,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 12431
@@ -19095,7 +19095,7 @@
       "risk": "none",
       "reason": "judged by canOwnerOrTeamAccess",
       "testedBy": [
-        "packages/convex/convex/conversations.agentTitle.test.ts"
+        "apps/server/convex/conversations.agentTitle.test.ts"
       ],
       "routes": [],
       "line": 5265
@@ -19152,7 +19152,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/staff.test.ts"
+        "apps/server/convex/staff.test.ts"
       ],
       "routes": [],
       "line": 290
@@ -19180,7 +19180,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/staff.test.ts"
+        "apps/server/convex/staff.test.ts"
       ],
       "routes": [],
       "line": 214
@@ -19210,7 +19210,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for users with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/staff.test.ts"
+        "apps/server/convex/staff.test.ts"
       ],
       "routes": [],
       "line": 152
@@ -19523,7 +19523,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/decisionAreas.test.ts"
+        "apps/server/convex/decisionAreas.test.ts"
       ],
       "routes": [],
       "line": 358
@@ -19578,7 +19578,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/decisionAreas.test.ts"
+        "apps/server/convex/decisionAreas.test.ts"
       ],
       "routes": [],
       "line": 158
@@ -21400,7 +21400,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts",
+        "apps/server/convex/managedDevices.test.ts",
         "packages/mobile/lib/mobileCreateCallers.guard.test.ts"
       ],
       "routes": [],
@@ -21700,7 +21700,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/harnessChanges.test.ts"
+        "apps/server/convex/harnessChanges.test.ts"
       ],
       "routes": [],
       "line": 1739
@@ -21802,22 +21802,22 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts",
-        "packages/convex/convex/callRecordings.test.ts",
-        "packages/convex/convex/dispatch.lineCause.test.ts",
-        "packages/convex/convex/dispatch.lineProfile.test.ts",
-        "packages/convex/convex/dispatch.ops.test.ts",
-        "packages/convex/convex/dispatch.secrets.test.ts",
-        "packages/convex/convex/dispatch.watches.test.ts",
-        "packages/convex/convex/lineActions.test.ts",
-        "packages/convex/convex/lineWorkspace.test.ts",
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/resourceOffload.test.ts",
-        "packages/convex/convex/sessionDecisions.run.test.ts",
-        "packages/convex/convex/sessionGoals.test.ts",
-        "packages/convex/convex/sideAnswers.test.ts",
-        "packages/convex/convex/simBackend.test.ts",
-        "packages/convex/convex/weeklyCards.test.ts",
+        "apps/server/convex/assistant.entry.test.ts",
+        "apps/server/convex/callRecordings.test.ts",
+        "apps/server/convex/dispatch.lineCause.test.ts",
+        "apps/server/convex/dispatch.lineProfile.test.ts",
+        "apps/server/convex/dispatch.ops.test.ts",
+        "apps/server/convex/dispatch.secrets.test.ts",
+        "apps/server/convex/dispatch.watches.test.ts",
+        "apps/server/convex/lineActions.test.ts",
+        "apps/server/convex/lineWorkspace.test.ts",
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/resourceOffload.test.ts",
+        "apps/server/convex/sessionDecisions.run.test.ts",
+        "apps/server/convex/sessionGoals.test.ts",
+        "apps/server/convex/sideAnswers.test.ts",
+        "apps/server/convex/simBackend.test.ts",
+        "apps/server/convex/weeklyCards.test.ts",
         "packages/web/components/ops/opsHomeFold.test.ts"
       ],
       "routes": [],
@@ -24736,7 +24736,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/flowLibrary.test.ts"
+        "apps/server/convex/flowLibrary.test.ts"
       ],
       "routes": [],
       "line": 106
@@ -24764,7 +24764,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for session_flows with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/flowLibrary.test.ts"
+        "apps/server/convex/flowLibrary.test.ts"
       ],
       "routes": [],
       "line": 193
@@ -24792,7 +24792,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/flowLibrary.test.ts"
+        "apps/server/convex/flowLibrary.test.ts"
       ],
       "routes": [],
       "line": 144
@@ -25040,7 +25040,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/flowVersions.test.ts"
+        "apps/server/convex/flowVersions.test.ts"
       ],
       "routes": [],
       "line": 269
@@ -27918,7 +27918,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/handoff.request.test.ts"
+        "apps/server/convex/handoff.request.test.ts"
       ],
       "routes": [],
       "line": 275
@@ -27946,7 +27946,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/harnessChanges.test.ts"
+        "apps/server/convex/harnessChanges.test.ts"
       ],
       "routes": [],
       "line": 84
@@ -27972,7 +27972,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/harnessChanges.test.ts"
+        "apps/server/convex/harnessChanges.test.ts"
       ],
       "routes": [],
       "line": 29
@@ -29261,7 +29261,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/sources/sentry.test.ts"
+        "apps/server/convex/sources/sentry.test.ts"
       ],
       "routes": [],
       "line": 494
@@ -29804,7 +29804,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for users with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/sources/sentry.test.ts"
+        "apps/server/convex/sources/sentry.test.ts"
       ],
       "routes": [],
       "line": 538
@@ -29898,8 +29898,8 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts",
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/agentReviews.test.ts",
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 231
@@ -32177,7 +32177,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for workflows with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/lineActions.test.ts"
+        "apps/server/convex/lineActions.test.ts"
       ],
       "routes": [],
       "line": 319
@@ -32207,7 +32207,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for line_tries with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/lineActions.test.ts"
+        "apps/server/convex/lineActions.test.ts"
       ],
       "routes": [],
       "line": 191
@@ -32237,7 +32237,7 @@
       "risk": "none",
       "reason": "judged by canAccessProject",
       "testedBy": [
-        "packages/convex/convex/lineActions.test.ts"
+        "apps/server/convex/lineActions.test.ts"
       ],
       "routes": [],
       "line": 267
@@ -32267,7 +32267,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/lineActions.test.ts"
+        "apps/server/convex/lineActions.test.ts"
       ],
       "routes": [],
       "line": 293
@@ -32602,7 +32602,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/lineMoments.test.ts"
+        "apps/server/convex/lineMoments.test.ts"
       ],
       "routes": [],
       "line": 53
@@ -32628,7 +32628,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/lineMoments.test.ts"
+        "apps/server/convex/lineMoments.test.ts"
       ],
       "routes": [],
       "line": 26
@@ -33620,7 +33620,7 @@
       "risk": "none",
       "reason": "judged by canAccessTask",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 311
@@ -33650,7 +33650,7 @@
       "risk": "none",
       "reason": "judged by canAccessTask",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 492
@@ -33676,7 +33676,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 256
@@ -33731,7 +33731,7 @@
       "risk": "none",
       "reason": "judged by createDataContext",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 97
@@ -33757,7 +33757,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 194
@@ -33788,7 +33788,7 @@
       "risk": "none",
       "reason": "judged by checkConversationAccess",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 48
@@ -34455,7 +34455,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/machineResources.test.ts"
+        "apps/server/convex/machineResources.test.ts"
       ],
       "routes": [],
       "line": 195
@@ -34483,7 +34483,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/machineResources.test.ts"
+        "apps/server/convex/machineResources.test.ts"
       ],
       "routes": [],
       "line": 159
@@ -34509,7 +34509,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/machineResources.test.ts"
+        "apps/server/convex/machineResources.test.ts"
       ],
       "routes": [],
       "line": 174
@@ -34540,7 +34540,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 99
@@ -34573,7 +34573,7 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 247
@@ -34602,7 +34602,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 379
@@ -34633,7 +34633,7 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 164
@@ -34715,7 +34715,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 354
@@ -34771,7 +34771,7 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 228
@@ -34805,7 +34805,7 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 203
@@ -34838,7 +34838,7 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 186
@@ -34869,8 +34869,8 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/artifacts.teamGate.test.ts",
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/artifacts.teamGate.test.ts",
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 86
@@ -35273,8 +35273,8 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts",
-        "packages/convex/convex/sessionGoals.test.ts"
+        "apps/server/convex/assistant.entry.test.ts",
+        "apps/server/convex/sessionGoals.test.ts"
       ],
       "routes": [],
       "line": 772
@@ -35361,7 +35361,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations,_storage with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 981
@@ -35391,7 +35391,7 @@
       "testedBy": [
         "packages/cli/src/syncService.deliveryEchoes.test.ts",
         "packages/cli/src/workers/messagesSdkReceipt.test.ts",
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 1599
@@ -35491,7 +35491,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 2147
@@ -36845,7 +36845,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for mods with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/modLocal.shared.test.ts"
+        "apps/server/convex/modLocal.shared.test.ts"
       ],
       "routes": [],
       "line": 37
@@ -36873,7 +36873,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for mod_calls with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/modLocal.shared.test.ts"
+        "apps/server/convex/modLocal.shared.test.ts"
       ],
       "routes": [],
       "line": 46
@@ -36930,8 +36930,8 @@
       "risk": "none",
       "reason": "judged by requireTeamAdmin",
       "testedBy": [
-        "packages/convex/convex/findingRegroup.test.ts",
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/findingRegroup.test.ts",
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 225
@@ -37005,7 +37005,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 171
@@ -37203,7 +37203,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/modLocal.shared.test.ts"
+        "apps/server/convex/modLocal.shared.test.ts"
       ],
       "routes": [],
       "line": 142
@@ -37229,7 +37229,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/modLocal.shared.test.ts"
+        "apps/server/convex/modLocal.shared.test.ts"
       ],
       "routes": [],
       "line": 170
@@ -37275,7 +37275,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/modLocal.shared.test.ts"
+        "apps/server/convex/modLocal.shared.test.ts"
       ],
       "routes": [],
       "line": 132
@@ -37299,7 +37299,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/modLocal.shared.test.ts"
+        "apps/server/convex/modLocal.shared.test.ts"
       ],
       "routes": [],
       "line": 99
@@ -37371,7 +37371,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/modLocal.shared.test.ts"
+        "apps/server/convex/modLocal.shared.test.ts"
       ],
       "routes": [],
       "line": 193
@@ -37921,7 +37921,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/modSecrets.test.ts"
+        "apps/server/convex/modSecrets.test.ts"
       ],
       "routes": [],
       "line": 100
@@ -38069,7 +38069,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for mods with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/modSecrets.test.ts"
+        "apps/server/convex/modSecrets.test.ts"
       ],
       "routes": [],
       "line": 76
@@ -38098,7 +38098,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for mods,teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/modSecrets.test.ts"
+        "apps/server/convex/modSecrets.test.ts"
       ],
       "routes": [],
       "line": 36
@@ -38221,8 +38221,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts",
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/agentReviews.test.ts",
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 231
@@ -38246,8 +38246,8 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts",
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/agentReviews.test.ts",
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 352
@@ -38323,7 +38323,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 528
@@ -38469,9 +38469,9 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/agentReviews.test.ts",
-        "packages/convex/convex/findingRegroup.test.ts",
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/agentReviews.test.ts",
+        "apps/server/convex/findingRegroup.test.ts",
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 174
@@ -38566,7 +38566,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 614
@@ -38612,7 +38612,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 589
@@ -38636,7 +38636,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/moments.test.ts"
+        "apps/server/convex/moments.test.ts"
       ],
       "routes": [],
       "line": 17
@@ -39938,7 +39938,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/orgChanges.integration.test.ts"
+        "apps/server/convex/orgChanges.integration.test.ts"
       ],
       "routes": [],
       "line": 394
@@ -39968,7 +39968,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/orgChanges.integration.test.ts"
+        "apps/server/convex/orgChanges.integration.test.ts"
       ],
       "routes": [],
       "line": 393
@@ -40018,7 +40018,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/orgChanges.integration.test.ts"
+        "apps/server/convex/orgChanges.integration.test.ts"
       ],
       "routes": [],
       "line": 396
@@ -40044,7 +40044,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/orgChanges.integration.test.ts"
+        "apps/server/convex/orgChanges.integration.test.ts"
       ],
       "routes": [],
       "line": 399
@@ -40070,7 +40070,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/orgChanges.integration.test.ts"
+        "apps/server/convex/orgChanges.integration.test.ts"
       ],
       "routes": [],
       "line": 398
@@ -41321,7 +41321,7 @@
       "risk": "none",
       "reason": "judged by requireWorkspaceFeature",
       "testedBy": [
-        "packages/convex/convex/orgChanges.integration.test.ts"
+        "apps/server/convex/orgChanges.integration.test.ts"
       ],
       "routes": [],
       "line": 798
@@ -41711,7 +41711,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/orgChanges.integration.test.ts"
+        "apps/server/convex/orgChanges.integration.test.ts"
       ],
       "routes": [],
       "line": 2212
@@ -43578,7 +43578,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts"
+        "apps/server/convex/passkeys.test.ts"
       ],
       "routes": [],
       "line": 146
@@ -43631,7 +43631,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts"
+        "apps/server/convex/passkeys.test.ts"
       ],
       "routes": [],
       "line": 95
@@ -43685,7 +43685,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
+        "apps/server/convex/passkeys.test.ts",
         "packages/web/components/settings/PasskeysSection.mount.test.tsx",
         "packages/web/lib/agentTabGuard.mount.test.tsx",
         "packages/web/lib/passkeyPresence.mount.test.tsx"
@@ -43714,7 +43714,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
+        "apps/server/convex/passkeys.test.ts",
         "packages/web/app/confirm/page.mount.test.tsx",
         "packages/web/components/settings/PasskeysSection.mount.test.tsx",
         "packages/web/lib/agentTabGuard.mount.test.tsx",
@@ -43768,7 +43768,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
+        "apps/server/convex/passkeys.test.ts",
         "packages/web/components/settings/PasskeysSection.mount.test.tsx",
         "packages/web/lib/passkeyPresence.mount.test.tsx"
       ],
@@ -43797,7 +43797,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
+        "apps/server/convex/passkeys.test.ts",
         "packages/web/app/confirm/page.mount.test.tsx",
         "packages/web/components/settings/PasskeysSection.mount.test.tsx",
         "packages/web/lib/passkeyPresence.mount.test.tsx"
@@ -43824,7 +43824,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
+        "apps/server/convex/passkeys.test.ts",
         "packages/web/components/settings/PasskeysSection.mount.test.tsx"
       ],
       "routes": [],
@@ -43849,7 +43849,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts"
+        "apps/server/convex/passkeys.test.ts"
       ],
       "routes": [],
       "line": 496
@@ -44502,8 +44502,8 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations,_storage with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts",
-        "packages/convex/convex/pendingMessages.reviveGate.test.ts"
+        "apps/server/convex/assistant.entry.test.ts",
+        "apps/server/convex/pendingMessages.reviveGate.test.ts"
       ],
       "routes": [],
       "line": 633
@@ -44587,7 +44587,7 @@
       "reason": "judged by senderOrOwnerCanAct",
       "testedBy": [
         "packages/cli/src/syncService.pendingMessages.test.ts",
-        "packages/convex/convex/assistant.entry.test.ts"
+        "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
       "line": 1129
@@ -44613,7 +44613,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/permissionRules.test.ts"
+        "apps/server/convex/permissionRules.test.ts"
       ],
       "routes": [],
       "line": 63
@@ -44641,7 +44641,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/permissionRules.test.ts"
+        "apps/server/convex/permissionRules.test.ts"
       ],
       "routes": [],
       "line": 16
@@ -44667,7 +44667,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/permissionRules.test.ts"
+        "apps/server/convex/permissionRules.test.ts"
       ],
       "routes": [],
       "line": 35
@@ -44695,7 +44695,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for permission_rules with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/permissionRules.test.ts"
+        "apps/server/convex/permissionRules.test.ts"
       ],
       "routes": [],
       "line": 104
@@ -44773,8 +44773,8 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/permissionRules.test.ts",
-        "packages/convex/convex/permissions.decisions.test.ts"
+        "apps/server/convex/permissionRules.test.ts",
+        "apps/server/convex/permissions.decisions.test.ts"
       ],
       "routes": [],
       "line": 60
@@ -44825,8 +44825,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/permissionRules.test.ts",
-        "packages/convex/convex/permissions.decisions.test.ts"
+        "apps/server/convex/permissionRules.test.ts",
+        "apps/server/convex/permissions.decisions.test.ts"
       ],
       "routes": [],
       "line": 409
@@ -44880,7 +44880,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for pending_permissions with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/permissions.decisions.test.ts"
+        "apps/server/convex/permissions.decisions.test.ts"
       ],
       "routes": [],
       "line": 360
@@ -44930,9 +44930,9 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for pending_permissions with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/authorityEvents.test.ts",
-        "packages/convex/convex/permissionRules.test.ts",
-        "packages/convex/convex/permissions.decisions.test.ts"
+        "apps/server/convex/authorityEvents.test.ts",
+        "apps/server/convex/permissionRules.test.ts",
+        "apps/server/convex/permissions.decisions.test.ts"
       ],
       "routes": [],
       "line": 159
@@ -48045,7 +48045,7 @@
       "risk": "low",
       "reason": "token authenticated",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 215
@@ -48071,7 +48071,7 @@
       "risk": "low",
       "reason": "token authenticated",
       "testedBy": [
-        "packages/convex/convex/weeklyCards.test.ts"
+        "apps/server/convex/weeklyCards.test.ts"
       ],
       "routes": [],
       "line": 440
@@ -48596,7 +48596,7 @@
       "risk": "none",
       "reason": "judged by canAccessPullRequest",
       "testedBy": [
-        "packages/convex/convex/prDetails.test.ts",
+        "apps/server/convex/prDetails.test.ts",
         "packages/web/components/EntityIdPill.references.test.tsx",
         "packages/web/lib/remarkEntityCards.test.tsx"
       ],
@@ -48873,7 +48873,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for transcripts with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/regulatedDeletion.test.ts"
+        "apps/server/convex/regulatedDeletion.test.ts"
       ],
       "routes": [],
       "line": 180
@@ -48903,7 +48903,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/regulatedDeletion.test.ts"
+        "apps/server/convex/regulatedDeletion.test.ts"
       ],
       "routes": [],
       "line": 206
@@ -48931,7 +48931,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/regulatedDeletion.test.ts"
+        "apps/server/convex/regulatedDeletion.test.ts"
       ],
       "routes": [],
       "line": 237
@@ -51601,7 +51601,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/resourceOffload.test.ts"
+        "apps/server/convex/resourceOffload.test.ts"
       ],
       "routes": [],
       "line": 11
@@ -52796,8 +52796,8 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 1318
@@ -52823,9 +52823,9 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/dispatch.secrets.test.ts",
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/dispatch.secrets.test.ts",
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 541
@@ -52853,8 +52853,8 @@
       "risk": "none",
       "reason": "judged by canAccessConversation",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/secrets.test.ts",
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/secrets.test.ts",
         "packages/web/components/secrets/VaultSource.mount.test.tsx"
       ],
       "routes": [],
@@ -52879,7 +52879,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 798
@@ -52930,8 +52930,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/dispatch.secrets.test.ts",
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/dispatch.secrets.test.ts",
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 417
@@ -53103,7 +53103,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 1469
@@ -53129,7 +53129,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 487
@@ -53153,7 +53153,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 792
@@ -53179,7 +53179,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 855
@@ -53205,7 +53205,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 1002
@@ -53231,7 +53231,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 1109
@@ -53281,7 +53281,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts",
+        "apps/server/convex/secrets.test.ts",
         "packages/web/components/secrets/useSwapValue.mount.test.tsx"
       ],
       "routes": [],
@@ -53334,8 +53334,8 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/secrets.test.ts",
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/secrets.test.ts",
         "packages/web/components/secrets/VaultSource.mount.test.tsx",
         "packages/web/lib/passkeyPresence.mount.test.tsx"
       ],
@@ -53361,7 +53361,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts",
+        "apps/server/convex/secrets.test.ts",
         "packages/web/components/secrets/useSwapValue.mount.test.tsx"
       ],
       "routes": [],
@@ -53389,8 +53389,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 886
@@ -53416,8 +53416,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 430
@@ -53468,7 +53468,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 804
@@ -53520,7 +53520,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 914
@@ -53982,9 +53982,9 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts",
-        "packages/convex/convex/secrets.test.ts",
-        "packages/convex/convex/sessionDecisions.run.test.ts"
+        "apps/server/convex/assistant.entry.test.ts",
+        "apps/server/convex/secrets.test.ts",
+        "apps/server/convex/sessionDecisions.run.test.ts"
       ],
       "routes": [],
       "line": 1983
@@ -54014,8 +54014,8 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for workflow_runs with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/sessionDecisions.run.test.ts"
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/sessionDecisions.run.test.ts"
       ],
       "routes": [],
       "line": 1335
@@ -54043,8 +54043,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/sessionDecisions.run.test.ts"
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/sessionDecisions.run.test.ts"
       ],
       "routes": [],
       "line": 1413
@@ -54323,7 +54323,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 2502
@@ -54375,7 +54375,7 @@
       "risk": "none",
       "reason": "judged by isTeamMember",
       "testedBy": [
-        "packages/convex/convex/lineWorkspace.test.ts"
+        "apps/server/convex/lineWorkspace.test.ts"
       ],
       "routes": [],
       "line": 2576
@@ -54482,7 +54482,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for session_decisions with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/sessionDecisions.run.test.ts"
+        "apps/server/convex/sessionDecisions.run.test.ts"
       ],
       "routes": [],
       "line": 858
@@ -54534,10 +54534,10 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/assistant.entry.test.ts",
-        "packages/convex/convex/passkeys.test.ts",
-        "packages/convex/convex/secrets.test.ts",
-        "packages/convex/convex/sessionDecisions.run.test.ts"
+        "apps/server/convex/assistant.entry.test.ts",
+        "apps/server/convex/passkeys.test.ts",
+        "apps/server/convex/secrets.test.ts",
+        "apps/server/convex/sessionDecisions.run.test.ts"
       ],
       "routes": [],
       "line": 2021
@@ -54644,7 +54644,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/secrets.test.ts"
+        "apps/server/convex/secrets.test.ts"
       ],
       "routes": [],
       "line": 1522
@@ -54718,7 +54718,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/regulatedDeletion.test.ts"
+        "apps/server/convex/regulatedDeletion.test.ts"
       ],
       "routes": [],
       "line": 93
@@ -54768,7 +54768,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/ingest.test.ts",
+        "apps/server/convex/ingest.test.ts",
         "packages/shared/contracts/signalFingerprint.test.ts"
       ],
       "routes": [],
@@ -54843,7 +54843,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/sessionGoals.test.ts"
+        "apps/server/convex/sessionGoals.test.ts"
       ],
       "routes": [],
       "line": 436
@@ -54867,7 +54867,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/sessionGoals.test.ts"
+        "apps/server/convex/sessionGoals.test.ts"
       ],
       "routes": [],
       "line": 427
@@ -54895,7 +54895,7 @@
       "risk": "none",
       "reason": "judged by checkConversationAccess",
       "testedBy": [
-        "packages/convex/convex/sessionGoals.test.ts"
+        "apps/server/convex/sessionGoals.test.ts"
       ],
       "routes": [],
       "line": 445
@@ -54923,7 +54923,7 @@
       "risk": "none",
       "reason": "judged by checkConversationAccess",
       "testedBy": [
-        "packages/convex/convex/sessionGoals.test.ts"
+        "apps/server/convex/sessionGoals.test.ts"
       ],
       "routes": [],
       "line": 391
@@ -55630,7 +55630,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for session_migrations with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/resourceOffload.test.ts"
+        "apps/server/convex/resourceOffload.test.ts"
       ],
       "routes": [],
       "line": 1045
@@ -55656,7 +55656,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 543
@@ -55760,7 +55760,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/resourceOffload.test.ts"
+        "apps/server/convex/resourceOffload.test.ts"
       ],
       "routes": [],
       "line": 1163
@@ -55834,7 +55834,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/resourceOffload.test.ts"
+        "apps/server/convex/resourceOffload.test.ts"
       ],
       "routes": [],
       "line": 639
@@ -56207,7 +56207,7 @@
       "risk": "none",
       "reason": "judged by canAccessProject, canOwnerOrTeamAccess",
       "testedBy": [
-        "packages/convex/convex/sessionProjects.test.ts"
+        "apps/server/convex/sessionProjects.test.ts"
       ],
       "routes": [],
       "line": 85
@@ -56507,7 +56507,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/sideAnswers.test.ts"
+        "apps/server/convex/sideAnswers.test.ts"
       ],
       "routes": [],
       "line": 49
@@ -56717,7 +56717,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for signals with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 2025
@@ -56741,8 +56741,8 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/signals.fix.test.ts",
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.fix.test.ts",
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1780
@@ -56913,10 +56913,10 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/lineGround.test.ts",
-        "packages/convex/convex/lineLearn.test.ts",
-        "packages/convex/convex/signals.fix.test.ts",
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/lineGround.test.ts",
+        "apps/server/convex/lineLearn.test.ts",
+        "apps/server/convex/signals.fix.test.ts",
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1021
@@ -56968,7 +56968,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1134
@@ -56992,7 +56992,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1878
@@ -57016,8 +57016,8 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/signals.fix.test.ts",
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.fix.test.ts",
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1338
@@ -57090,7 +57090,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 2046
@@ -57282,7 +57282,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1900
@@ -57328,7 +57328,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1888
@@ -57381,7 +57381,7 @@
       "risk": "none",
       "reason": "judged by createDataContext",
       "testedBy": [
-        "packages/convex/convex/signals.test.ts"
+        "apps/server/convex/signals.test.ts"
       ],
       "routes": [],
       "line": 1975
@@ -61092,7 +61092,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/sources/sentry.test.ts"
+        "apps/server/convex/sources/sentry.test.ts"
       ],
       "routes": [],
       "line": 980
@@ -61667,7 +61667,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/simBackend.test.ts"
+        "apps/server/convex/simBackend.test.ts"
       ],
       "routes": [],
       "line": 570
@@ -61695,8 +61695,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/accessMatrix.access.test.ts",
-        "packages/convex/convex/simBackend.test.ts"
+        "apps/server/convex/accessMatrix.access.test.ts",
+        "apps/server/convex/simBackend.test.ts"
       ],
       "routes": [],
       "line": 592
@@ -61860,7 +61860,7 @@
       "risk": "low",
       "reason": "fleet floor is public by design; clients read it before they can sign in",
       "testedBy": [
-        "packages/convex/convex/securityEntrypoints.test.ts"
+        "apps/server/convex/securityEntrypoints.test.ts"
       ],
       "routes": [],
       "line": 55
@@ -61910,7 +61910,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/securityEntrypoints.test.ts"
+        "apps/server/convex/securityEntrypoints.test.ts"
       ],
       "routes": [],
       "line": 60
@@ -61936,7 +61936,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/securityEntrypoints.test.ts"
+        "apps/server/convex/securityEntrypoints.test.ts"
       ],
       "routes": [],
       "line": 79
@@ -62373,7 +62373,7 @@
       "risk": "none",
       "reason": "judged by canAccessTask",
       "testedBy": [
-        "packages/convex/convex/taskOwner.test.ts"
+        "apps/server/convex/taskOwner.test.ts"
       ],
       "routes": [],
       "line": 2717
@@ -62563,7 +62563,7 @@
       "risk": "none",
       "reason": "judged by canAccessPlan, canAccessTask, requireAccessibleProject, requireSameWorkspace",
       "testedBy": [
-        "packages/convex/convex/callTasks.test.ts"
+        "apps/server/convex/callTasks.test.ts"
       ],
       "routes": [],
       "line": 1248
@@ -62733,7 +62733,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/taskFrontier.test.ts"
+        "apps/server/convex/taskFrontier.test.ts"
       ],
       "routes": [],
       "line": 2038
@@ -62951,11 +62951,11 @@
       "risk": "none",
       "reason": "judged by canAccessPlan, canAccessTask, requireAccessibleProject, requireTeamMembership",
       "testedBy": [
-        "packages/convex/convex/lineLearn.test.ts",
-        "packages/convex/convex/taskFrontier.test.ts",
-        "packages/convex/convex/taskOwner.test.ts",
-        "packages/convex/convex/tasks.closingStation.test.ts",
-        "packages/convex/convex/workflow_runs.lineStatus.test.ts"
+        "apps/server/convex/lineLearn.test.ts",
+        "apps/server/convex/taskFrontier.test.ts",
+        "apps/server/convex/taskOwner.test.ts",
+        "apps/server/convex/tasks.closingStation.test.ts",
+        "apps/server/convex/workflow_runs.lineStatus.test.ts"
       ],
       "routes": [],
       "line": 2160
@@ -63062,7 +63062,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callTasks.test.ts"
+        "apps/server/convex/callTasks.test.ts"
       ],
       "routes": [],
       "line": 4264
@@ -63358,7 +63358,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callTasks.test.ts"
+        "apps/server/convex/callTasks.test.ts"
       ],
       "routes": [],
       "line": 3815
@@ -63608,7 +63608,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 87
@@ -63682,7 +63682,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 277
@@ -63735,7 +63735,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 205
@@ -63761,7 +63761,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 238
@@ -64736,9 +64736,9 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for users with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/authorityEvents.test.ts",
-        "packages/convex/convex/staff.test.ts",
-        "packages/convex/convex/teams.defaultFeatures.test.ts",
+        "apps/server/convex/authorityEvents.test.ts",
+        "apps/server/convex/staff.test.ts",
+        "apps/server/convex/teams.defaultFeatures.test.ts",
         "packages/web/lib/__tests__/activeTeamPointer.guard.test.ts"
       ],
       "routes": [],
@@ -65092,7 +65092,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for users with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 388
@@ -65124,7 +65124,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for teams,users with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 1052
@@ -65154,7 +65154,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for teams,users with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 1137
@@ -65271,7 +65271,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/teamBilling.test.ts"
+        "apps/server/convex/teamBilling.test.ts"
       ],
       "routes": [],
       "line": 992
@@ -65798,7 +65798,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/chat.test.ts"
+        "apps/server/convex/chat.test.ts"
       ],
       "routes": [],
       "line": 402
@@ -65826,8 +65826,8 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/chat.test.ts",
-        "packages/convex/convex/dispatch.test.ts"
+        "apps/server/convex/chat.test.ts",
+        "apps/server/convex/dispatch.test.ts"
       ],
       "routes": [],
       "line": 594
@@ -65853,8 +65853,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/chat.test.ts",
-        "packages/convex/convex/dispatch.test.ts"
+        "apps/server/convex/chat.test.ts",
+        "apps/server/convex/dispatch.test.ts"
       ],
       "routes": [],
       "line": 573
@@ -66232,7 +66232,7 @@
       "risk": "none",
       "reason": "judged by (delegated to an authenticating query)",
       "testedBy": [
-        "packages/convex/convex/integrations.test.ts"
+        "apps/server/convex/integrations.test.ts"
       ],
       "routes": [],
       "line": 264
@@ -66653,8 +66653,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts",
-        "packages/convex/convex/callTasks.test.ts"
+        "apps/server/convex/callRecordings.test.ts",
+        "apps/server/convex/callTasks.test.ts"
       ],
       "routes": [],
       "line": 2507
@@ -66711,7 +66711,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 2411
@@ -66982,7 +66982,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts"
+        "apps/server/convex/callRecordings.test.ts"
       ],
       "routes": [],
       "line": 1837
@@ -67312,7 +67312,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts",
+        "apps/server/convex/callRecordings.test.ts",
         "packages/web/lib/__tests__/recorderLifecycle.test.ts"
       ],
       "routes": [],
@@ -67523,7 +67523,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/callRecordings.test.ts",
+        "apps/server/convex/callRecordings.test.ts",
         "packages/web/components/__tests__/calls.degrade.test.tsx"
       ],
       "routes": [],
@@ -67772,7 +67772,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/users.adoptTimezone.test.ts"
+        "apps/server/convex/users.adoptTimezone.test.ts"
       ],
       "routes": [],
       "line": 203
@@ -67853,7 +67853,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/daemonCommandClaim.test.ts"
+        "apps/server/convex/daemonCommandClaim.test.ts"
       ],
       "routes": [],
       "line": 837
@@ -67981,7 +67981,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/managedDevices.test.ts"
+        "apps/server/convex/managedDevices.test.ts"
       ],
       "routes": [],
       "line": 386
@@ -68378,7 +68378,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for users with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/staff.test.ts"
+        "apps/server/convex/staff.test.ts"
       ],
       "routes": [],
       "line": 1167
@@ -68795,7 +68795,7 @@
       "risk": "none",
       "reason": "judged by isTeamMember",
       "testedBy": [
-        "packages/convex/convex/users.spendAudience.access.test.ts"
+        "apps/server/convex/users.spendAudience.access.test.ts"
       ],
       "routes": [],
       "line": 1929
@@ -68826,7 +68826,7 @@
       "risk": "medium",
       "reason": "anonymous callers gated on public_profile_enabled since 2026-09-23 (securityEntrypoints.test.ts)",
       "testedBy": [
-        "packages/convex/convex/securityEntrypoints.test.ts"
+        "apps/server/convex/securityEntrypoints.test.ts"
       ],
       "routes": [],
       "line": 1399
@@ -69122,7 +69122,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/sessionDecisions.run.test.ts"
+        "apps/server/convex/sessionDecisions.run.test.ts"
       ],
       "routes": [],
       "line": 915
@@ -69250,7 +69250,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/staff.test.ts"
+        "apps/server/convex/staff.test.ts"
       ],
       "routes": [],
       "line": 955
@@ -69693,7 +69693,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/users.adoptTimezone.test.ts"
+        "apps/server/convex/users.adoptTimezone.test.ts"
       ],
       "routes": [],
       "line": 162
@@ -70058,7 +70058,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/wallet.test.ts"
+        "apps/server/convex/wallet.test.ts"
       ],
       "routes": [],
       "line": 28
@@ -70275,7 +70275,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/weeklyCards.test.ts"
+        "apps/server/convex/weeklyCards.test.ts"
       ],
       "routes": [],
       "line": 149
@@ -70301,7 +70301,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/weeklyCards.test.ts"
+        "apps/server/convex/weeklyCards.test.ts"
       ],
       "routes": [],
       "line": 43
@@ -70466,7 +70466,7 @@
       "risk": "medium",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "packages/convex/convex/assistant/tools/workspace.test.ts"
+        "apps/server/convex/assistant/tools/workspace.test.ts"
       ],
       "routes": [],
       "line": 155
@@ -70716,7 +70716,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/workflow_runs.stationPlace.test.ts"
+        "apps/server/convex/workflow_runs.stationPlace.test.ts"
       ],
       "routes": [],
       "line": 1514
@@ -70851,7 +70851,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/runLogLists.test.ts"
+        "apps/server/convex/runLogLists.test.ts"
       ],
       "routes": [],
       "line": 474
@@ -70990,7 +70990,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/flowVersions.test.ts"
+        "apps/server/convex/flowVersions.test.ts"
       ],
       "routes": [],
       "line": 1070
@@ -71068,7 +71068,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/flowLibrary.test.ts"
+        "apps/server/convex/flowLibrary.test.ts"
       ],
       "routes": [],
       "line": 1275
@@ -71234,7 +71234,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/flowVersions.test.ts"
+        "apps/server/convex/flowVersions.test.ts"
       ],
       "routes": [],
       "line": 1532
@@ -71264,7 +71264,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for workflow_runs with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/workflow_runs.lineStatus.test.ts"
+        "apps/server/convex/workflow_runs.lineStatus.test.ts"
       ],
       "routes": [],
       "line": 1451
@@ -71424,7 +71424,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for workflow_runs with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/workflow_runs.lineStatus.test.ts"
+        "apps/server/convex/workflow_runs.lineStatus.test.ts"
       ],
       "routes": [],
       "line": 1058
@@ -71510,10 +71510,10 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/convex/convex/flowLibrary.test.ts",
-        "packages/convex/convex/flowVersions.test.ts",
-        "packages/convex/convex/workflow_runs.lineStatus.test.ts",
-        "packages/convex/convex/workflow_runs.stationPlace.test.ts"
+        "apps/server/convex/flowLibrary.test.ts",
+        "apps/server/convex/flowVersions.test.ts",
+        "apps/server/convex/workflow_runs.lineStatus.test.ts",
+        "apps/server/convex/workflow_runs.stationPlace.test.ts"
       ],
       "routes": [],
       "line": 1105
@@ -71619,7 +71619,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/workflows.pool.access.test.ts"
+        "apps/server/convex/workflows.pool.access.test.ts"
       ],
       "routes": [],
       "line": 243
@@ -71647,10 +71647,10 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/flowVersions.test.ts",
-        "packages/convex/convex/lineActions.test.ts",
-        "packages/convex/convex/workflows.label.test.ts",
-        "packages/convex/convex/workflows.pool.access.test.ts"
+        "apps/server/convex/flowVersions.test.ts",
+        "apps/server/convex/lineActions.test.ts",
+        "apps/server/convex/workflows.label.test.ts",
+        "apps/server/convex/workflows.pool.access.test.ts"
       ],
       "routes": [],
       "line": 154
@@ -71754,8 +71754,8 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for teams with no visible resource judge",
       "testedBy": [
-        "packages/convex/convex/flowLibrary.test.ts",
-        "packages/convex/convex/workflows.pool.access.test.ts"
+        "apps/server/convex/flowLibrary.test.ts",
+        "apps/server/convex/workflows.pool.access.test.ts"
       ],
       "routes": [],
       "line": 233
@@ -71805,8 +71805,8 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/convex/convex/flowVersions.test.ts",
-        "packages/convex/convex/workflows.label.test.ts"
+        "apps/server/convex/flowVersions.test.ts",
+        "apps/server/convex/workflows.label.test.ts"
       ],
       "routes": [],
       "line": 168

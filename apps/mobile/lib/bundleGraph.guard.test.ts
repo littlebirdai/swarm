@@ -18,7 +18,7 @@ const repoRoot = path.resolve(mobileRoot, "../..");
 const ALIASES: [string, string][] = [
   ["@/", mobileRoot + "/"],
   ["@codecast/web/", path.join(repoRoot, "packages/web") + "/"],
-  ["@codecast/convex/", path.join(repoRoot, "packages/convex") + "/"],
+  ["@codecast/convex/", path.join(repoRoot, "apps/server") + "/"],
 ];
 
 function metroOptions(platform: "ios" | "android"): GraphOptions {

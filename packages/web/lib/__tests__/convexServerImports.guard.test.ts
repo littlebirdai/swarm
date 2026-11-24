@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 // CONVEX SERVER MODULES STAY OUT OF THE BROWSER BUNDLE.
 //
-// Plenty of modules under packages/convex/convex are pure helpers, and the web
+// Plenty of modules under apps/server/convex are pure helpers, and the web
 // imports them on purpose (ccAccountsShared, wakeCost, lib/slackMirror). A
 // module that DEFINES convex functions is different: importing it for one
 // constant drags every query and mutation in the file, and everything its
@@ -19,7 +19,7 @@ import { join } from "node:path";
 // the other's code.
 
 const WEB = join(import.meta.dir, "..", "..");
-const CONVEX = join(WEB, "..", "convex", "convex");
+const CONVEX = join(WEB, "..", "..", "apps", "server", "convex");
 const ALLOWLIST = join(import.meta.dir, "convexServerImports.allowlist.txt");
 
 /** How many files import a convex module that defines functions. May only fall. */

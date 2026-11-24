@@ -5,7 +5,7 @@
 // `cast ship mark`: say that a surface just shipped.
 //
 // GitHub sees tags and pushes but never a deploy, so a surface that goes out
-// on its own clock reports itself: packages/convex/deploy.sh runs
+// on its own clock reports itself: apps/server/deploy.sh runs
 // `cast ship mark --surface backend` after a successful deploy. The marker
 // lands on the repository's team as a `deploy` event, where the Changes page's
 // live strip reads which commits are live and which are still waiting
@@ -183,8 +183,8 @@ Configure it in .codecast/workspace.toml:
 
   [[ship.deploy]]
   name = "convex"
-  when = ["packages/convex/**"]
-  run = "packages/convex/deploy.sh"
+  when = ["apps/server/**"]
+  run = "apps/server/deploy.sh"
   stage = "before_push"    # or "after_push"
 
 The flow for an agent: --dry-run --json, read each group (who wrote it, is it

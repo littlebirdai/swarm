@@ -20,7 +20,7 @@ import { POSTS } from "../packages/web/app/(marketing)/blog/posts";
 const SITE = "https://codecast.sh";
 const ANNOUNCEMENTS = process.env.COMMUNITY_ANNOUNCEMENTS_CHANNEL ?? "hx7h00k0d38g314mxedbjnz0ex8edh18";
 const ANCHOR = process.env.COMMUNITY_ANCHOR ?? "x17d3jsztehx3wr3m1srk9hckh8ccvjq";
-const CONVEX_DIR = new URL("../packages/convex/", import.meta.url).pathname;
+const CONVEX_DIR = new URL("../apps/server/", import.meta.url).pathname;
 
 type Item = { key: string; content: string; at: number };
 

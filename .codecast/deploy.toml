@@ -31,8 +31,8 @@
 # it; Codecast's deploy.sh named here refuses in Swarm and says so.
 [[target]]
 name = "backend"
-when = ["packages/convex/**", "packages/shared/**", "platform/**"]
-run = "packages/convex/deploy.sh --typecheck=disable"
+when = ["apps/server/**", "packages/shared/**", "platform/**"]
+run = "apps/server/deploy.sh --typecheck=disable"
 live = "marker"                       # deploy.sh records each deploy
 policy = "release"
 

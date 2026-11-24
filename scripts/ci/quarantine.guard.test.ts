@@ -27,9 +27,9 @@ export function expired(rows: Array<{ test: string; date: string }>, now: number
 
 const MARKER = "quarantined: see QUARANTINE.md";
 
-/** Files under packages/ that carry the quarantine marker, relative to the repo root. */
+/** Workspace files that carry the quarantine marker, relative to the repo root. */
 function markedFiles(root: string): string[] {
-  const glob = new Bun.Glob("packages/**/*.{ts,tsx,js,jsx,mjs,cjs}");
+  const glob = new Bun.Glob("{apps,packages}/**/*.{ts,tsx,js,jsx,mjs,cjs}");
   const out: string[] = [];
   for (const file of glob.scanSync({ cwd: root })) {
     if (file.includes("node_modules/")) continue;

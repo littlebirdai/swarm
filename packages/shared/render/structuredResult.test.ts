@@ -7,7 +7,7 @@ describe("structuredResultModel", () => {
       verdict: "PASS",
       findings: [
         { severity: "minor", file: "packages/web/lib/stickyPrompt.ts", issue: "Vault-ready messages reach the sticky header.", fix: "Exclude vault_ready there." },
-        { severity: "critical", file: "/Users/ashot/src/codecast/packages/convex/convex/secrets.ts", line: 42, issue: "Value in a log line." },
+        { severity: "critical", file: "/Users/ashot/src/codecast/apps/server/convex/secrets.ts", line: 42, issue: "Value in a log line." },
       ],
       notes: "I re-ran **everything**.",
     });
@@ -24,7 +24,7 @@ describe("structuredResultModel", () => {
       texts: [{ label: "Fix", text: "Exclude vault_ready there." }],
     });
     expect(findings.items[1].badge?.tone).toBe("bad");
-    expect(findings.items[1].location).toEqual({ path: "/Users/ashot/src/codecast/packages/convex/convex/secrets.ts", display: "codecast/packages/convex/convex/secrets.ts:42", line: 42 });
+    expect(findings.items[1].location).toEqual({ path: "/Users/ashot/src/codecast/apps/server/convex/secrets.ts", display: "codecast/apps/server/convex/secrets.ts:42", line: 42 });
     expect(notes).toEqual({ kind: "text", label: "Notes", text: "I re-ran **everything**." });
   });
 

@@ -2,7 +2,7 @@
 // Which areas each test file of a gated test job can be broken by. A file's
 // reach is the area of every file it imports, directly or through other files,
 // plus every package directory a file in that closure names in a path while
-// also reading the disk: a test that reads `../../convex/convex/schema.ts`
+// also reading the disk: a test that reads `../../../apps/server/convex/schema.ts`
 // imports nothing from convex but still breaks when convex changes.
 //
 // A test file that reaches an area its job does not gate on (JOB_AREAS in
@@ -28,7 +28,7 @@ const ROOT = join(import.meta.dir, "..", "..");
 
 /** The directories whose test files each gated test job runs. */
 export const JOB_TEST_ROOTS: Record<string, string[]> = {
-  "test-convex": ["packages/convex/convex", "packages/convex/scripts"],
+  "test-convex": ["apps/server/convex", "apps/server/scripts"],
   "test-web": ["packages/web"],
   "test-cli": ["packages/cli/src", "apps/evals/src"],
   "test-shared": ["packages/shared"],
@@ -160,7 +160,7 @@ function importsOf(file: string, text: string): string[] {
 
 const PACKAGE_NAMES = [...WORKSPACE_DIRS.keys()].map((name) => name.replace(/-/g, "\\-")).join("|");
 const ROOT_NAMES = WORKSPACE_ROOTS.join("|");
-// `../convex/`, `../../web/` or `../../../apps/browser-extension/`: a path
+// `../../apps/server/`, `../../web/` or `../../../apps/browser-extension/`: a path
 // relative to the file, so it can only mean this repository, from any file.
 const RELATIVE_REACH = new RegExp(`["'\`/]\\.\\./(?:(?:${ROOT_NAMES})/)?(${PACKAGE_NAMES})(?=["'\`/])`, "g");
 // The same reach spelled as path segments: join(dir, "..", "..", "cli", "src")
@@ -181,7 +181,7 @@ const TEST_CODE = /(\.test\.[a-z]+$|\/(test-helpers|__tests__|__fixtures__|fixtu
  * scan skips these files; their imports are still followed.
  */
 export const LITERAL_FALSE_POSITIVES: Record<string, string> = {
-  "packages/convex/convex/signals.test.ts": "docs/line/principles.md is a principles value in a fixture",
+  "apps/server/convex/signals.test.ts": "docs/line/principles.md is a principles value in a fixture",
   "packages/web/server/staticAssets.test.ts": "/docs/guide.js is a URL path passed to isBuildArtifactPath",
   "packages/cli/src/cloudAgents/codex.test.ts": "packages/web is a directory it makes inside a temporary git repo",
   "packages/web/lib/__tests__/tabLocation.test.ts": "/docs/test and docs/why?#.md are tab URLs it parses",

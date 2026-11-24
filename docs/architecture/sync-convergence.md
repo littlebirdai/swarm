@@ -622,7 +622,7 @@ metric fires when `loadCache` disables the cache so that noise is measurable.
   `inboxProjection.property.test.ts` over seeded generated row sets
   (`__fixtures__/inboxProjectionGen.ts`, shared with the convex and web suites).
   Server determinism over generated worlds:
-  `packages/convex/convex/conversations.convergence.test.ts`.
+  `apps/server/convex/conversations.convergence.test.ts`.
 - End to end: web plus mobile simulator against dev Convex; drive pin, dismiss, settle,
   trigger arm; assert equal counts within one payload cycle; kill one client's
   subscription and assert detection and heal within budget. Two drills: ship a client a

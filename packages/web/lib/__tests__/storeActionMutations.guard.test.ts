@@ -22,7 +22,7 @@ const WEB = join(import.meta.dir, "..", "..");
  *  and to Convex client calls, with the team, org, PR and palette gestures it
  *  first caught moved onto store actions. */
 const PIN_DIRECT_SYNCED_WRITES = 44;
-const CONVEX = join(WEB, "..", "convex", "convex");
+const CONVEX = join(WEB, "..", "..", "apps", "server", "convex");
 const DISPATCH = readFileSync(join(CONVEX, "dispatch.ts"), "utf8");
 
 // `api.mod.fn`, `api.dir.mod.fn`, `(api as any).mod.fn`, and an `_api` alias.

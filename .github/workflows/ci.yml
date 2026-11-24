@@ -232,7 +232,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (convex package)
-        working-directory: packages/convex
+        working-directory: apps/server
         run: bun test convex/ scripts/
 
   test-web:

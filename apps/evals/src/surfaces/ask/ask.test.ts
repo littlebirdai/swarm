@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { ASK_SYSTEM_PROMPT, askTermsRequest } from '../../../../../packages/convex/convex/lib/sessionAsk';
+import { ASK_SYSTEM_PROMPT, askTermsRequest } from '../../../../../apps/server/convex/lib/sessionAsk';
 import type { Fixture } from '../../adapters/resolver';
 import { REPO_ROOT } from '../../paths';
 import type { CallResult, ReplayCtx, ReplayResult, SurfaceRequest } from '../../surface';

@@ -1,5 +1,5 @@
 // Remote pane watching — the contract between the browser's terminal split
-// (packages/web/lib/terminal/), the Convex relay (packages/convex/convex/
+// (packages/web/lib/terminal/), the Convex relay (apps/server/convex/
 // terminalStream.ts) and the daemon's capture loop (packages/cli/src/terminal/
 // paneStream.ts).
 //

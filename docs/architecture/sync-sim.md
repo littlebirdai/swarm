@@ -4,7 +4,7 @@ The multiplayer simulation harness runs several principals (people, their daemon
 
 This is the operating manual. The design and the reasons behind it are in [multiplayer-sim-harness.md](multiplayer-sim-harness.md) (Phase 2 of pl-810). The single-user convergence argument the sim extends is [sync-convergence.md](sync-convergence.md), and the host and follower protocol it models is [sync-host.md](sync-host.md).
 
-Everything lives under `packages/web/store/__tests__/sim/`, plus the server router in `packages/convex/convex/simBackend.testing.ts`.
+Everything lives under `packages/web/store/__tests__/sim/`, plus the server router in `apps/server/convex/simBackend.testing.ts`.
 
 ## Running it
 
@@ -291,19 +291,19 @@ The in-process server cannot show real optimistic concurrency conflicts, real sc
 
    Both must print nothing. A `CONVEX_DEPLOYMENT` in the shell is fine: the next step unsets it for the CLI.
 
-3. **Start the backend** in a tmux pane, from the scratch copy's `packages/convex`. A `CONVEX_DEPLOYMENT` value whose name starts with `anonymous-` is how the CLI tells an anonymous local deployment from a cloud one, and `CONVEX_AGENT_MODE=anonymous` makes it create one without a prompt. Leave it running: `convex dev` stops the local backend when it exits, so `--once` would leave nothing to talk to.
+3. **Start the backend** in a tmux pane, from the scratch copy's `apps/server`. A `CONVEX_DEPLOYMENT` value whose name starts with `anonymous-` is how the CLI tells an anonymous local deployment from a cloud one, and `CONVEX_AGENT_MODE=anonymous` makes it create one without a prompt. Leave it running: `convex dev` stops the local backend when it exits, so `--once` would leave nothing to talk to.
 
    ```bash
    printf 'CONVEX_DEPLOYMENT=anonymous:anonymous-agent\n' > "$SCRATCH/sim.env"
-   tmux new -d -s sim-deploy -c "$SCRATCH/packages/convex"
+   tmux new -d -s sim-deploy -c "$SCRATCH/apps/server"
    tmux send-keys -t sim-deploy "env -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY -u CONVEX_DEPLOYMENT -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous npx convex dev --env-file ../../sim.env --codegen disable --typecheck disable --tail-logs disable" Enter
    ```
 
-   Wait for `Convex functions ready!` in the pane (`tmux capture-pane -p -t sim-deploy`); the first push takes about two minutes. On a heavily loaded machine the first push can fail with `Function execution timed out (maximum duration: 4s)` while the backend loads the modules; save any file under `convex/` (`touch "$SCRATCH/packages/convex/convex/schema.ts"`) and the watcher pushes again. The CLI passes its environment to the backend it spawns, so `ISOLATE_ANALYZE_USER_TIMEOUT_SECONDS=120` on the `convex dev` line raises that cap, and `DATABASE_UDF_USER_TIMEOUT_SECONDS=30` raises the 1s cap on a function's JS time; `stack.mjs` sets both.
+   Wait for `Convex functions ready!` in the pane (`tmux capture-pane -p -t sim-deploy`); the first push takes about two minutes. On a heavily loaded machine the first push can fail with `Function execution timed out (maximum duration: 4s)` while the backend loads the modules; save any file under `convex/` (`touch "$SCRATCH/apps/server/convex/schema.ts"`) and the watcher pushes again. The CLI passes its environment to the backend it spawns, so `ISOLATE_ANALYZE_USER_TIMEOUT_SECONDS=120` on the `convex dev` line raises that cap, and `DATABASE_UDF_USER_TIMEOUT_SECONDS=30` raises the 1s cap on a function's JS time; `stack.mjs` sets both.
 
-   The CLI (1.36) names a new anonymous deployment `anonymous-agent` whatever name was asked for, keeps its database and admin key in `~/.convex/anonymous-convex-backend-state/anonymous-agent/`, and writes `CONVEX_DEPLOYMENT` and `CONVEX_URL` into the scratch copy's `packages/convex/.env.local`. Every agent on the machine that uses `CONVEX_AGENT_MODE=anonymous` shares that name, so run one disposable deployment at a time.
+   The CLI (1.36) names a new anonymous deployment `anonymous-agent` whatever name was asked for, keeps its database and admin key in `~/.convex/anonymous-convex-backend-state/anonymous-agent/`, and writes `CONVEX_DEPLOYMENT` and `CONVEX_URL` into the scratch copy's `apps/server/.env.local`. Every agent on the machine that uses `CONVEX_AGENT_MODE=anonymous` shares that name, so run one disposable deployment at a time.
 
-4. **Check the URL** before the first request, from the scratch copy's `packages/convex`:
+4. **Check the URL** before the first request, from the scratch copy's `apps/server`:
 
    ```bash
    bun -e 'const env = await Bun.file(".env.local").text(); const url = new URL(env.match(/^CONVEX_URL=(.*)$/m)[1]); const dep = env.match(/^CONVEX_DEPLOYMENT=(.*)$/m)[1]; if (url.hostname !== "127.0.0.1" || !dep.startsWith("anonymous:")) throw new Error(`not a local anonymous deployment: ${url} ${dep}`); console.log("ok", url.href, dep)'
@@ -317,7 +317,7 @@ The in-process server cannot show real optimistic concurrency conflicts, real sc
    env -u CONVEX_DEPLOYMENT npx convex data users --format jsonl
    ```
 
-   Then an admin client impersonates an identity. The subject is `<user id>|session`, as Convex Auth issues it. Saved as `actas.ts` in the scratch copy's `packages/convex` and run with `bun actas.ts <user id>`, this prints the user it acted as:
+   Then an admin client impersonates an identity. The subject is `<user id>|session`, as Convex Auth issues it. Saved as `actas.ts` in the scratch copy's `apps/server` and run with `bun actas.ts <user id>`, this prints the user it acted as:
 
    ```ts
    import { ConvexHttpClient } from "convex/browser";

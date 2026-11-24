@@ -1,7 +1,7 @@
 /**
  * Keep shared checkouts level with their upstream, so a push from anywhere
  * (a worktree, a cloud host, another machine) reaches the agents working in
- * the checkout within a minute and `packages/convex/deploy.sh` never refuses a
+ * the checkout within a minute and `apps/server/deploy.sh` never refuses a
  * stale tree.
  *
  * Opt-in per repo (`[ship] level = true` in .codecast/workspace.toml): the

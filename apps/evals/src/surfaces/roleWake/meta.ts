@@ -43,7 +43,7 @@ export const meta: SurfaceMeta = {
   // server's inject frame (agentTasks.triggerFrameFor over formatScheduledTask),
   // never buildTriggerFrame, which frames a spawned run. Real freezes replay
   // the frame prod built; fixtures render it from the tree.
-  sources: surfaceSources('role-wake', 'packages/shared/contracts/machineMessages.ts', 'packages/convex/convex/lib/orgRoutine.ts', 'packages/shared/contracts/briefStanding.ts', 'packages/shared/contracts/rolePlaybook.ts', 'packages/cli/src/briefLines.ts', 'apps/evals/src/served.ts', 'packages/cli/scripts/prompt-dry-run-bin/cast'),
+  sources: surfaceSources('role-wake', 'packages/shared/contracts/machineMessages.ts', 'apps/server/convex/lib/orgRoutine.ts', 'packages/shared/contracts/briefStanding.ts', 'packages/shared/contracts/rolePlaybook.ts', 'packages/cli/src/briefLines.ts', 'apps/evals/src/served.ts', 'packages/cli/scripts/prompt-dry-run-bin/cast'),
   reps: { check: 8, smoke: 3 },
   maxUsdPerRep: 1.5,
   criteria: 'asks a person only what needs them; each line names evidence',

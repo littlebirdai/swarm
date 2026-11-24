@@ -163,21 +163,23 @@ describe('borrowNodeModules', () => {
     // The checkout: an installed package, a relative and an absolute workspace link, and one the tree's commit predates.
     put(root, 'node_modules/react/index.js', 'react\n');
     put(root, 'packages/shared/index.ts', 'shared today\n');
-    put(root, 'packages/convex/index.ts', 'convex today\n');
+    put(root, 'apps/server/index.ts', 'convex today\n');
+    put(root, 'apps/server/node_modules/convex/index.js', 'convex dependency\n');
     put(root, 'packages/fresh/index.ts', 'fresh today\n');
     mkdirSync(join(root, 'packages/web/node_modules/@codecast'), { recursive: true });
-    symlinkSync('../../../convex', join(root, 'packages/web/node_modules/@codecast/convex'));
+    symlinkSync('../../../../apps/server', join(root, 'packages/web/node_modules/@codecast/convex'));
     symlinkSync(join(root, 'packages/shared'), join(root, 'packages/web/node_modules/@codecast/shared'));
     symlinkSync('../../../fresh', join(root, 'packages/web/node_modules/@codecast/fresh'));
     symlinkSync(join(root, 'node_modules/react'), join(root, 'packages/web/node_modules/react'));
     // The tree at an old commit: its own shared and convex, no fresh.
     put(wt, 'packages/shared/index.ts', 'shared then\n');
-    put(wt, 'packages/convex/index.ts', 'convex then\n');
+    put(wt, 'apps/server/index.ts', 'convex then\n');
     mkdirSync(join(wt, 'packages/web'), { recursive: true });
 
     borrowNodeModules(root, wt);
     const read = (rel: string) => readFileSync(join(wt, 'packages/web/node_modules', rel), 'utf8');
     expect(read('@codecast/convex/index.ts')).toBe('convex then\n');
+    expect(readFileSync(join(wt, 'apps/server/node_modules/convex/index.js'), 'utf8')).toBe('convex dependency\n');
     expect(read('@codecast/shared/index.ts')).toBe('shared then\n');
     expect(read('@codecast/fresh/index.ts')).toBe('fresh today\n');
     expect(realpathSync(join(wt, 'packages/web/node_modules/react'))).toBe(realpathSync(join(root, 'node_modules/react')));

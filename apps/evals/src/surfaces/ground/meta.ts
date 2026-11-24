@@ -7,7 +7,7 @@ export const meta: SurfaceMeta = {
   route: 'call',
   model: STRONG_MODEL,
   // ground.md carries goalsBrief.ts's three blocks verbatim (groundPrompt.test.ts), so a change to the node's text is a change to this surface's definition.
-  sources: surfaceSources('ground', 'packages/shared/contracts/goalsBrief.ts', 'packages/shared/contracts/initiative.ts', 'packages/convex/convex/lineGround.ts', 'packages/convex/convex/lib/anthropic.ts', 'packages/cli/src/workflow/templates/line/ground.md'),
+  sources: surfaceSources('ground', 'packages/shared/contracts/goalsBrief.ts', 'packages/shared/contracts/initiative.ts', 'apps/server/convex/lineGround.ts', 'apps/server/convex/lib/anthropic.ts', 'packages/cli/src/workflow/templates/line/ground.md'),
   reps: { check: 5 },
   // One strong call over a cause and a brief of a few projects; it thinks before it answers.
   maxUsdPerRep: 0.05,

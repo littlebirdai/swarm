@@ -14,7 +14,7 @@ import { join, relative } from "node:path";
 // history reader), never to allowlist the file.
 
 const WEB = join(import.meta.dir, "..", "..");
-const CONVEX = join(WEB, "..", "convex", "convex");
+const CONVEX = join(WEB, "..", "..", "apps", "server", "convex");
 
 /** Files under the store machinery that own the keys themselves. */
 const OWNERS = new Set(["hooks/useSyncTrial.ts", "store/clientSyncRegistry.ts", "store/inboxStore.ts", "store/trialSlice.ts"]);

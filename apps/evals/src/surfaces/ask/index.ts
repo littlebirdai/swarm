@@ -13,8 +13,8 @@ import {
   selectAskContext,
   toAskLine,
   type AskMessage,
-} from '../../../../../packages/convex/convex/lib/sessionAsk';
-import { citationSpans, spanLines, type CitationSpan } from '../../../../../packages/convex/convex/lib/sessionAskCitations';
+} from '../../../../../apps/server/convex/lib/sessionAsk';
+import { citationSpans, spanLines, type CitationSpan } from '../../../../../apps/server/convex/lib/sessionAskCitations';
 import { readConversation, toRows, type MessageRow } from '../../adapters/convo';
 import { readSessionMoment, SESSION_LINE_FORMS } from '../../adapters/moment';
 import { gate, type SurfaceImpl } from '../../surface';

@@ -284,7 +284,7 @@ export function canRedeploySha(t: Pick<DeployTarget, "command">): boolean {
 
 // ── paths ────────────────────────────────────────────────────────────────────
 
-/** A glob over repository paths (`packages/convex/**`, `*.md`). */
+/** A glob over repository paths (`apps/server/**`, `*.md`). */
 export function globMatch(pattern: string, file: string): boolean {
   const re = new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*\/?/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*").replace(/\?/g, "[^/]")}$`);
   return re.test(file);

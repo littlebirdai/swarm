@@ -12,7 +12,7 @@ feature's refusal, not an empty list.
 
 ## What's in it
 
-- **Schema** (`packages/convex/convex/schema.ts`): `anchors`, `anchor_channels`, `slack_events`,
+- **Schema** (`apps/server/convex/schema.ts`): `anchors`, `anchor_channels`, `slack_events`,
   `slack_installations` tables; `users.is_bot`/`bot_kind`; `conversations.persistent`/`acting_user_id`/`anchor_id`.
 - **Core** (`anchors.ts`): `provisionStandingAgent` (seating), `wakeAnchor`, `rebriefAnchor`,
   `resolveAnchorForScope`, `listAnchors`, `decommissionAnchor`; the never-complete guard in
@@ -27,7 +27,7 @@ feature's refusal, not an empty list.
 
 The ordinary rules in the repo's `CLAUDE.md` apply; nothing about the anchor is special.
 
-1. **Convex first.** Deploy with `packages/convex/deploy.sh` (never raw `npx convex deploy`) before
+1. **Convex first.** Deploy with `apps/server/deploy.sh` (never raw `npx convex deploy`) before
    pushing a commit whose web code calls a new Convex function. Web auto-deploys via Railway on
    push to main.
 2. **CLI release** for changes to `cast anchor *` or the daemon:

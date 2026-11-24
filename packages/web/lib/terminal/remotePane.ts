@@ -4,7 +4,7 @@
 // only ever reaches the machine this browser runs on (see endpoint.ts). When
 // the agent runs somewhere else — a Mac mini, a Linux box — there is no socket
 // to open, so this module supplies the other transport: whole screens relayed
-// through Convex (packages/convex/convex/terminalStream.ts), repainted in place.
+// through Convex (apps/server/convex/terminalStream.ts), repainted in place.
 //
 // The shape is deliberately different from the socket path, because the physics
 // are: no PTY, no scrollback — just the pane's current screen a few times a

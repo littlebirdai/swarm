@@ -47,9 +47,9 @@ describe("parseSessionQuery", () => {
   });
 
   test("an operator-only query has no text but still filters", () => {
-    const q = parseSessionQuery("file:packages/convex/convex/blameCore.ts", NOW);
+    const q = parseSessionQuery("file:apps/server/convex/blameCore.ts", NOW);
     expect(q.text).toBe("");
-    expect(q.files).toEqual(["packages/convex/convex/blameCore.ts"]);
+    expect(q.files).toEqual(["apps/server/convex/blameCore.ts"]);
     expect(q.hasFilters).toBe(true);
   });
 

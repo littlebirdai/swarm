@@ -22,7 +22,7 @@ The production proxy (`convex-host/Caddyfile`) sends the listed HTTP action pref
 
 ## Working against the deployment
 
-`packages/convex/.env.local` names the deployment (`CONVEX_SELF_HOSTED_URL`, `CONVEX_SELF_HOSTED_ADMIN_KEY`). Push functions only through `./dev.sh` (the gated pusher) or `packages/convex/deploy.sh`, never a raw `convex dev` or `convex deploy`: a push sends the whole tree, so one from a stale checkout deletes newer functions.
+`apps/server/.env.local` names the deployment (`CONVEX_SELF_HOSTED_URL`, `CONVEX_SELF_HOSTED_ADMIN_KEY`). Push functions only through `./dev.sh` (the gated pusher) or `apps/server/deploy.sh`, never a raw `convex dev` or `convex deploy`: a push sends the whole tree, so one from a stale checkout deletes newer functions.
 
 ## Tests
 
