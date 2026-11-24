@@ -6,7 +6,7 @@ import {
   featureVendorBlock,
   teamVendorBlock,
   vendorUncoveredMessage,
-} from "./vendorCoverage";
+} from "@codecast/policy/vendorCoverage";
 
 const clinic = { name: "Clinic", policy: { regulated_data: true } };
 const shop = { name: "Shop", policy: {} };

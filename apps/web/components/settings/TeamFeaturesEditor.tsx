@@ -16,11 +16,11 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { ToggleLeft } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { SettingsRow, SettingsSection } from "./ui";
+import { featureVendorBlock } from "@codecast/policy/vendorCoverage";
 import {
-  featureVendorBlock,
   TEAM_FEATURES,
   teamFeatureEnabled,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { useInboxStore } from "../../store/inboxStore";
 import { GUIDE_FOR } from "../../tours/guides";
 import { startTour } from "../../tours/engine";

@@ -28,7 +28,7 @@ import {
   type PolicyLayer,
   type PolicySource,
   type RestrictionKey,
-} from "@codecast/shared/contracts/managedPolicy";
+} from "@codecast/policy/managedPolicy";
 import { folderCovers } from "@codecast/team/folderLists";
 import type { Config } from "./types.js";
 import { defaultConfigDir } from "./configDir.js";

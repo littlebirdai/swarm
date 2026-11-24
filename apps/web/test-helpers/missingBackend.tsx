@@ -363,7 +363,7 @@ export const TEAM_ID = fixtureId("degradeteam");
 // off flag), and that team as the active workspace.
 export async function seedViewer(): Promise<void> {
   const { useInboxStore } = await import("../store/inboxStore");
-  const { TEAM_FEATURE_KEYS } = await import("@codecast/shared/contracts");
+  const { TEAM_FEATURE_KEYS } = await import("@codecast/policy/teamFeatures");
   const viewer = {
     _id: VIEWER_ID,
     name: "Dana Viewer",

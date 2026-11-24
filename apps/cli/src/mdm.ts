@@ -14,7 +14,7 @@ import {
   type EnrollRequest,
   type EnrollResponse,
   type PolicySource,
-} from "@codecast/shared/contracts/managedPolicy";
+} from "@codecast/policy/managedPolicy";
 import type { Config } from "./config/types.js";
 import {
   effectivePolicy,

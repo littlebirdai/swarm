@@ -276,13 +276,13 @@ import {
   SAFETY_BLOCK_HINT,
   CLOUD_AGENT_ACTION_SUBTYPE,
   parseScheduledTask,
-  policyTeamOf,
   sessionEscalationCaption,
   stripPastedContent,
   stripCompactionProvenance,
   isPollResponsePayload,
   type VaultReadyMessage,
 } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import {
   DELIVERY_FAILED_SUBTYPE,
   parseDeliveryFailedNotice,

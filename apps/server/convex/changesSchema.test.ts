@@ -4,7 +4,7 @@ import { validateArgs } from "./simValidate.testing";
 import {
   TEAM_FEATURE_KEYS,
   teamFeatureEnabled,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 
 // The Changes tables and the reshaped digests, checked against the schema's
 // own validators: a row layer 0 or the edition writes must be storable, and a

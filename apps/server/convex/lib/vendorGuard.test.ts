@@ -22,7 +22,7 @@ import {
   VENDORS,
   vendorUncoveredMessage,
   type ContentVendor,
-} from "@codecast/shared/contracts/vendorCoverage";
+} from "@codecast/policy/vendorCoverage";
 import { vendorRefusalFromDb } from "./vendorGuard";
 import { callModelMetered, createBatch, postMessages } from "./anthropic";
 import { openaiFetch } from "./openai";

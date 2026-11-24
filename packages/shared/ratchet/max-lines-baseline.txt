@@ -747,6 +747,7 @@ packages/capabilities/src/fleetDiff.ts 900
 packages/capabilities/test/fleetDiff.test.ts 1200
 packages/docs/src/drafting.ts 950
 packages/mods/src/authoring.d.ts 900
+packages/policy/src/permissionRules.ts 900
 packages/shared/artifacts/board.test.ts 1100
 packages/shared/artifacts/boardGeometry.ts 1250
 packages/shared/artifacts/boardLayout.ts 950
@@ -788,7 +789,6 @@ packages/shared/contracts/orgChangeWords.test.ts 1300
 packages/shared/contracts/orgChangeWords.ts 1500
 packages/shared/contracts/orgProposal.test.ts 3700
 packages/shared/contracts/orgProposal.ts 3750
-packages/shared/contracts/permissionRules.ts 900
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
 packages/shared/contracts/shortcutCatalog.ts 1550

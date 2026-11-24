@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@codecast/async": "workspace:*",
+    "@codecast/policy": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@platform/cli-kit": "file:../../platform/packages/cli-kit",
     "@platform/evals": "file:../../platform/packages/evals",

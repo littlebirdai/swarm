@@ -28,7 +28,7 @@ import {
   boundedRuleRequest,
   claudeToolRequest,
   type PermissionRuleRequest,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 
 /** The checkout holding `dir`: the nearest directory with a `.git` (a
  *  worktree has a file there). A stat per level, on the hook's hot path. A

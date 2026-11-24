@@ -8,7 +8,7 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { splitShellCommand } from "@codecast/shared/contracts/permissionRules";
+import { splitShellCommand } from "@codecast/policy/permissionRules";
 
 import { evalsHome } from "../paths";
 import type { Role } from "./cast/world";

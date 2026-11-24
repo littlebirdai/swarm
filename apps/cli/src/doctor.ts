@@ -69,7 +69,7 @@ import {
   type HangMarker,
 } from "./daemonMarkers.js";
 import { defaultConfigDir } from "./config/configDir.js";
-import { removedDeviceMessage } from "@codecast/shared/contracts/managedPolicy";
+import { removedDeviceMessage } from "@codecast/policy/managedPolicy";
 
 // ── deps handed in by index.ts ───────────────────────────────────────────────
 // The CLI entrypoint owns config decryption and the daemon state-file helpers;

@@ -4,7 +4,10 @@
 // cycle; http.ts mounts it without loading that module (ct-92432).
 import { httpAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { EnrollRequest, EnrollResponse } from "@codecast/shared/contracts";
+import type {
+  EnrollRequest,
+  EnrollResponse,
+} from "@codecast/policy/managedPolicy";
 
 export const ENROLL_PATH = "/cli/enroll";
 

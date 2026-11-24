@@ -22,7 +22,7 @@ import {
   workspaceFeatureEnabled,
   type TeamFeatureKey,
   type TeamFeatures,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 
 export type Workspace =
   | { kind: "team"; teamId: string; name?: string }

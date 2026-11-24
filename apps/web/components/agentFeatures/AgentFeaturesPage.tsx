@@ -7,10 +7,10 @@ import {
   SNIPPET_CATALOG,
   SNIPPET_CATEGORIES,
   STABLE_MODES,
-  snippetAvailableForTeams,
   type SnippetDescriptor,
   type StableMode,
 } from "@codecast/shared/contracts";
+import { snippetAvailableForTeams } from "@codecast/policy/teamFeatures";
 import {
   isAgentSetupTool,
   type AgentSetupTool,

@@ -4,7 +4,7 @@
 // convergence suites keep their pinned worlds byte for byte. Pure data with no
 // convex imports: the harness inserts these rows through the real handlers.
 
-import type { TeamFeatures } from "../teamFeatures";
+import type { TeamFeatures } from "@codecast/policy/teamFeatures";
 import {
   GEN_DAY,
   GEN_HOUR,

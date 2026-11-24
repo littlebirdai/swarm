@@ -1,7 +1,7 @@
 import type { SyncService } from "./syncService.js";
 import type { PermissionPrompt } from "./permissionDetector.js";
 import type { RemovalPreview } from "./removalPreview.js";
-import type { PermissionRuleRequest } from "@codecast/shared/contracts/permissionRules";
+import type { PermissionRuleRequest } from "@codecast/policy/permissionRules";
 
 export interface PermissionDecision {
   approved: boolean;

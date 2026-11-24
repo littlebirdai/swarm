@@ -41,7 +41,7 @@ import { normalizeTeamTaskStatuses } from "@codecast/shared/tasks";
 import {
   DEFAULT_TEAM_FEATURES,
   teamFeatureEnabled,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { decommissionAnchorRow } from "./anchors";
 import { readLocalViewRevision } from "./localFirstCommands";
 import { bumpWindow } from "./ipRateLimit";

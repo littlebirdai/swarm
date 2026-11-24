@@ -61,10 +61,7 @@ export * from "./agentSwitch";
 export * from "./claudeBackend";
 export * from "./machineSwitch";
 export * from "./forkSeed";
-export * from "./teamFeatures";
-export * from "./managedPolicy";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
-export * from "./vendorCoverage";
 export * from "./stableContext";
 export * from "./vaultProtocol";
 export * from "./vaultMirror";

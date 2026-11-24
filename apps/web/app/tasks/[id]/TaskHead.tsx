@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { CornerDownRight, MoreHorizontal, X } from "lucide-react";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { ShareControl } from "../../../components/ShareControl";
 import { WatchButton } from "../../../components/WatchButton";
 import { IssueLink } from "../../../components/tasks/IssueLink";

@@ -10,7 +10,7 @@ import { useOsPermission } from "./useOsPermissions";
 import { SETUP_FEATURES } from "./useSetupFeatures";
 import { snippetEnabledOn } from "../lib/newSnippets";
 import { nativeAppOffer } from "../lib/nativeApps";
-import { teamFeatureEnabled } from "@codecast/shared/contracts";
+import { teamFeatureEnabled } from "@codecast/policy/teamFeatures";
 import {
   TEAM_VISIBILITY_RANK,
   currentMembershipVisibility,

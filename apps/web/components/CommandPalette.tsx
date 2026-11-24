@@ -21,7 +21,7 @@ import {
   useWorkspaceFeature,
   workspaceHasFeatureNow,
 } from "../lib/teamFeatures";
-import type { TeamFeatureKey } from "@codecast/shared/contracts";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
 import { pagePath, palettePages, queryNamesPage } from "../lib/navPages";
 import {
   useState,

@@ -15,7 +15,7 @@
 
 import { useMemo, useState } from "react";
 import { ShareControl } from "../../../components/ShareControl";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api as _api } from "@codecast/convex/convex/_generated/api";

@@ -15,7 +15,7 @@ import {
   permissionRuleLabel,
   type PermissionRule,
   type PermissionRuleRequest,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 
 export { ruleRequestValidator } from "./permissionRuleRequest";

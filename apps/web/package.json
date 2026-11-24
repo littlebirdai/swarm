@@ -24,6 +24,7 @@
     "@codecast/files": "workspace:*",
     "@codecast/memory": "workspace:*",
     "@codecast/network": "workspace:*",
+    "@codecast/policy": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",

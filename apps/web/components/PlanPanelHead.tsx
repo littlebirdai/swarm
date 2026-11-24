@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { X, type LucideIcon } from "lucide-react";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { Badge } from "./ui/badge";
 import { ShareControl } from "./ShareControl";
 import { PageHeader } from "./ui/page-header";

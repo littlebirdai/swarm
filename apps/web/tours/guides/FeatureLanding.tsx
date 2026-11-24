@@ -10,7 +10,7 @@ import {
   TEAM_FEATURES,
   workspaceFeatureState,
   type TeamFeatureKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { useInboxStore } from "../../store/inboxStore";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { startTour } from "../engine";

@@ -4,10 +4,10 @@ import {
   isWriteBudgetRefusal,
 } from "./writeBudgetBackoff.js";
 import type { PermissionSource } from "./permissionHandler.js";
-import type { PermissionRuleRequest } from "@codecast/shared/contracts/permissionRules";
+import type { PermissionRuleRequest } from "@codecast/policy/permissionRules";
 // The rule engine is 25 KB the command tree never runs; the two calls that
 // bound a rule request load it on first use.
-const ruleBounds = () => import("@codecast/shared/contracts/permissionRules");
+const ruleBounds = () => import("@codecast/policy/permissionRules");
 import { recoveringWebSocket } from "@codecast/network";
 import { readFile, stat } from "node:fs/promises";
 import * as os from "node:os";

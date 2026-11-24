@@ -138,9 +138,6 @@ import {
   snippetSection,
   type SnippetSection,
   allSnippetSlugs,
-  teamFeaturesForSnippet,
-  TEAM_FEATURES,
-  type TeamFeatureKey,
   fromConvexAgentType,
   toConvexAgentType,
   callDisplayTitle,
@@ -163,6 +160,11 @@ import {
   cliErrorMessage,
   normalizeGuestName,
 } from "@codecast/shared/contracts";
+import {
+  teamFeaturesForSnippet,
+  TEAM_FEATURES,
+  type TeamFeatureKey,
+} from "@codecast/policy/teamFeatures";
 import type {
   ExcludedSelf,
   SearchPartial,
@@ -532,7 +534,7 @@ import {
   snippetPolicyRefusal,
   writeEffectivePolicyFile,
 } from "./config/managedPolicy.js";
-import { removedDeviceMessage } from "@codecast/shared/contracts/managedPolicy";
+import { removedDeviceMessage } from "@codecast/policy/managedPolicy";
 import {
   readProviderKeyStore,
   writeProviderKeyStore,

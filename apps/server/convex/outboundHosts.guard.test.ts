@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import {
-  VENDORS,
-  type Vendor,
-} from "@codecast/shared/contracts/vendorCoverage";
+import { VENDORS, type Vendor } from "@codecast/policy/vendorCoverage";
 
 // Regulated health data (HIPAA, plan pl-990): every vendor that receives
 // transcript content must be covered by a BAA, so a server fetch to a new host

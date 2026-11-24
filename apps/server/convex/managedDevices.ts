@@ -23,7 +23,7 @@ import {
   type AccessibilityGrant,
   type EnrollResponse,
   type TeamPolicy,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/managedPolicy";
 import { internalMutation, internalQuery, mutation, query } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";

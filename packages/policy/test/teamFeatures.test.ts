@@ -6,7 +6,7 @@ import {
   undecidedSetupFeatures,
   workspaceFeatureEnabled,
   workspaceFeatureState,
-} from "./teamFeatures";
+} from "@codecast/policy/teamFeatures";
 
 // The org feature is seated per team AND per person, and the personal
 // workspace has no flag row. The rule that decides whose personal org exists

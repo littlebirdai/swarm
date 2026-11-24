@@ -40,7 +40,7 @@ import {
 } from "@codecast/shared/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { ShareControl } from "../ShareControl";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { PresenceFacepile, type PresenceFace } from "../PresenceFacepile";
 import { AppLoader } from "../AppLoader";
 import { ErrorBoundary } from "../ErrorBoundary";

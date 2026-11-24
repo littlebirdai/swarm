@@ -14,7 +14,7 @@ import {
 import {
   snippetAvailableForTeams,
   teamFeatureEnabled,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 
 const ALICE = "user-alice" as any;
 const BOB = "user-bob" as any;

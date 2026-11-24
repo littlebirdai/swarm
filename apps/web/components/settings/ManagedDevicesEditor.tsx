@@ -28,7 +28,7 @@ import {
   MANAGED_POLICY,
   parseTeamPolicy,
   type TeamPolicy,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/managedPolicy";
 import { Switch } from "../ui/switch";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";

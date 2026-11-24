@@ -1,4 +1,4 @@
-import { workspaceFeatureEnabled } from "@codecast/shared/contracts";
+import { workspaceFeatureEnabled } from "@codecast/policy/teamFeatures";
 import type { Id } from "../_generated/dataModel";
 
 // The anchors a caller may see/act on: their personal anchor plus the team anchor

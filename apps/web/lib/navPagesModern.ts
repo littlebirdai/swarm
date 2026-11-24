@@ -7,7 +7,7 @@
 // find it, its shortcut and whether it waits for typing, and the rows that
 // are a view of a page (an Ops tab, a Changes edition, a Settings section)
 // follow their page. Only what Modern changes is written here.
-import type { TeamFeatureKey } from "@codecast/shared/contracts";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
 import type { NavPage } from "./navPages";
 import {
   NAV_REGISTRY,

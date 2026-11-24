@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { undecidedSetupFeatures } from "@codecast/shared/contracts";
+import { undecidedSetupFeatures } from "@codecast/policy/teamFeatures";
 import {
   TeamFlowShell,
   type TeamFlowStep,

@@ -3,7 +3,10 @@
 import { expect, setDefaultTimeout, test } from "bun:test";
 import { convexTest } from "convex-test";
 import schema from "./schema";
-import { TEAM_FEATURES, teamFeatureEnabled } from "@codecast/shared/contracts";
+import {
+  TEAM_FEATURES,
+  teamFeatureEnabled,
+} from "@codecast/policy/teamFeatures";
 
 setDefaultTimeout(60_000);
 

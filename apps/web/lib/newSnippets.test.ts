@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { SNIPPET_CATALOG, TEAM_FEATURES } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { TEAM_FEATURES } from "@codecast/policy/teamFeatures";
 import {
   isRecentlyShipped,
   newSnippetsFor,

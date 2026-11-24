@@ -7,7 +7,7 @@ import {
   boundedRuleRequest,
   permissionRuleKey,
   permissionRuleLabel,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 import { mutation, query } from "./functions";
 import { getAuthenticatedUserId } from "./permissions";
 import { recordAuthorityEvent } from "./lib/authorityEvents";

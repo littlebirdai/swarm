@@ -18,7 +18,7 @@ import {
   keptPatterns,
   permissionRuleLabel,
   type PermissionRuleRequest,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 import { useIsModernStyle } from "../hooks/useVisualStyle";
 import { ModernPermissionStack } from "./conversation/ModernPermissionStack";
 

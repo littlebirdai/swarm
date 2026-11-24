@@ -28657,6 +28657,27 @@
   "packages/network/src/index.ts": {
     "swarm/no-comments": 1
   },
+  "packages/policy/src/managedPolicy.ts": {
+    "swarm/no-comments": 68
+  },
+  "packages/policy/src/permissionRules.ts": {
+    "swarm/no-comments": 58
+  },
+  "packages/policy/src/teamFeatures.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/policy/src/vendorCoverage.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/policy/test/permissionRules.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/policy/test/teamFeatures.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/policy/test/vendorCoverage.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/shared/artifacts/ask.ts": {
     "swarm/no-comments": 8
   },
@@ -29467,9 +29488,6 @@
   "packages/shared/contracts/mainRed.ts": {
     "swarm/no-comments": 39
   },
-  "packages/shared/contracts/managedPolicy.ts": {
-    "swarm/no-comments": 68
-  },
   "packages/shared/contracts/messagingPolicy.ts": {
     "swarm/no-comments": 13
   },
@@ -29634,12 +29652,6 @@
   },
   "packages/shared/contracts/pendingStatus.ts": {
     "swarm/no-comments": 10
-  },
-  "packages/shared/contracts/permissionRules.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/permissionRules.ts": {
-    "swarm/no-comments": 58
   },
   "packages/shared/contracts/personAsk.test.ts": {
     "swarm/no-comments": 1
@@ -29878,12 +29890,6 @@
   "packages/shared/contracts/taskStats.ts": {
     "swarm/no-comments": 7
   },
-  "packages/shared/contracts/teamFeatures.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/teamFeatures.ts": {
-    "swarm/no-comments": 26
-  },
   "packages/shared/contracts/teamHosts.ts": {
     "swarm/no-comments": 8
   },
@@ -29946,12 +29952,6 @@
   },
   "packages/shared/contracts/vaultProtocol.ts": {
     "swarm/no-comments": 58
-  },
-  "packages/shared/contracts/vendorCoverage.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/vendorCoverage.ts": {
-    "swarm/no-comments": 20
   },
   "packages/shared/contracts/volumeWatch.test.ts": {
     "swarm/no-comments": 3

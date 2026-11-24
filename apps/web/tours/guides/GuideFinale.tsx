@@ -7,7 +7,7 @@ import { Check, RotateCcw } from "lucide-react";
 import {
   TEAM_FEATURES,
   workspaceFeatureEnabled,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { useInboxStore } from "../../store/inboxStore";
 import { endTour, startTour } from "../engine";
 import { FeatureSwitches } from "./FeatureSwitches";

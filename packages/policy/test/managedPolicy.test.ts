@@ -6,7 +6,7 @@ import {
   parseTeamPolicy,
   policyBlockedMessage,
   policyTeamOf,
-} from "./managedPolicy";
+} from "@codecast/policy/managedPolicy";
 
 const team = { kind: "team" as const, team_id: "t1", team_name: "Littlebird" };
 

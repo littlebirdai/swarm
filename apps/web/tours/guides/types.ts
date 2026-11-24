@@ -10,7 +10,7 @@
 // asks the person to do something on the stage (`act`): then the stage waits
 // for that press, which is the moment the example becomes theirs.
 import type { ComponentType } from "react";
-import type { TeamFeatureKey } from "@codecast/shared/contracts";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
 
 export type GuideBeat = {
   /** What the beat says under the stage: one or two short sentences. */

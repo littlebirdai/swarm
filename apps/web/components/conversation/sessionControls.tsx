@@ -1,6 +1,6 @@
 import { LogoIcon } from "../Logo";
 import { FolderSyncControl } from "./FolderSyncControl";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { usePolicyRefusal } from "../../lib/managedPolicy";
 import { useSyncTeamMachines } from "../../hooks/useSyncTeamMachines";
 import { myMembership } from "../../lib/teamMachines";

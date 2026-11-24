@@ -4,7 +4,7 @@ import type { Editor } from "@tiptap/core";
 import { toast } from "sonner";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import type { LabRequest, LabResult } from "@codecast/docs";
-import { teamVendorBlock } from "@codecast/shared/contracts";
+import { teamVendorBlock } from "@codecast/policy/vendorCoverage";
 import { useInboxStore, useTrackedStore } from "../../../store/inboxStore";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import {
