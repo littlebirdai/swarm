@@ -48,7 +48,7 @@ import {
   parseExecutionAgentClientId,
 } from "@codecast/shared/contracts";
 import { splitFrontmatter } from "@codecast/docs";
-import { parseYamlSubset, toStringList } from "@codecast/shared/vault";
+import { parseYamlSubset, toStringList } from "@codecast/shared/vault/parseNote";
 
 function frontmatterRecord(front: string): Record<string, unknown> {
   const lines = front.split("\n");

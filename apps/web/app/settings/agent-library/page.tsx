@@ -40,7 +40,7 @@ import {
   parseAgentDefinitionFile,
   serializeAgentChainFile,
   serializeAgentDefinitionFile,
-} from "@codecast/shared/agents";
+} from "@codecast/agents";
 import { useInboxStore } from "../../../store/inboxStore";
 import {
   useAgentChains,

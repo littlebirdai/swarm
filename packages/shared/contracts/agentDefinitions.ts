@@ -6,7 +6,7 @@
 // A definition is stored as a workspace row (convex `agent_definitions`) and
 // travels as a markdown file with frontmatter, the shape pi's subagent
 // extension and Claude Code's ~/.claude/agents already use (see
-// @codecast/shared/agents for the file form). This module is the pure part:
+// @codecast/agents for the file form). This module is the pure part:
 // the row shape, validation, and the resolution of a definition plus caller
 // overrides into the launch inputs the per-client argv builders take.
 //

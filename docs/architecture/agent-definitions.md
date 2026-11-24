@@ -88,7 +88,7 @@ import` accepts either as is: `disallowedTools`, `isolation: worktree`,
 `model: id:effort` and `tools: a, b` all map. `cast agent show` and `export`
 print the same form. A chain file is a frontmatter with name and description
 and one `## <definition>` section per step. Parsers live in
-`@codecast/shared/agents`; the YAML subset and the frontmatter splitter are
+`@codecast/agents`; the YAML subset and the frontmatter splitter are
 the vault's.
 
 ## D5. Chains vs workflows

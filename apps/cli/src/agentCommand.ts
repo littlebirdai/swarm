@@ -26,7 +26,7 @@ import {
   parseAgentDefinitionFile,
   serializeAgentChainFile,
   serializeAgentDefinitionFile,
-} from "@codecast/shared/agents";
+} from "@codecast/agents";
 import { apiPost } from "./castApi.js";
 import { commandGroup, type GroupDeps } from "./commandGroups.js";
 import { readStdinBody, stdinText } from "./sendBody.js";
