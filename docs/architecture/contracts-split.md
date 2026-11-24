@@ -23,7 +23,7 @@ The numbers show the size of each move. They do not show the current state of `m
 
 ## Progress
 
-This table shows the state on 2026-11-24, at `main` commit `6c623c51f`.
+This table shows the state on 2026-11-24, at `main` commit `fbb596aec`.
 
 | Stage | Package or part                                                            | State          |
 | ----- | -------------------------------------------------------------------------- | -------------- |
@@ -31,11 +31,12 @@ This table shows the state on 2026-11-24, at `main` commit `6c623c51f`.
 | 2     | `pull-requests`, `convex-errors`, `keyboard`, `network`, `ratchet`, `ship` | Merged, PR #56 |
 | 2     | `capabilities`, `policy`                                                   | Merged, PR #57 |
 | 2     | `browser`, `pages`, `provider-keys`, `daemon`, `evals-api`                 | Merged, PR #58 |
-| 2     | `cloud-hosts`, `flows`                                                     | Open, PR #59   |
-| 2     | the first part of `calls`                                                  | Open, PR #60   |
-| 2     | `render`, the first part of `triggers`, the first part of `decisions`      | Open, PR #61   |
-| 2     | the first part of `agent-clients`, `changes`, `signals`                    | Open, PR #63   |
-| 2     | `fence`, the first part of `sessions`, the first part of `org`             | Not started    |
+| 2     | `cloud-hosts`, `flows`                                                     | Merged, PR #59 |
+| 2     | the first part of `calls`                                                  | Merged, PR #60 |
+| 2     | `render`, the first part of `triggers`, the first part of `decisions`      | Merged, PR #61 |
+| 2     | the first part of `agent-clients`, `changes`, `signals`                    | Merged, PR #63 |
+| 2     | the first part of `sessions`                                               | Merged, PR #64 |
+| 2     | `fence`, the first part of `org`                                           | Not started    |
 | 3 - 9 | all parts                                                                  | Not started    |
 
 Several small parts of one stage can merge in one PR, with one commit for each package.
