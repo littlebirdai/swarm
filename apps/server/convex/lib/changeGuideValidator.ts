@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-// The change guide on a task (ct-57527, @codecast/shared/contracts/changeGuide):
+// The change guide on a task (ct-57527, @codecast/ship/changeGuide):
 // the author's walkthrough written at handoff, each step's hunk captured then
 // so the guide survives later edits. Kept off list rows and the sync log; the
 // task's evidence (taskEvidence.get) carries it to the review station.

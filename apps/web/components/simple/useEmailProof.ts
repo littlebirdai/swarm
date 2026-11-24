@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 
 /** How many digits the mailed code has (lib/emailProof). */
 export const EMAIL_PROOF_DIGITS = 6;

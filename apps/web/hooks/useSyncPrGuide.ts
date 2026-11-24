@@ -4,7 +4,7 @@
 import { useCallback, useMemo } from "react";
 import { useAction } from "convex/react";
 import { toast } from "sonner";
-import type { ChangeGuideStep } from "@codecast/shared/contracts/changeGuide";
+import type { ChangeGuideStep } from "@codecast/ship/changeGuide";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncCollection } from "./useSyncCollection";

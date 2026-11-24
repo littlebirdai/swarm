@@ -13,7 +13,7 @@ import { workspaceGrantsAccess } from "./lib/accessKeys";
 import { normalizeRepository } from "./lib/gitRefs";
 import { deployTeamFor } from "./changesDeploy";
 import { teamKey } from "./deployTargetsCi";
-import { parseOwnerRepo } from "@codecast/shared/contracts";
+import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import {
   EMPTY_RECENT,
   recentRefusal,

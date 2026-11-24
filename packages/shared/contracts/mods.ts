@@ -10,7 +10,7 @@
 // codecast draws them with its own components.
 
 import { themeErrors, type ModTheme } from "./theme";
-import { internalHostRefusal } from "./internalHost";
+import { internalHostRefusal } from "@codecast/network/internalHost";
 
 /** Bumped when the host and the SDK baked into a mod stop understanding each other. */
 export const MOD_PROTOCOL = 1;

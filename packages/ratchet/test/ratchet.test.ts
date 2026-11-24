@@ -15,7 +15,7 @@ import {
   parseAllowlist,
   syncAllowlist,
   type RatchetSpec,
-} from "./index";
+} from "../src/index";
 
 // What has to be true for a ratchet to be worth more than the guard test it
 // replaces: a swap fails, a stale entry fails, a listed file may not grow, and

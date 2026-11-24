@@ -33,7 +33,7 @@ import {
   PASSING_CONCLUSIONS,
   type CheckEntry,
 } from "./lib/gitRefs";
-import { parsePrRef, codecastPrUrl } from "@codecast/shared/contracts";
+import { parsePrRef, codecastPrUrl } from "@codecast/pull-requests/prRefs";
 import { pullRequestsLinkedToConversation } from "./lib/prSessions";
 import { canAccessConversation, canAccessTask } from "./lib/access";
 

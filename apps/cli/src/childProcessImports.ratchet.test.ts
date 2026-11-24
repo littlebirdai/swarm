@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkRatchet, countMatches } from "@codecast/shared/ratchet";
+import { checkRatchet, countMatches } from "@codecast/ratchet";
 import { join } from "node:path";
 
 // CHILD PROCESS IMPORT RATCHET.

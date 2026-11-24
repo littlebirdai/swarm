@@ -4,7 +4,7 @@
 # fix. Split it. A file over 800 lines is not allowed to be new, and a listed one may not grow past its 50-line step.
 #
 # Prune it (drops gone entries, lowers numbers that came down, adds nothing):
-#   cd packages/shared && RATCHET_WRITE=prune bun test ratchet/maxLines.ratchet.test.ts
+#   cd packages/ratchet && RATCHET_WRITE=prune bun test test/maxLines.ratchet.test.ts
 apps/cli/scripts/agentwatch-replay.ts 850
 apps/cli/scripts/browser-rig.ts 1150
 apps/cli/scripts/browser-stress/fuzz.ts 850
@@ -759,6 +759,7 @@ packages/capabilities/src/capabilities.ts 950
 packages/capabilities/src/fleetDiff.ts 900
 packages/capabilities/test/fleetDiff.test.ts 1200
 packages/docs/src/drafting.ts 950
+packages/keyboard/src/shortcutCatalog.ts 1550
 packages/mods/src/authoring.d.ts 900
 packages/policy/src/permissionRules.ts 900
 packages/shared/contracts/agentClients.test.ts 850
@@ -791,7 +792,6 @@ packages/shared/contracts/orgProposal.test.ts 3700
 packages/shared/contracts/orgProposal.ts 3750
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
-packages/shared/contracts/shortcutCatalog.ts 1550
 packages/shared/contracts/snippets.ts 2050
 packages/shared/contracts/usageLimits.ts 850
 packages/shared/entities/index.ts 1650

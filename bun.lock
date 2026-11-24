@@ -32,14 +32,19 @@
         "@codecast/blame": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/comments": "workspace:*",
+        "@codecast/convex-errors": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
+        "@codecast/keyboard": "workspace:*",
         "@codecast/memory": "workspace:*",
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/policy": "workspace:*",
+        "@codecast/pull-requests": "workspace:*",
+        "@codecast/ratchet": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/ship": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/vault": "workspace:*",
@@ -83,6 +88,7 @@
         "@codecast/async": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/ship": "workspace:*",
         "@platform/cli-kit": "file:../../platform/packages/cli-kit",
         "@platform/evals": "file:../../platform/packages/evals",
         "@platform/snippets": "file:../../platform/packages/snippets",
@@ -103,11 +109,13 @@
         "@codecast/artifacts": "workspace:*",
         "@codecast/chat": "workspace:*",
         "@codecast/convex": "workspace:*",
+        "@codecast/convex-errors": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/policy": "workspace:*",
+        "@codecast/pull-requests": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
@@ -216,11 +224,17 @@
         "@codecast/capabilities": "workspace:*",
         "@codecast/chat": "workspace:*",
         "@codecast/comments": "workspace:*",
+        "@codecast/convex-errors": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/hash": "workspace:*",
+        "@codecast/keyboard": "workspace:*",
+        "@codecast/network": "workspace:*",
         "@codecast/policy": "workspace:*",
+        "@codecast/pull-requests": "workspace:*",
+        "@codecast/ratchet": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/ship": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@convex-dev/auth": "0.0.79",
@@ -271,14 +285,19 @@
         "@codecast/chat": "workspace:*",
         "@codecast/comments": "workspace:*",
         "@codecast/convex": "workspace:*",
+        "@codecast/convex-errors": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/hash": "workspace:*",
+        "@codecast/keyboard": "workspace:*",
         "@codecast/memory": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/policy": "workspace:*",
+        "@codecast/pull-requests": "workspace:*",
+        "@codecast/ratchet": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/ship": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/vault": "workspace:*",
@@ -492,6 +511,13 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/convex-errors": {
+      "name": "@codecast/convex-errors",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/diff": {
       "name": "@codecast/diff",
       "version": "0.0.1",
@@ -522,6 +548,13 @@
     },
     "packages/hash": {
       "name": "@codecast/hash",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/keyboard": {
+      "name": "@codecast/keyboard",
       "version": "0.0.1",
       "devDependencies": {
         "@types/bun": "^1.3.3",
@@ -561,6 +594,20 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/pull-requests": {
+      "name": "@codecast/pull-requests",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/ratchet": {
+      "name": "@codecast/ratchet",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/shared": {
       "name": "@codecast/shared",
       "version": "0.0.1",
@@ -569,7 +616,9 @@
         "@codecast/chat": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/hash": "workspace:*",
+        "@codecast/network": "workspace:*",
         "@codecast/policy": "workspace:*",
+        "@codecast/pull-requests": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@platform/agent": "file:../../platform/packages/agent",
@@ -580,6 +629,13 @@
       },
       "devDependencies": {
         "@types/css-tree": "^2.3.11",
+      },
+    },
+    "packages/ship": {
+      "name": "@codecast/ship",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
       },
     },
     "packages/team": {
@@ -982,6 +1038,8 @@
 
     "@codecast/convex": ["@codecast/convex@workspace:apps/server"],
 
+    "@codecast/convex-errors": ["@codecast/convex-errors@workspace:packages/convex-errors"],
+
     "@codecast/diff": ["@codecast/diff@workspace:packages/diff"],
 
     "@codecast/docs": ["@codecast/docs@workspace:packages/docs"],
@@ -996,6 +1054,8 @@
 
     "@codecast/hash": ["@codecast/hash@workspace:packages/hash"],
 
+    "@codecast/keyboard": ["@codecast/keyboard@workspace:packages/keyboard"],
+
     "@codecast/memory": ["@codecast/memory@workspace:packages/memory"],
 
     "@codecast/mods": ["@codecast/mods@workspace:packages/mods"],
@@ -1006,7 +1066,13 @@
 
     "@codecast/policy": ["@codecast/policy@workspace:packages/policy"],
 
+    "@codecast/pull-requests": ["@codecast/pull-requests@workspace:packages/pull-requests"],
+
+    "@codecast/ratchet": ["@codecast/ratchet@workspace:packages/ratchet"],
+
     "@codecast/shared": ["@codecast/shared@workspace:packages/shared"],
+
+    "@codecast/ship": ["@codecast/ship@workspace:packages/ship"],
 
     "@codecast/team": ["@codecast/team@workspace:packages/team"],
 

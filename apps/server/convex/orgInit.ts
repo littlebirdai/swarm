@@ -105,10 +105,8 @@ import {
 } from "./lib/orgCaps";
 import { autonomyChangeWords } from "@codecast/shared/contracts/roleAutonomy";
 import { findDecision } from "./sessionDecisions";
-import {
-  extractRepoFromRemoteUrl,
-  threadStateHeadline,
-} from "@codecast/shared/contracts";
+import { threadStateHeadline } from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import {
   applyProposalChanges,
   extractOrgProposal,

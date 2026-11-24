@@ -17,13 +17,13 @@ import { isTeamMember, resolveTeamForPath } from "./privacy";
 import { requireUser } from "./lib/auth";
 import { normalizeRepository, repositoryOwner } from "./lib/gitRefs";
 import {
-  parseOwnerRepo,
   newGithubAppInstallNonce,
   githubAppInstallUrlFor,
   isAppConnectionScope,
   GITHUB_INSTALL_INTENT_TTL_MS,
   type AppConnectionScope,
 } from "@codecast/shared/contracts";
+import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import { sha256Hex } from "./lib/hash";
 import {
   GITHUB_API_BASE,

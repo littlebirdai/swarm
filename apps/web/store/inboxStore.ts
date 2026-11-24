@@ -2450,7 +2450,7 @@ export type DocDetail = DocItem & {
   _cachedAt?: number;
 };
 
-import type { KeyBindingOverride } from "@codecast/shared/contracts/keyBindings";
+import type { KeyBindingOverride } from "@codecast/keyboard/keyBindings";
 export type {
   TaskViewPrefs,
   DocViewPrefs,
@@ -2496,7 +2496,7 @@ export type ClientUI = {
   // a person's own view of a tab's rows, hidden from nobody else.
   sheet_filters?: Record<string, unknown>;
   // The person's own keyboard bindings over the defaults
-  // (@codecast/shared/contracts/keyBindings). Stamped: follows them to every
+  // (@codecast/keyboard/keyBindings). Stamped: follows them to every
   // device, and `cast shortcuts` writes the same key from any session.
   key_bindings?: KeyBindingOverride[];
   // "New session defaults" (Settings > General; @codecast/shared/contracts

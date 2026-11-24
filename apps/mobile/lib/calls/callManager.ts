@@ -30,10 +30,10 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { convex } from "../convex";
 import {
   CALL_HEARTBEAT_MS,
-  humanizeConvexError,
   isRoomMachineryKind,
   localTranscribeLanguages,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 
 export type CallPhase = "idle" | "connecting" | "connected" | "error";
 

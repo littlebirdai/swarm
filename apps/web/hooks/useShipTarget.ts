@@ -5,10 +5,7 @@
 import { useMemo } from "react";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type {
-  ShipPlan,
-  ShipTargetKind,
-} from "@codecast/shared/contracts/shipPlan";
+import type { ShipPlan, ShipTargetKind } from "@codecast/ship/shipPlan";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncCollection } from "./useSyncCollection";
 import { applyEntityIds, emptyIdsByCollection } from "./useSyncChangeFeed";

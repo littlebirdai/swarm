@@ -14,9 +14,9 @@ import {
   checkLabel,
   checkOutcome,
   type CheckOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 
-// The phone reads a check's outcome from here, as it always has; the rule lives in shared/contracts/prRefs.
+// The phone reads a check's outcome from here, as it always has; the rule lives in @codecast/pull-requests/prRefs.
 export { checkOutcome, type CheckOutcome };
 import type { CodeAnchorText } from "@codecast/comments";
 import {

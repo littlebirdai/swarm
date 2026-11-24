@@ -19,7 +19,7 @@ import {
   type CodeCommentRow,
   type PrCheck,
 } from "../prView";
-import { checkOutcome } from "@codecast/shared/contracts";
+import { checkOutcome } from "@codecast/pull-requests/prRefs";
 
 const check = (over: Partial<PrCheck>): PrCheck => ({
   name: "build",

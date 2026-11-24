@@ -31,7 +31,7 @@ import {
   vaultReference,
   type FoundSecret,
 } from "@codecast/shared/contracts/secretShapes";
-import { humanizeConvexError } from "@codecast/shared/contracts/convexErrors";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 
 export type EnvEntry = { key: string; value: string };
 

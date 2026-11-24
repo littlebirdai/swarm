@@ -16,7 +16,7 @@ import {
   groupQueueBySession,
   type QueueCommit,
 } from "@codecast/shared/contracts/deployTargets";
-import { parseOwnerRepo } from "@codecast/shared/contracts";
+import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import {
   liveDeployOf,
   type DeployPushSummary,

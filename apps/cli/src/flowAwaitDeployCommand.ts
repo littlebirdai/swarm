@@ -1,5 +1,5 @@
 // `cast flow await-deploy` (flows.md FL4), kept out of flowCommand.ts to hold that file under the 800-line cap
-// (packages/shared/ratchet): the Deploy stage's wait from the merged sha, run by the deploy segment's parked station in
+// (packages/ratchet): the Deploy stage's wait from the merged sha, run by the deploy segment's parked station in
 // the change's worktree. The other stations' commands are in flowStations.ts.
 import type { Command } from "commander";
 import type { FlowDeps } from "./flowCommand.js";

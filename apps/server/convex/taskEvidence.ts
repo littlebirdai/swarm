@@ -18,7 +18,7 @@ import {
   storageUrl,
   type SessionImage,
 } from "./lib/sessionMedia";
-import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
+import type { ChangeGuide } from "@codecast/ship/changeGuide";
 
 type Ctx = { db: any; storage?: any };
 

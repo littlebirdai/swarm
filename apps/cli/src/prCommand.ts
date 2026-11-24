@@ -24,14 +24,14 @@ import { readTaskPulseFor } from "./taskPulse.js";
 import {
   changeGuideMarkdown,
   type ChangeGuide,
-} from "@codecast/shared/contracts/changeGuide";
+} from "@codecast/ship/changeGuide";
 import { fmt, c, icons } from "./colors.js";
 import {
   parsePrRef,
   extractRepoFromRemoteUrl,
   codecastPrUrl,
   checkLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 import { commandGroup } from "./commandGroups.js";
 import {
   placementLabel,

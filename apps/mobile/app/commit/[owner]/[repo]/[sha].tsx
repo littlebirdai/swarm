@@ -24,7 +24,7 @@ import {
 import { useSessionTrailer } from "@codecast/web/hooks/useSessionTrailer";
 import { useEnsureCommitFiles } from "@codecast/web/hooks/useEnsureCommitFiles";
 import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
-import { commitCarriesDiffs } from "@codecast/shared/contracts/commitDiffs";
+import { commitCarriesDiffs } from "@codecast/pull-requests/commitDiffs";
 import { PR_STATE_META, prStateKey } from "@codecast/web/lib/prView";
 import { accentVar } from "@codecast/web/lib/externalEvents";
 import {

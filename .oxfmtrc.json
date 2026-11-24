@@ -45,7 +45,7 @@
     "packages/shared/contracts/__fixtures__/changeCard/card*.html",
     "plans/security-entrypoint-inventory.json",
     "plans/security-entrypoint-inventory.md",
-    "packages/shared/ratchet/doc-refs-baseline.txt",
-    "packages/shared/ratchet/max-lines-baseline.txt"
+    "packages/ratchet/doc-refs-baseline.txt",
+    "packages/ratchet/max-lines-baseline.txt"
   ]
 }

@@ -1,6 +1,6 @@
 // Timeline lanes (commits, pull requests) — store-fed delta overlays.
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { normalizeRepository } from "@codecast/shared/contracts";
+import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 import { useCallback, useMemo, useState } from "react";
 import {
   applyCollectionFeed,

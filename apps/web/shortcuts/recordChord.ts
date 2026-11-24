@@ -1,13 +1,10 @@
-// A pressed key as a chord the person can bind (shared/contracts/keyBindings
+// A pressed key as a chord the person can bind (@codecast/keyboard/keyBindings
 // canonical form). The physical key names the chord, so ⌥J on a Mac records as
 // alt+j rather than the "∆" it types; the result is then proven against the
 // very event with the catalog's own matcher, and refused when a chord made from
 // it would not fire on this keyboard.
 import { createShortcutCatalog } from "@platform/keys";
-import {
-  parseChord,
-  resolveChord,
-} from "@codecast/shared/contracts/keyBindings";
+import { parseChord, resolveChord } from "@codecast/keyboard/keyBindings";
 
 const CODE_KEYS: Record<string, string> = {
   BracketLeft: "[",

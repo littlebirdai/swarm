@@ -65,7 +65,7 @@ import {
   type RoleLoad,
 } from "@codecast/shared/contracts/orgCapacity";
 import { computeReportingPeople } from "./orgGoals";
-import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import {
   activityPlanOf,
   computeStale,

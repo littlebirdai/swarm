@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Route } from "lucide-react";
-import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
-import { stepLocation } from "@codecast/shared/contracts/changeGuide";
+import type { ChangeGuide } from "@codecast/ship/changeGuide";
+import { stepLocation } from "@codecast/ship/changeGuide";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { FilePatchDiff } from "../DiffView";
 import { cn } from "../../lib/utils";

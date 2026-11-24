@@ -12,7 +12,7 @@ import os from "os";
 import path from "path";
 import { promisify } from "util";
 import { execFile } from "./proc.js";
-import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import { readSessionTrailers } from "./blame.js";
 import { parseLog, selectFixCommits, traceFixes } from "./lineFixloop.js";
 

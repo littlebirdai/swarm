@@ -1,4 +1,4 @@
-import { argumentValidationProblem } from "@codecast/shared/contracts/convexErrors";
+import { argumentValidationProblem } from "@codecast/convex-errors/convexErrors";
 
 // The HTTP status for each structured failure code a mutation can raise (see
 // chat.ts `chatFail`). Anything unmapped is a 500, which is what an unstructured

@@ -1,7 +1,7 @@
 // Codecast's binding of the @platform/keys action catalog. The mechanics —
 // chord matching (incl. the mac Option dead-key fallback), input/modal guards,
 // keycap formatting — live in the package. The action ids and their default
-// bindings live in @codecast/shared/contracts/shortcutCatalog, where the CLI
+// bindings live in @codecast/keyboard/shortcutCatalog, where the CLI
 // and the server can read them too. This file builds the live catalog: the
 // defaults with the person's own bindings (keyBindings.ts) applied on top.
 
@@ -17,11 +17,11 @@ import {
   SHORTCUTS,
   type ShortcutAction,
   type ShortcutDef,
-} from "@codecast/shared/contracts/shortcutCatalog";
+} from "@codecast/keyboard/shortcutCatalog";
 import {
   applyKeyBindings,
   type KeyBindingOverride,
-} from "@codecast/shared/contracts/keyBindings";
+} from "@codecast/keyboard/keyBindings";
 
 export { SHORTCUTS, type ShortcutAction, type ShortcutDef };
 export { hasOpenModal, isEditableTarget, inputGuardBypass, altChordDirection };

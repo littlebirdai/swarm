@@ -41,7 +41,6 @@ import {
   callAnchorHref,
   callPathRef,
   callViewParam,
-  humanizeConvexError,
   isMeetRoomKey,
   isRecRoomKey,
   isRoomlessKey,
@@ -53,6 +52,7 @@ import {
   parseCallViewParam,
   type CallView,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { callRefId } from "@codecast/shared/entities";
 import { joinCall } from "../../lib/calls/callManager";
 import { callTitle, type CallPlace } from "../../lib/calls/roomLabels";

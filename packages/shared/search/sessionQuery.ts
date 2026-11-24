@@ -23,7 +23,7 @@ import {
   extractRepoFromRemoteUrl,
   parseOwnerRepo,
   parsePrRef,
-} from "../contracts/prRefs";
+} from "@codecast/pull-requests/prRefs";
 
 export type SessionQueryPr = { number: number; repository?: string };
 

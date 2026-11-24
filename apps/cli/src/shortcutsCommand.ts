@@ -10,7 +10,7 @@
 //   cast shortcuts unbind <action>
 //   cast shortcuts reset [<action> | --all]
 import type { Command } from "commander";
-import { SHORTCUTS } from "@codecast/shared/contracts/shortcutCatalog";
+import { SHORTCUTS } from "@codecast/keyboard/shortcutCatalog";
 import {
   actionsForChord,
   applyKeyBindings,
@@ -24,7 +24,7 @@ import {
   resolveAction,
   setActionChords,
   type KeyBindingOverride,
-} from "@codecast/shared/contracts/keyBindings";
+} from "@codecast/keyboard/keyBindings";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { commandGroup } from "./commandGroups.js";
 import { verbTypoNextStep } from "./commandSuggestion.js";

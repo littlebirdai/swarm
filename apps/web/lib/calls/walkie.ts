@@ -34,7 +34,7 @@
 // a listen draws the strip; a call draws the ordinary dock, and the stage when
 // the person expanded it.
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useInboxStore } from "../../store/inboxStore";
 import { roomRecordingOn } from "./roomRecordingFields";
 import { focusExistingHuddle, huddleInOtherWindow } from "./huddleWindow";

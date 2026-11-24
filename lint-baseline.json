@@ -28789,6 +28789,12 @@
   "packages/comments/test/sendOutcome.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/convex-errors/src/convexErrors.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/convex-errors/test/convexErrors.test.ts": {
+    "swarm/no-comments": 7
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -28822,6 +28828,12 @@
   "packages/files/test/index.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/keyboard/src/keyBindings.ts": {
+    "swarm/no-comments": 44
+  },
+  "packages/keyboard/src/shortcutCatalog.ts": {
+    "swarm/no-comments": 196
+  },
   "packages/memory/src/index.ts": {
     "swarm/no-comments": 36
   },
@@ -28843,6 +28855,9 @@
   "packages/network/src/index.ts": {
     "swarm/no-comments": 1
   },
+  "packages/network/src/internalHost.ts": {
+    "swarm/no-comments": 22
+  },
   "packages/policy/src/managedPolicy.ts": {
     "swarm/no-comments": 68
   },
@@ -28863,6 +28878,27 @@
   },
   "packages/policy/test/vendorCoverage.test.ts": {
     "swarm/no-comments": 1
+  },
+  "packages/pull-requests/src/commitDiffs.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/pull-requests/src/prRefs.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/pull-requests/test/prRefs.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/ratchet/src/index.ts": {
+    "swarm/no-comments": 47
+  },
+  "packages/ratchet/test/docRefs.guard.test.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/ratchet/test/maxLines.ratchet.test.ts": {
+    "swarm/no-comments": 123
+  },
+  "packages/ratchet/test/ratchet.test.ts": {
+    "swarm/no-comments": 9
   },
   "packages/shared/changes/__fixtures__/commit.ts": {
     "swarm/no-comments": 2
@@ -29071,12 +29107,6 @@
   "packages/shared/contracts/changeCard.ts": {
     "swarm/no-comments": 122
   },
-  "packages/shared/contracts/changeGuide.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/changeGuide.ts": {
-    "swarm/no-comments": 40
-  },
   "packages/shared/contracts/checkouts.test.ts": {
     "swarm/no-comments": 1
   },
@@ -29143,20 +29173,11 @@
   "packages/shared/contracts/commandsSession.test.ts": {
     "swarm/no-comments": 2
   },
-  "packages/shared/contracts/commitDiffs.ts": {
-    "swarm/no-comments": 1
-  },
   "packages/shared/contracts/connectorReasons.ts": {
     "swarm/no-comments": 22
   },
   "packages/shared/contracts/conversationFields.ts": {
     "swarm/no-comments": 62
-  },
-  "packages/shared/contracts/convexErrors.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/convexErrors.ts": {
-    "swarm/no-comments": 13
   },
   "packages/shared/contracts/daemonCommands.ts": {
     "swarm/no-comments": 244
@@ -29374,9 +29395,6 @@
   "packages/shared/contracts/initiativeRecord.test.ts": {
     "swarm/no-comments": 17
   },
-  "packages/shared/contracts/internalHost.ts": {
-    "swarm/no-comments": 22
-  },
   "packages/shared/contracts/jointMessage.ts": {
     "swarm/no-comments": 10
   },
@@ -29394,9 +29412,6 @@
   },
   "packages/shared/contracts/judges.ts": {
     "swarm/no-comments": 59
-  },
-  "packages/shared/contracts/keyBindings.ts": {
-    "swarm/no-comments": 44
   },
   "packages/shared/contracts/levenshtein.ts": {
     "swarm/no-comments": 4
@@ -29665,12 +29680,6 @@
   "packages/shared/contracts/plainText.ts": {
     "swarm/no-comments": 9
   },
-  "packages/shared/contracts/prRefs.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/prRefs.ts": {
-    "swarm/no-comments": 29
-  },
   "packages/shared/contracts/predictedEffect.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29839,15 +29848,6 @@
   "packages/shared/contracts/shellWords.ts": {
     "swarm/no-comments": 6
   },
-  "packages/shared/contracts/shipPlan.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/shipPlan.ts": {
-    "swarm/no-comments": 30
-  },
-  "packages/shared/contracts/shortcutCatalog.ts": {
-    "swarm/no-comments": 196
-  },
   "packages/shared/contracts/signalFingerprint.test.ts": {
     "swarm/no-comments": 5
   },
@@ -29979,18 +29979,6 @@
   },
   "packages/shared/entities/orgObjects.test.ts": {
     "swarm/no-comments": 2
-  },
-  "packages/shared/ratchet/docRefs.guard.test.ts": {
-    "swarm/no-comments": 35
-  },
-  "packages/shared/ratchet/index.ts": {
-    "swarm/no-comments": 47
-  },
-  "packages/shared/ratchet/maxLines.ratchet.test.ts": {
-    "swarm/no-comments": 123
-  },
-  "packages/shared/ratchet/ratchet.test.ts": {
-    "swarm/no-comments": 9
   },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9
@@ -30192,6 +30180,18 @@
   },
   "packages/shared/tasks/tasks.test.ts": {
     "swarm/no-comments": 26
+  },
+  "packages/ship/src/changeGuide.ts": {
+    "swarm/no-comments": 40
+  },
+  "packages/ship/src/shipPlan.ts": {
+    "swarm/no-comments": 30
+  },
+  "packages/ship/test/changeGuide.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/ship/test/shipPlan.test.ts": {
+    "swarm/no-comments": 3
   },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4

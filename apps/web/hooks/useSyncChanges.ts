@@ -33,7 +33,7 @@ import type {
 } from "@codecast/convex/convex/changesQueries";
 import { addDays } from "@codecast/convex/convex/lib/teamDay";
 import { isoWeekOf } from "@codecast/shared/changes";
-import { normalizeRepository } from "@codecast/shared/contracts";
+import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 import { useCallback, useMemo } from "react";
 import { isConvexId } from "../store/inboxStore";
 import type { SyncOpts } from "../store/inboxStore";

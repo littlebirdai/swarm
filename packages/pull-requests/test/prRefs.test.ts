@@ -6,11 +6,11 @@ import {
   normalizeRepository,
   parsePrRef,
   repositoryOwner,
-} from "./prRefs";
+} from "../src/prRefs";
 
 describe("normalizeRepository", () => {
   test("lower cases owner and name and trims", () => {
-    expect(normalizeRepository(" Codecast-SH/Codecast ")).toBe(
+    expect(normalizeRepository<string>(" Codecast-SH/Codecast ")).toBe(
       "codecast-sh/codecast",
     );
   });

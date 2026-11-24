@@ -6,7 +6,7 @@ import {
   MAX_STEP_HUNK_LINES,
   parseChangeGuide,
   parseStepHeading,
-} from "./changeGuide";
+} from "../src/changeGuide";
 
 const PATCH = [
   "diff --git a/src/a.ts b/src/a.ts",

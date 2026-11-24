@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkRatchet } from "./index";
+import { checkRatchet } from "../src/index";
 import { join } from "node:path";
 
 // MAX LINES BASELINE. The one file size ratchet for every package.
@@ -33,7 +33,7 @@ import { join } from "node:path";
 // The only sanctioned edit is downward. Split the file; then prune.
 //
 // One exception is on record. The baseline of 2026-09-30 (7ff3ea794) reset an
-// unenforced ratchet: CI had never run packages/shared/ratchet before the
+// unenforced ratchet: CI had never run the ratchet tests before the
 // test-shared job, and the old list was red on 59 entries, so 74 pins and PIN
 // were raised to the committed sizes of that day. It is not a precedent for
 // raising a pin. The largest absorptions (daemon.ts, ccAccounts.ts, schema.ts,
@@ -122,7 +122,7 @@ import { join } from "node:path";
 // 2026-11-23: oxfmt re-based the line counts at 80 columns. PIN 798.
 
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
-const ALLOWLIST = join(import.meta.dir, "max-lines-baseline.txt");
+const ALLOWLIST = join(import.meta.dir, "..", "max-lines-baseline.txt");
 
 const CAP = 800;
 const STEP = 50;
@@ -151,7 +151,7 @@ const result = checkRatchet({
   pin: PIN,
   fix: `Split it. A file over ${CAP} lines is not allowed to be new, and a listed one may not grow past its ${STEP}-line step.`,
   pruneCommand:
-    "cd packages/shared && RATCHET_WRITE=prune bun test ratchet/maxLines.ratchet.test.ts",
+    "cd packages/ratchet && RATCHET_WRITE=prune bun test test/maxLines.ratchet.test.ts",
   minScanned: 1500,
   shrinkFloor: 0.9,
 });

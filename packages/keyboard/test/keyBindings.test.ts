@@ -13,8 +13,8 @@ import {
   setActionChords,
   comboToAccelerator,
   desktopMenuKeys,
-} from "./keyBindings";
-import { SHORTCUTS } from "./shortcutCatalog";
+} from "../src/keyBindings";
+import { SHORTCUTS } from "../src/shortcutCatalog";
 
 const chord = (s: string) => {
   const r = parseChord(s);

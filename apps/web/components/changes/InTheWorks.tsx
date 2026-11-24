@@ -4,7 +4,7 @@
 // counts; the area bars are the viewed day's file touches. Everything but the
 // bars is the state right now, whichever edition is on screen, so a past
 // edition says so and puts its own bars first.
-import { foldShepherdState } from "@codecast/shared/contracts";
+import { foldShepherdState } from "@codecast/pull-requests/prRefs";
 import { useState, type ReactNode } from "react";
 import type { WorksRow } from "../../hooks/useSyncChanges";
 import { ImageGalleryProvider, useImageGallery } from "../ImageGallery";

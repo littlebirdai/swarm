@@ -9,12 +9,12 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import {
   CALL_HEARTBEAT_MS,
   guestJoinRefusalOf,
-  humanizeConvexError,
   type CallGuestView,
   type GuestLinkRefusal,
   noticeWidened,
   type GuestNotice,
 } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { useWsConnected } from "../../../hooks/useWsConnected";

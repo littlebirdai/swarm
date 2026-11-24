@@ -14,7 +14,7 @@ import {
   permanentDeleteLedger,
   regulatedTeam,
 } from "../consequential/deletionLedgers";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 
 export function DeleteCallButton({
   call,

@@ -3,7 +3,7 @@ import {
   isRoleAssignee,
   type AssigneeInfo,
 } from "@codecast/shared/contracts/orgAssignee";
-import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
+import type { ChangeGuide } from "@codecast/ship/changeGuide";
 import { STALE_TASK_WORDS, TASK_EFFORTS } from "@codecast/shared/tasks";
 
 // `cast task start` claims a task. Who the claim belongs to depends on who ran

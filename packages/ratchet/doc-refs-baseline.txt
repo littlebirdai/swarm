@@ -6,7 +6,7 @@
 # the test until it is deleted.
 #
 # Prune it (drops lines that are no longer dead, adds nothing):
-#   cd packages/shared && RATCHET_WRITE=prune bun test ratchet/docRefs.guard.test.ts
+#   cd packages/ratchet && RATCHET_WRITE=prune bun test test/docRefs.guard.test.ts
 AGENTS.md apps/mobile/lib/x
 docs/architecture/evals-converge.md packages/evals/src/analysis/stats.test.ts
 docs/architecture/evals-converge.md packages/evals/src/core/verdict.ts

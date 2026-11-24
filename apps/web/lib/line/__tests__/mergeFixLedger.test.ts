@@ -1,7 +1,7 @@
 // The review of landing an approved fix (MergeFixAct): facts at a glance, and a
 // confirm that names what will really happen (ct-57509: merge step off; ct-58282: nobody answered).
 import { describe, expect, test } from "bun:test";
-import type { ShipPlan } from "@codecast/shared/contracts/shipPlan";
+import type { ShipPlan } from "@codecast/ship/shipPlan";
 import { assertGlance } from "../../../components/consequential/__tests__/glance";
 import { branchStanding, fixActName, mergeFixLedger } from "../mergeFixLedger";
 

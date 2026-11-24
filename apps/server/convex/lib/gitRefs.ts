@@ -16,7 +16,7 @@ import {
 } from "@codecast/shared/entities";
 import { extractSessionTrailer } from "@codecast/blame";
 import { isConversationOwner, isConversationTeamVisible } from "../privacy";
-import { normalizeRepository } from "@codecast/shared/contracts";
+import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 // accessKeys, not ./access: access.ts pulls in function modules, and this file
 // loads inside webhook modules (an import cycle there breaks module init).
 import {
@@ -323,14 +323,14 @@ export function foldChecksState(
 export {
   normalizeRepository,
   repositoryOwner,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 
 // The shepherd fold is pure and the web reads it too (the Changes page's In
 // review chips), so it lives beside the reference parser.
 export {
   foldShepherdState,
   type ShepherdPrState,
-} from "@codecast/shared/contracts";
+} from "@codecast/pull-requests/prRefs";
 
 export function prUrl(repository: string, number: number): string {
   return `https://github.com/${repository}/pull/${number}`;

@@ -9,7 +9,7 @@ import { useMutation } from "convex/react";
 import { Check, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";

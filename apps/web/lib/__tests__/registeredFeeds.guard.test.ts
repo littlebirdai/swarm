@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkRatchet, codeOnly } from "@codecast/shared/ratchet";
+import { checkRatchet, codeOnly } from "@codecast/ratchet";
 import { join } from "node:path";
 import { REGISTERED_FEEDS } from "../../store/clientSyncRegistry";
 

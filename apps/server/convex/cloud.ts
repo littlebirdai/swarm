@@ -39,12 +39,12 @@ import {
   LOCAL_MIRROR_MODES,
   LOCAL_MIRROR_STATUSES,
   mirrorLaptops,
-  parseOwnerRepo,
   type CloudHostAction,
   type CloudWorkspaceMode,
   type LocalMirrorMode,
   type MirrorResolve,
 } from "@codecast/shared/contracts";
+import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import { resolveConversationRefRanked } from "./conversationSessionLookup";
 import {
   cloudHostReportValidator,

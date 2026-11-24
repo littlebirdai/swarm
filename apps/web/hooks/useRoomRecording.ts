@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useInboxStore } from "../store/inboxStore";
 import { useCollectionRows } from "./useCollectionRows";
 import { subscribeWalkie, walkieCallState } from "../lib/calls/walkie";

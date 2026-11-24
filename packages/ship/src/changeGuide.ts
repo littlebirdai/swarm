@@ -10,7 +10,7 @@
 //
 //   Add the parser first, everything reads it.
 //
-//   ## Parse the guide `packages/shared/contracts/changeGuide.ts:40-120`
+//   ## Parse the guide `packages/ship/src/changeGuide.ts:40-120`
 //   One function turns the markdown into steps...
 //
 //   ## Store it on the task `apps/server/convex/schema.ts:5775`

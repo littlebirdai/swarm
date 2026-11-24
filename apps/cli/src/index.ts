@@ -157,14 +157,14 @@ import {
   callAnchorHref,
   callPathRef,
   segmentAt,
-  cliErrorMessage,
   normalizeGuestName,
 } from "@codecast/shared/contracts";
 import {
   teamFeaturesForSnippet,
   TEAM_FEATURES,
-  type TeamFeatureKey,
 } from "@codecast/policy/teamFeatures";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
+import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
 import type {
   ExcludedSelf,
   SearchPartial,
@@ -25660,8 +25660,7 @@ work
       parseHandoffStatus,
     } = await import("./taskClaim.js");
     const { pageSlugFromRef } = await import("./publishCommand.js");
-    const { parseChangeGuide } =
-      await import("@codecast/shared/contracts/changeGuide");
+    const { parseChangeGuide } = await import("@codecast/ship/changeGuide");
     const { guideDiffReader } = await import("./changeGuideDiff.js");
     let input!: Parameters<typeof buildTaskHandoffBody>[2];
     let body!: Record<string, any>;

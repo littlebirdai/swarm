@@ -4,10 +4,7 @@
 // writes with `cast task handoff --guide`, parsed by parseChangeGuide, so a
 // generated guide and an author's guide are one shape and one renderer.
 
-import {
-  parseChangeGuide,
-  type ChangeGuide,
-} from "@codecast/shared/contracts/changeGuide";
+import { parseChangeGuide, type ChangeGuide } from "@codecast/ship/changeGuide";
 import { STRONG_MODEL, type SurfaceRequest } from "./anthropic";
 
 export const PR_GUIDE_PROMPT_VERSION = "pr-guide-2";

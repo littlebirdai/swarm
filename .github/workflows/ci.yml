@@ -472,7 +472,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Unit tests (workspace libraries)
+      - name: Workspace library tests, including packages/ratchet
         run: bun scripts/ci/package-tests.ts
 
   # The mobile app's guard tests are what stand between an OTA update and a

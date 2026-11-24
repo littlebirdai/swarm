@@ -21,7 +21,7 @@ import { apiPost, type PublishDeps } from "./castApi.js";
 import { commandGroup } from "./commandGroups.js";
 import { gitTry } from "./gitPlane.js";
 import { locate, readLocalGitContext } from "./prCommand.js";
-import type { ShipPlan } from "@codecast/shared/contracts/shipPlan";
+import type { ShipPlan } from "@codecast/ship/shipPlan";
 import {
   loadWorkspaceRoster,
   matchTeam,

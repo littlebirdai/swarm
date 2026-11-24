@@ -3,7 +3,7 @@ import {
   internalAddressRefusal,
   internalHostRefusal,
   ipv6Groups,
-} from "./internalHost";
+} from "../src/internalHost";
 
 describe("internalAddressRefusal", () => {
   test("loopback, private, link-local, CGNAT, metadata, multicast and reserved addresses are refused, v4 and v6", () => {

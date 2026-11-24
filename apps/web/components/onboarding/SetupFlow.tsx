@@ -18,7 +18,7 @@ import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { toast } from "sonner";
-import { humanizeConvexError } from "@codecast/shared/contracts";
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { Input } from "../ui/input";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Label } from "../ui/label";
