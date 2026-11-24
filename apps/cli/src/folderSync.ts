@@ -115,7 +115,7 @@ function realPathOf(p: string): string {
 
 /** The recorded path as it would sit on this machine: another user's home
  *  prefix (/Users/m1, /home/m1) becomes this one's. The same rule names "the
- *  same folder" in the person's sync lists (shared/team/folderLists.ts). */
+ *  same folder" in the person's sync lists (packages/team/src/folderLists.ts). */
 export const localFolderFor = folderOnThisMachine;
 
 export type FolderPlan =
