@@ -6,7 +6,7 @@ import {
   validateAgentChain,
   validateAgentDefinition,
   type AgentDefinitionSpec,
-} from "./agentDefinitions";
+} from "../src/agentDefinitions";
 
 const reviewer: AgentDefinitionSpec = {
   name: "reviewer",

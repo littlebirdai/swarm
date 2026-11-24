@@ -28546,6 +28546,9 @@
   "packages/agent-clients/test/modelOptions.test.ts": {
     "swarm/no-comments": 28
   },
+  "packages/agents/src/agentDefinitions.ts": {
+    "swarm/no-comments": 48
+  },
   "packages/agents/src/index.ts": {
     "swarm/no-comments": 41
   },
@@ -29376,9 +29379,6 @@
   },
   "packages/shared/contracts/__fixtures__/teamWorldGen.ts": {
     "swarm/no-comments": 21
-  },
-  "packages/shared/contracts/agentDefinitions.ts": {
-    "swarm/no-comments": 48
   },
   "packages/shared/contracts/agentJudges.ts": {
     "swarm/no-comments": 34

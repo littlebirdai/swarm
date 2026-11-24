@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type {
   AgentChainSpec,
   AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import {
   compileChainWorkflow,
   compileParallelWorkflow,

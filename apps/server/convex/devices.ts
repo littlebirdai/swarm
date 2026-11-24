@@ -6,7 +6,7 @@ import { selfUpdateBlocked } from "./lib/deviceUpdate";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { AgentClientId } from "@codecast/agent-clients/agentClients";
-import type { AgentDefinitionSpec } from "@codecast/shared/contracts";
+import type { AgentDefinitionSpec } from "@codecast/agents/agentDefinitions";
 import { isClosedSession } from "@codecast/shared/contracts";
 import {
   cloudAgentProviderOfSession,

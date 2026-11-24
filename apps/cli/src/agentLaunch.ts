@@ -15,7 +15,7 @@ import {
   resolveAgentLaunch,
   type AgentDefinitionSpec,
   type ResolvedAgentLaunch,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 
 // Schedules run permissive by default (`mode: "apply"`); safe mode

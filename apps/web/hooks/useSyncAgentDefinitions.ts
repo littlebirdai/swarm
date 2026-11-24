@@ -9,7 +9,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type {
   AgentChainSpec,
   AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import { useSyncCollection } from "./useSyncCollection";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 
