@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as http from "node:http";
-import { FRAME_SHARE_REFUSED_WORDS } from "@codecast/shared/contracts";
+import { FRAME_SHARE_REFUSED_WORDS } from "@codecast/calls/callRecordings";
 import { installCommandFor, installHintFor } from "./proc.js";
 import {
   callVideoSpans,

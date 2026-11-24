@@ -186,7 +186,7 @@ test("a call left while it is connecting hangs up the connection it just made", 
 // pins those numbers to the client library's enum.
 test("the room's machinery is told apart by livekit-client's own kinds", async () => {
   const { ParticipantKind } = await import("livekit-client");
-  const { isRoomMachineryKind } = await import("@codecast/shared/contracts");
+  const { isRoomMachineryKind } = await import("@codecast/calls/callGuests");
   expect(isRoomMachineryKind(ParticipantKind.EGRESS)).toBe(true);
   expect(isRoomMachineryKind(ParticipantKind.AGENT)).toBe(true);
   expect(isRoomMachineryKind(ParticipantKind.STANDARD)).toBe(false);

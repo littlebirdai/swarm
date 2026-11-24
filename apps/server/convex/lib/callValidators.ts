@@ -5,11 +5,13 @@ import { v } from "convex/values";
 import {
   CALL_GUEST_LEFT_REASONS,
   CALL_GUEST_STATUSES,
+} from "@codecast/calls/callGuests";
+import {
   CALL_RECORDING_ERROR_KINDS,
   CALL_RECORDING_KINDS,
   CALL_RECORDING_STATUSES,
   CALL_RECORDING_STOP_REASONS,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 
 export const callRecordingKindValidator = v.union(
   ...CALL_RECORDING_KINDS.map((k) => v.literal(k)),
@@ -29,7 +31,7 @@ export const callGuestStatusValidator = v.union(
 export const callGuestLeftReasonValidator = v.union(
   ...CALL_GUEST_LEFT_REASONS.map((r) => v.literal(r)),
 );
-// A guest's notice (GuestNotice in shared/contracts/callGuests.ts): what the
+// A guest's notice (GuestNotice in packages/calls/src/callGuests.ts): what the
 // page showed when they agreed, stored on their row and checked against the
 // room's at every media token.
 export const guestNoticeValidator = v.object({

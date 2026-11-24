@@ -77,7 +77,7 @@ import {
   roomHasGuestLinks,
 } from "./lib/callGuestAdmission";
 // Key shapes, builders and lease timings are the shared contract
-// (@codecast/shared/contracts/callRoomKeys) so the web client can build keys
+// (@codecast/calls/callRoomKeys) so the web client can build keys
 // and share staleness math without importing server code. This module adds
 // what only the server can: authorization.
 import {
@@ -86,7 +86,7 @@ import {
   isRoomlessKey,
   parseRoomKey,
   type ParsedRoomKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 
 export {
   CALL_HEARTBEAT_MS,
@@ -103,7 +103,7 @@ export {
   roomMemberIds,
   sessionRoomKey,
   type ParsedRoomKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 import { featureVendorRefusal } from "./lib/vendorGuard";
 import { canAccessConversation } from "./lib/access";
 

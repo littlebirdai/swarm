@@ -3,9 +3,9 @@ import Link from "next/link";
 import { ArrowUpRight, MicOff, MonitorPlay } from "lucide-react";
 import {
   callAnchorHref,
-  formatCallTime,
   type ParsedScreenRecording,
 } from "@codecast/shared/contracts";
+import { formatCallTime } from "@codecast/calls/callRecordings";
 import { toVideoFile, useCallRecordings } from "../../hooks/useRoomRecording";
 import { useCallDetail } from "../../hooks/useSyncCalls";
 import { CALL_VIDEO_LOADING, playableFiles } from "../../lib/calls/callVideo";

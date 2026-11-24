@@ -47,11 +47,8 @@ import {
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 import { formatCallTime } from "@codecast/shared/entities";
 import { getLivekit } from "@/lib/calls/livekitNative";
-import {
-  guestIdFromIdentity,
-  isRecordingFilming,
-  markedName,
-} from "@codecast/shared/contracts";
+import { guestIdFromIdentity, markedName } from "@codecast/calls/callGuests";
+import { isRecordingFilming } from "@codecast/calls/callRecordings";
 import { mobileRouteForUrl } from "@/lib/linkRoutes";
 import { openAppRoute } from "@/lib/links";
 

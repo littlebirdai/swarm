@@ -14,7 +14,7 @@
 // frame imports this file: the Convex mint and manifest route, the worker and
 // its page, the web embed and the CLI.
 
-import { formatCallTime, parseCallTime } from "./callRecordings";
+import { formatCallTime, parseCallTime } from "@codecast/calls/callRecordings";
 
 /** The origin the player is served from. Never codecast.sh itself. */
 export const REPLAY_PLAYER_ORIGIN = "https://replay.codecast.sh";

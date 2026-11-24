@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text as RNText } from "@/components/Themed";
 import { Theme, themedStyles, useTheme } from "@/constants/Theme";
 import { castPlayerScript } from "@codecast/convex/convex/lib/castPlayer";
-import { formatCallTime } from "@codecast/shared/contracts";
+import { formatCallTime } from "@codecast/calls/callRecordings";
 import { openLink } from "@/lib/links";
 import { optionalNative } from "@/lib/optionalNative";
 

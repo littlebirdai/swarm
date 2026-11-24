@@ -176,7 +176,7 @@ export const callRoomTables = {
   // has no users row, so their knock and their seat cannot be call_knocks or
   // call_members rows (both hang on a user id, and every reader of those
   // tables resolves it); the guest's own row carries both, as a status
-  // (CallGuestStatus in shared/contracts/callGuests.ts):
+  // (CallGuestStatus in packages/calls/src/callGuests.ts):
   //   waiting -> admitted | denied, admitted -> removed | left.
   // The browser holds the row id and a secret; only the secret's hash is
   // stored, so a leaked table row cannot be replayed as the guest. LiveKit
@@ -273,7 +273,7 @@ export const callRoomTables = {
     // Routing, never access: whose huddle this is. Who may see a pin is who
     // is seated in the room; who may see what it shows is the object's own rule.
     team_id: v.id("teams"),
-    // Canonical (shared/contracts/stagePins): `doc:<id>`, `a/<slug>`, or a short id.
+    // Canonical (@codecast/calls/stagePins): `doc:<id>`, `a/<slug>`, or a short id.
     ref: v.string(),
     kind: v.union(v.literal("doc"), v.literal("page"), v.literal("object")),
     doc_id: v.optional(v.id("docs")),

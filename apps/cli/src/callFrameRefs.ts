@@ -36,7 +36,7 @@ import * as path from "node:path";
 import {
   callFrameSeenRef,
   callFrameSeenText,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 import {
   replayFrameSeenRef,
   replayFrameSeenText,

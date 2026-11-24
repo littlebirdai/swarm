@@ -48,8 +48,8 @@ import {
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import { agentFaceIdentity } from "@codecast/calls/callRoomKeys";
 import {
-  agentFaceIdentity,
   agentSpokenNames,
   huddleVoiceAskHeader,
   huddleVoiceInstructions,

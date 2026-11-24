@@ -4,7 +4,7 @@ import {
   guestNoticeLines,
   noticeNews,
   type GuestNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import type { DeviceChoice } from "../../../lib/calls/guestRoom";
 import { LogoMark } from "../../../components/Logo";
 import { buttonVariants } from "../../../components/ui/button";

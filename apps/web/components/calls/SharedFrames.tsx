@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { ExternalLink, MonitorUp, Trash2 } from "lucide-react";
-import { formatCallTime, recordingSubject } from "@codecast/shared/contracts";
+import {
+  formatCallTime,
+  recordingSubject,
+} from "@codecast/calls/callRecordings";
 import {
   takeDownFrameShare,
   useCallFrameShares,

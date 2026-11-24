@@ -24,13 +24,13 @@ import {
   VideoOff,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { callShareHref } from "@codecast/shared/contracts";
 import {
-  callShareHref,
   describeClockSpans,
   recordingFailureWords,
   recordingLostWords,
   recordingStoppedItselfWords,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 import { ChatAttachments } from "../chat/ChatAttachments";
 import {
   MESSAGE_MD_COMPONENTS,

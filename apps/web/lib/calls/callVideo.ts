@@ -25,7 +25,7 @@ import {
   type CallCoveredSpan,
   type CallMomentPrefer,
   type CallRecordingSpan,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 
 // The files that can be played (finished, with a URL, and a time 0) are the
 // shared contract's rule, which the CLI's frame grab reads too.

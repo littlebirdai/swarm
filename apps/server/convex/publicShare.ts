@@ -43,10 +43,8 @@ import { userMayRead } from "./sessionDecisions";
 import { canReadStack } from "./decisionStacks";
 import { canViewTask } from "./agentTasks";
 import { canReadRun } from "./workflow_runs";
-import {
-  CALL_LINK_REFUSED_WORDS,
-  isRecRoomKey,
-} from "@codecast/shared/contracts";
+import { CALL_LINK_REFUSED_WORDS } from "@codecast/calls/callRecordings";
+import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import { publicName } from "./lib/displayNames";
 import {
   publicWeekCard,

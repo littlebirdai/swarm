@@ -140,8 +140,6 @@ import {
   allSnippetSlugs,
   fromConvexAgentType,
   toConvexAgentType,
-  callDisplayTitle,
-  callLength,
   LOCAL_AGENT_CLIENTS,
   type VaultInfo,
   TRIGGER_EVENT_NAMES,
@@ -153,9 +151,10 @@ import {
   callLinkHow,
   callAnchorHref,
   callPathRef,
-  segmentAt,
-  normalizeGuestName,
 } from "@codecast/shared/contracts";
+import { callDisplayTitle, callLength } from "@codecast/calls/callRoomKeys";
+import { segmentAt } from "@codecast/calls/callRecordings";
+import { normalizeGuestName } from "@codecast/calls/callGuests";
 import {
   teamFeaturesForSnippet,
   TEAM_FEATURES,

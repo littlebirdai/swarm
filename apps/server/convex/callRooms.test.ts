@@ -15,7 +15,7 @@ import {
   recRoomKey,
   sessionRoomKey,
 } from "./callRooms";
-import { CALL_MEMBER_STALE_MS } from "@codecast/shared/contracts";
+import { CALL_MEMBER_STALE_MS } from "@codecast/calls/callRoomKeys";
 
 // Same tiny ctx.db stand-in as buckets.test.ts: per-table arrays and eq-only
 // index filtering, which is all authorizeRoom queries need.

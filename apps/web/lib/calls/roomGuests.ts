@@ -1,4 +1,4 @@
-import { isGuestParticipant } from "@codecast/shared/contracts";
+import { isGuestParticipant } from "@codecast/calls/callGuests";
 import type { LiveRoomGuest } from "../../store/callRoomTypes";
 import type { GuestMedia } from "./callMedia";
 import { firstName } from "../../components/calls/speakers";

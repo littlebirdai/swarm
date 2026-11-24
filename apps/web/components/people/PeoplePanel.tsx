@@ -35,7 +35,7 @@ import {
   setAlwaysOnTop,
 } from "../../lib/desktop";
 import { useDesktopWindowRole } from "../../hooks/useDesktopWindowRole";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { useHandCallToPanel } from "../../hooks/useHandCallToPanel";
 import { engagementOf, isInHuddle, isTalking } from "../../lib/faces/faceRow";

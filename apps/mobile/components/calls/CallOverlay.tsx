@@ -16,7 +16,7 @@ import {
   themedStyles,
   useTheme,
 } from "@/constants/Theme";
-import { CALL_PUSH_TYPE_RING } from "@codecast/shared/contracts";
+import { CALL_PUSH_TYPE_RING } from "@codecast/calls/callPush";
 import { useAuth } from "@/lib/auth";
 import {
   acceptInvite,
@@ -28,7 +28,7 @@ import {
 import { startRinging, stopRinging } from "@/lib/calls/ringtone";
 import { callKitAvailable } from "@/lib/calls/callKit";
 import { useRoomRecordingMark } from "@/lib/calls/recordingMark";
-import { isRecordingFilming } from "@codecast/shared/contracts";
+import { isRecordingFilming } from "@codecast/calls/callRecordings";
 import { RecordingNotice } from "./RecordingNotice";
 import { LivePulse } from "./LiveRooms";
 import * as Notifications from "expo-notifications";

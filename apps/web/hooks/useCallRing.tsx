@@ -14,8 +14,8 @@ import { personInOwnCall, voiceHostShowsRing } from "../lib/calls/walkie";
 import {
   CALL_INVITE_TTL_MS,
   CALL_KNOCK_TTL_MS,
-  CALL_RING_PERIOD_MS,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
+import { CALL_RING_PERIOD_MS } from "@codecast/calls/callPush";
 
 import { useMountEffect } from "./useMountEffect";
 import { useWatchEffect } from "./useWatchEffect";

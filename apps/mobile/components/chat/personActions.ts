@@ -2,7 +2,7 @@
 // people rows and the person screen so both open the same room the same way.
 import * as Haptics from "expo-haptics";
 import type { Router } from "expo-router";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import type { LiveRoomRow } from "@/components/calls/LiveRooms";
 import { joinCall, startHuddle } from "@/lib/calls/callManager";

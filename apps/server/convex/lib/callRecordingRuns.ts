@@ -24,14 +24,14 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import {
   CALL_RECORDING_STATUSES,
-  callParticipantKind,
   isRecordingActive,
   isRecordingFilming,
   shareIncludesVideo,
   type CallRecordingErrorKind,
   type CallRecordingStatus,
   type CallRecordingStopReason,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
+import { callParticipantKind } from "@codecast/calls/callGuests";
 import {
   livekitConfigFromEnv,
   recordingFieldsFromEgress,

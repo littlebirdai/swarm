@@ -1,4 +1,4 @@
-import { normalizeGuestName } from "@codecast/shared/contracts";
+import { normalizeGuestName } from "@codecast/calls/callGuests";
 import type { DeviceChoice } from "../../../lib/calls/guestRoom";
 
 // What a guest's browser remembers, and nothing else.

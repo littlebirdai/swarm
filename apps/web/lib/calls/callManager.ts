@@ -80,9 +80,9 @@ import {
 } from "./roomPrewarm";
 import {
   CALL_HEARTBEAT_MS,
-  localTranscribeLanguages,
   seatAnswersRing,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
+import { localTranscribeLanguages } from "@codecast/calls/transcribeLanguage";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import {
   hasCallPanel,

@@ -49,7 +49,7 @@ import {
 import {
   channelHuddleMemberIds,
   chatRoomKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 import { HuddleButton } from "@/components/calls/SessionHuddleButton";
 import {
   MessageRow,

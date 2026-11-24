@@ -7,7 +7,7 @@
 // custom properties. Pure functions are what makes that arrangement testable:
 // the jitter, the drift and the swap timing are all decided in here.
 
-import { isGuestParticipant } from "@codecast/shared/contracts";
+import { isGuestParticipant } from "@codecast/calls/callGuests";
 
 /**
  * A square crop of a video frame, in the frame's own normalized coordinates.

@@ -116,7 +116,6 @@
     "./contracts/roleFailover": "./contracts/roleFailover.ts",
     "./contracts/cloudAgents": "./contracts/cloudAgents.ts",
     "./contracts/sessionCharacter": "./contracts/sessionCharacter.ts",
-    "./contracts/stagePins": "./contracts/stagePins.ts",
     "./contracts/follow": "./contracts/follow.ts",
     "./contracts/roleGoals": "./contracts/roleGoals.ts",
     "./contracts/briefStanding": "./contracts/briefStanding.ts",
@@ -150,6 +149,7 @@
   },
   "dependencies": {
     "@codecast/browser": "workspace:*",
+    "@codecast/calls": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
     "@codecast/cloud-hosts": "workspace:*",

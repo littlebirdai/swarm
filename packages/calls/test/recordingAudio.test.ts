@@ -11,7 +11,7 @@ import {
   TRANSCRIBE_MAX_BYTES,
   maxRecordingMs,
   meterLevelFromDb,
-} from "./recordingAudio";
+} from "../src/recordingAudio";
 
 // The recorder stops at a length rather than splitting a long file, because an
 // m4a cannot be split: there is no audio decoder in a Convex action and a byte

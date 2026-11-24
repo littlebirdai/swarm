@@ -37,7 +37,7 @@ import {
   isUnexpectedTranscript,
   localTranscribeLanguages,
   normalizeTranscribeLanguages,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcribeLanguage";
 
 type AsrConvexHandle = {
   action: (fn: any, args: any) => Promise<any>;

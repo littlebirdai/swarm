@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { joinCall, knockRoom, ringInto } from "../../lib/calls/actions";
 import { requestHuddleStart } from "../../lib/calls/huddleStart";
 import { callRoomOf } from "../../lib/faces/faceRow";

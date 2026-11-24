@@ -9,7 +9,7 @@ import {
   offsetIntoRecording,
   recordingSubject,
   type CallMomentMiss,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 import { formatCallTime, parseCallRef } from "@codecast/shared/entities";
 import { toVideoFile, useCallRecordings } from "../../hooks/useRoomRecording";
 import { useNearViewport } from "../../hooks/useNearViewport";

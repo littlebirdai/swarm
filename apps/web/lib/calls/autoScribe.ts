@@ -10,7 +10,7 @@
 import {
   isRecRoomKey,
   sessionRoomConversationId,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 
 export type AutoScribeInput = {
   roomKey: string | null;

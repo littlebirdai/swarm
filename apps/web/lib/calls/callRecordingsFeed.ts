@@ -10,7 +10,7 @@ import {
   callRecordingUrlWindow,
   type CallRecordingKind,
   type CallRecordingStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { syncTransaction } from "../../store/syncTransaction";
 import { useFeederError } from "../../hooks/useSyncCollection";

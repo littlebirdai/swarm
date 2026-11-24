@@ -2,7 +2,7 @@
 // kind, the order rules, the seams where a face used to read off then on, the
 // card for each engagement, the selectors, and the shared reader's memo.
 import { describe, expect, test } from "bun:test";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { JOIN_TITLE_MS } from "../calls/joinAnnounce";
 import { useInboxStore } from "../../store/inboxStore";
 import {

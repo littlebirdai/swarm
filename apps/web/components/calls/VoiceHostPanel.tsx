@@ -23,7 +23,7 @@ import { EngagementCard } from "../faces/EngagementCard";
 import { PeoplePanel } from "../people/PeoplePanel";
 import { voiceHostView } from "../../lib/calls/voiceHostView";
 import { soundCallRing } from "../../lib/sounds";
-import { CALL_RING_PERIOD_MS } from "@codecast/shared/contracts";
+import { CALL_RING_PERIOD_MS } from "@codecast/calls/callPush";
 import {
   acceptInvite,
   getCallTiles,

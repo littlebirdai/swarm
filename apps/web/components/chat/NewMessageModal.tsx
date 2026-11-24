@@ -26,7 +26,7 @@ import {
 } from "../../lib/chatViews";
 import { ringInto } from "../../lib/calls/callManager";
 import { requestHuddleStart } from "../../lib/calls/huddleStart";
-import { MAX_ROOM_MEMBERS, dmRoomKey } from "@codecast/shared/contracts";
+import { MAX_ROOM_MEMBERS, dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { memberAvatarUrl } from "../../lib/liveEntities";
 import type { ChatChannelView } from "./chatTypes";
 import "./chat.css";

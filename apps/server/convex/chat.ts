@@ -86,8 +86,8 @@ import {
 import {
   HUDDLE_DIGEST_CLIENT_ID_PREFIX,
   isHostedAgentType,
-  parseRoomKey,
 } from "@codecast/shared/contracts";
+import { parseRoomKey } from "@codecast/calls/callRoomKeys";
 import { RateLimitError, checkRateLimit } from "./rateLimit";
 import {
   matchHandle,

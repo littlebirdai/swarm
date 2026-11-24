@@ -19,6 +19,7 @@
     "@codecast/artifacts": "workspace:*",
     "@codecast/blame": "workspace:*",
     "@codecast/browser": "workspace:*",
+    "@codecast/calls": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
     "@codecast/cloud-hosts": "workspace:*",

@@ -35,7 +35,7 @@ node publish.mjs call-e2e-scratch-1 --guest=e2e --name "Pat Guest" --duration 12
 node inspect.mjs call-e2e-scratch-1 --wait-for camera,screen_share --from guest:e2e --timeout 120
 ```
 
-Join a real huddle as yourself: the room is the huddle's room key (`session:<conversationId>`, `dm:<userA>,<userB>`, `channel:<channelId>`; `packages/shared/contracts/callRoomKeys.ts`), and `--member <yourUserId> --name "<your name>"` makes the participant indistinguishable from your own browser to everyone else in the room. The token is signed with the server secret, so this skips the app's room authorization and the guest knock: it tests the media path, not the admission path.
+Join a real huddle as yourself: the room is the huddle's room key (`session:<conversationId>`, `dm:<userA>,<userB>`, `channel:<channelId>`; `packages/calls/src/callRoomKeys.ts`), and `--member <yourUserId> --name "<your name>"` makes the participant indistinguishable from your own browser to everyone else in the room. The token is signed with the server secret, so this skips the app's room authorization and the guest knock: it tests the media path, not the admission path.
 
 Check a snapshot's alignment: publish a share into a recorded huddle, then snap a moment and decode it.
 

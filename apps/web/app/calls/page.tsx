@@ -37,21 +37,25 @@ import { AuthGuard } from "../../components/AuthGuard";
 import { DashboardLayout } from "../../components/DashboardLayout";
 import { toast } from "sonner";
 import {
-  CALL_LINK_REFUSED_WORDS,
   callAnchorHref,
   callPathRef,
   callViewParam,
-  isMeetRoomKey,
-  isRecRoomKey,
-  isRoomlessKey,
-  lineFrameMs,
-  lineSeekMs,
   parseCallAnchor,
   parseCallMomentParam,
   parseCallShareParam,
   parseCallViewParam,
   type CallView,
 } from "@codecast/shared/contracts";
+import {
+  CALL_LINK_REFUSED_WORDS,
+  lineFrameMs,
+  lineSeekMs,
+} from "@codecast/calls/callRecordings";
+import {
+  isMeetRoomKey,
+  isRecRoomKey,
+  isRoomlessKey,
+} from "@codecast/calls/callRoomKeys";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { callRefId } from "@codecast/shared/entities";
 import { joinCall } from "../../lib/calls/callManager";

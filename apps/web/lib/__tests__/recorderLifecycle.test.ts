@@ -11,7 +11,7 @@
 // them are the whole point, so mocking any of the three would test nothing.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
-import { parseRoomKey } from "@codecast/shared/contracts";
+import { parseRoomKey } from "@codecast/calls/callRoomKeys";
 import {
   bindRecorder,
   getRecorderStatus,

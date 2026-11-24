@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { convexTest } from "convex-test";
-import {
-  CALL_LINK_REFUSED_WORDS,
-  channelRoomKey,
-} from "@codecast/shared/contracts";
+import { CALL_LINK_REFUSED_WORDS } from "@codecast/calls/callRecordings";
+import { channelRoomKey } from "@codecast/calls/callRoomKeys";
 import schema from "./schema";
 import {
   claimShareToken,

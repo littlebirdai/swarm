@@ -5,7 +5,7 @@ import {
   SHARED_OBJECT_KINDS,
 } from "@codecast/shared/entities";
 import { isStandaloneSharePath } from "../lib/desktopHandoff";
-import { guestJoinPath } from "@codecast/shared/contracts";
+import { guestJoinPath } from "@codecast/calls/callGuests";
 import { guestMeetMeta, shareMeta } from "./shareData";
 
 const BASE = "https://codecast.sh";

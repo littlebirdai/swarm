@@ -6,10 +6,10 @@ import {
   formatTranscriptChunk,
   huddleFeedBriefing,
   HUDDLE_FEED_DISREGARD,
-  isRecRoomKey,
   transcriptChunkHeader,
 } from "@codecast/shared/contracts";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
+import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
 import {

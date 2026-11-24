@@ -2,7 +2,7 @@
 // private recordings bucket, on the call's record.
 //
 // The model, the time rule and the words live in
-// shared/contracts/callRecordings.ts; what a run is, and how a row moves, in
+// packages/calls/src/callRecordings.ts; what a run is, and how a row moves, in
 // lib/callRecordingRuns.ts. This module is the doors and the loop:
 //
 //   press      startRecording inserts the run's composite row ("starting"),
@@ -55,15 +55,17 @@ import {
   CALL_RECORDING_URL_WINDOW_MS,
   FRAME_SHARE_REFUSED_WORDS,
   type CallRecordingStopReason,
-  callSpeakerName,
-  guestIdFromIdentity,
-  guestIdentity,
-  isGuestPresent,
   isRecordingActive,
   isRecordingFilming,
   recordingCooling,
   shareIncludesVideo,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
+import {
+  callSpeakerName,
+  guestIdFromIdentity,
+  guestIdentity,
+  isGuestPresent,
+} from "@codecast/calls/callGuests";
 import { callRefId } from "@codecast/shared/entities";
 import { verifyApiToken } from "./apiTokens";
 import { sha256Hex } from "./lib/hash";

@@ -9,7 +9,7 @@ import {
   permissionHint,
   refreshOsPermissions,
 } from "../osPermissions";
-import { callParticipantKind } from "@codecast/shared/contracts";
+import { callParticipantKind } from "@codecast/calls/callGuests";
 import { isMediaDenial } from "./mediaDenial";
 import { noteDevices } from "./deviceRank";
 

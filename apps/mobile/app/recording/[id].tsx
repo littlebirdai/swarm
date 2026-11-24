@@ -36,12 +36,12 @@ import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { useCallRecordings } from "@codecast/web/lib/calls/callRecordingsFeed";
 import { playableFiles, videoAt } from "@codecast/web/lib/calls/callVideo";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
+import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import {
-  isRecRoomKey,
   parseCallAnchor,
   parseCallMomentParam,
-  segmentAt,
 } from "@codecast/shared/contracts";
+import { segmentAt } from "@codecast/calls/callRecordings";
 import {
   buildEntityUrl,
   callRefId,

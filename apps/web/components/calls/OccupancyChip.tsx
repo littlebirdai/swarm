@@ -7,11 +7,8 @@ import { Headphones, Link2 } from "lucide-react";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { joinCall } from "../../lib/calls/actions";
 import { requestHuddleStart } from "../../lib/calls/huddleStart";
-import {
-  guestDisplayName,
-  parseRoomKey,
-  sessionRoomKey,
-} from "@codecast/shared/contracts";
+import { guestDisplayName } from "@codecast/calls/callGuests";
+import { parseRoomKey, sessionRoomKey } from "@codecast/calls/callRoomKeys";
 import { useGuestsWaiting } from "../../hooks/useLiveRooms";
 import { AvatarImg } from "../../lib/avatarCache";
 

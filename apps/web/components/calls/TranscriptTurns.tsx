@@ -13,7 +13,7 @@ import { formatCallTime } from "@codecast/shared/entities";
 import { ParticipantTag } from "./GuestTag";
 import { groupTurns, turnsAnchor, type Turn } from "./transcriptTurnModel";
 import { CallLinkButton } from "./CallLinkButton";
-import { lineFilmed } from "@codecast/shared/contracts";
+import { lineFilmed } from "@codecast/calls/callRecordings";
 
 /** The line a click (or a key) landed on, read from its `data-seq`; the
  *  turn's first line when it landed on the speaker row or between lines.

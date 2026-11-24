@@ -1,6 +1,6 @@
 import { useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Maximize2, MicOff, Minimize2, MonitorUp } from "lucide-react";
-import { callParticipantKind } from "@codecast/shared/contracts";
+import { callParticipantKind } from "@codecast/calls/callGuests";
 import { isOwnScreen, type ParticipantTile } from "../../lib/calls/callMedia";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {

@@ -46,7 +46,6 @@ import { randomBytes } from "node:crypto";
 import { Readable } from "node:stream";
 import {
   CALL_FRAME_PREFER,
-  callFrameHref,
   coveredSpans,
   describeClockSpan,
   describeClockSpans,
@@ -57,7 +56,6 @@ import {
   isRecordingFilming,
   locateCallMoment,
   nearestRecordedMs,
-  parseCallViewParam,
   playableFiles,
   recordingSubject,
   recordingWindow,
@@ -71,6 +69,10 @@ import {
   type CallMomentPrefer,
   type CallRecordingKind,
   type CallRecordingSpan,
+} from "@codecast/calls/callRecordings";
+import {
+  callFrameHref,
+  parseCallViewParam,
   type CallView,
 } from "@codecast/shared/contracts";
 import {

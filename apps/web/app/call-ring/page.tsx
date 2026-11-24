@@ -52,7 +52,7 @@ import { useDesktopWindowRole } from "../../hooks/useDesktopWindowRole";
 import { callRingAnswer, callRingHide, callRingSize } from "../../lib/desktop";
 import { soundCallRing } from "../../lib/sounds";
 import { RingCard, type RingInvite } from "../../components/calls/RingCard";
-import { CALL_RING_PERIOD_MS } from "@codecast/shared/contracts";
+import { CALL_RING_PERIOD_MS } from "@codecast/calls/callPush";
 
 export default function CallRingPage() {
   return (

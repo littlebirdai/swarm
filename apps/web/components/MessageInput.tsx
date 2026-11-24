@@ -129,7 +129,7 @@ import {
   MonitorPlay,
   Paperclip,
 } from "lucide-react";
-import { formatCallTime } from "@codecast/shared/contracts";
+import { formatCallTime } from "@codecast/calls/callRecordings";
 import {
   isRecordingFile,
   useScreenRecordingAttach,

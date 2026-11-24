@@ -12,7 +12,7 @@
 //     from the call, so a message sent before the words exist fills in.
 // An agent whose daemon predates the tag reads the tag's own text, which says
 // the two commands that fetch the same.
-import { formatCallTime } from "./callRecordings";
+import { formatCallTime } from "@codecast/calls/callRecordings";
 
 const TAG = "screen-recording";
 const OPEN_RE = /^<screen-recording\s+([^>]*)>/;

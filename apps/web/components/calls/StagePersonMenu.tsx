@@ -3,11 +3,11 @@
 import { Unlink, UserMinus } from "lucide-react";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
+import { agentFaceConversationId } from "@codecast/calls/callRoomKeys";
 import {
-  agentFaceConversationId,
   callParticipantKind,
   guestIdFromIdentity,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import {
   ContextMenu,
   CtxItem,

@@ -19,7 +19,7 @@
 // STARTING, not unknown). Requests may be written either case; these builders
 // write snake_case to match what comes back.
 
-import type { CallRecordingStatus } from "@codecast/shared/contracts";
+import type { CallRecordingStatus } from "@codecast/calls/callRecordings";
 import { signLivekitJwt } from "./livekitJwt";
 import type { R2Bucket } from "./r2";
 

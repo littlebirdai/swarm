@@ -1,4 +1,4 @@
-import { participantMark, PARTICIPANT_MARKS } from "@codecast/shared/contracts";
+import { participantMark, PARTICIPANT_MARKS } from "@codecast/calls/callGuests";
 import { firstName } from "./speakers";
 import { useStageHost } from "./stageHost";
 import { modernPill } from "../ui/modernLook";

@@ -34,7 +34,7 @@ import {
   useTrackedStore,
 } from "../../store/inboxStore";
 import { stageFollowTarget } from "../../lib/follow";
-import { callParticipantKind } from "@codecast/shared/contracts";
+import { callParticipantKind } from "@codecast/calls/callGuests";
 import {
   getCallTiles,
   getRoom,
@@ -43,7 +43,7 @@ import {
   subscribeCallTiles,
   type ParticipantTile,
 } from "../../lib/calls/callManager";
-import { parseRoomKey } from "@codecast/shared/contracts";
+import { parseRoomKey } from "@codecast/calls/callRoomKeys";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useAction } from "convex/react";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";

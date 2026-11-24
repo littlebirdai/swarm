@@ -28696,6 +28696,39 @@
   "packages/browser/src/browserStream.ts": {
     "swarm/no-comments": 44
   },
+  "packages/calls/src/callGuests.ts": {
+    "swarm/no-comments": 124
+  },
+  "packages/calls/src/callPush.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/calls/src/callRecordings.ts": {
+    "swarm/no-comments": 146
+  },
+  "packages/calls/src/callRoomKeys.ts": {
+    "swarm/no-comments": 85
+  },
+  "packages/calls/src/recordingAudio.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/calls/src/stagePins.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/calls/src/transcribeLanguage.ts": {
+    "swarm/no-comments": 24
+  },
+  "packages/calls/test/callGuests.test.ts": {
+    "swarm/no-comments": 9
+  },
+  "packages/calls/test/callRecordings.test.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/calls/test/callRoomKeys.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/calls/test/recordingAudio.test.ts": {
+    "swarm/no-comments": 20
+  },
   "packages/capabilities/src/agentAccess.ts": {
     "swarm/no-comments": 22
   },
@@ -29188,32 +29221,11 @@
   "packages/shared/contracts/briefStanding.ts": {
     "swarm/no-comments": 37
   },
-  "packages/shared/contracts/callGuests.test.ts": {
-    "swarm/no-comments": 9
-  },
-  "packages/shared/contracts/callGuests.ts": {
-    "swarm/no-comments": 124
-  },
   "packages/shared/contracts/callLinks.test.ts": {
     "swarm/no-comments": 1
   },
   "packages/shared/contracts/callLinks.ts": {
     "swarm/no-comments": 18
-  },
-  "packages/shared/contracts/callPush.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/callRecordings.test.ts": {
-    "swarm/no-comments": 35
-  },
-  "packages/shared/contracts/callRecordings.ts": {
-    "swarm/no-comments": 146
-  },
-  "packages/shared/contracts/callRoomKeys.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/callRoomKeys.ts": {
-    "swarm/no-comments": 85
   },
   "packages/shared/contracts/capabilityResolver.golden.test.ts": {
     "swarm/no-comments": 10
@@ -29746,12 +29758,6 @@
   "packages/shared/contracts/proposalCard.ts": {
     "swarm/no-comments": 49
   },
-  "packages/shared/contracts/recordingAudio.test.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/contracts/recordingAudio.ts": {
-    "swarm/no-comments": 29
-  },
   "packages/shared/contracts/redirectWords.ts": {
     "swarm/no-comments": 1
   },
@@ -29878,9 +29884,6 @@
   "packages/shared/contracts/stableContext.ts": {
     "swarm/no-comments": 20
   },
-  "packages/shared/contracts/stagePins.ts": {
-    "swarm/no-comments": 15
-  },
   "packages/shared/contracts/subagentFleet.ts": {
     "swarm/no-comments": 15
   },
@@ -29907,9 +29910,6 @@
   },
   "packages/shared/contracts/threadState.ts": {
     "swarm/no-comments": 39
-  },
-  "packages/shared/contracts/transcribeLanguage.ts": {
-    "swarm/no-comments": 24
   },
   "packages/shared/contracts/transcriptChunk.ts": {
     "swarm/no-comments": 80

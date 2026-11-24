@@ -23,7 +23,7 @@ import {
   stagePinRowId,
   STAGE_PIN_LIMIT,
   type StagePinTarget,
-} from "@codecast/shared/contracts/stagePins";
+} from "@codecast/calls/stagePins";
 import { liveSeat, readRoomState } from "./callRooms";
 import { liveTranscriptFor, postEvent } from "./callChat";
 import { canAccessDoc } from "./lib/access";

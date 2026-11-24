@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import {
   channelHuddleMemberIds,
   CHANNEL_HUDDLE_WARNING_SIZE,
-} from "./callRoomKeys";
+} from "../src/callRoomKeys";
 
 test("counts human channel members including the caller, with a warning above seven", () => {
   const members = Array.from({ length: 8 }, (_, i) => ({ _id: `u${i}` }));

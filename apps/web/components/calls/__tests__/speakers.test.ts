@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { agentFaceIdentity, guestIdentity } from "@codecast/shared/contracts";
+import { agentFaceIdentity } from "@codecast/calls/callRoomKeys";
+import { guestIdentity } from "@codecast/calls/callGuests";
 import { speakerShortName } from "../speakers";
 
 // A speaker's name in plain text carries the same mark the phone and the

@@ -51,7 +51,8 @@ import {
   DELIVER_RETRY_MS,
   removeAgentFromRoom,
 } from "./transcripts";
-import { LIVE_TRANSCRIBE_MODEL, lineSaidAt } from "@codecast/shared/contracts";
+import { LIVE_TRANSCRIBE_MODEL } from "@codecast/calls/transcribeLanguage";
+import { lineSaidAt } from "@codecast/calls/callRecordings";
 import { makeFakeDb } from "./testDb";
 import {
   captureFetch,
@@ -61,13 +62,13 @@ import {
 } from "./__golden__/golden.testkit";
 import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
 import { hashToken } from "./apiTokens";
+import { CALL_MEMBER_STALE_MS } from "@codecast/calls/callRoomKeys";
 import {
-  CALL_MEMBER_STALE_MS,
   MAX_RECORDING_MS,
   REC_LEASE_STALE_MS,
   RECORDING_BYTES_PER_SECOND,
   TRANSCRIBE_MAX_BYTES,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/recordingAudio";
 
 // A recording is the one live transcript with nobody seated in a room, and the
 // orphan sweep has to tell that apart from a huddle everybody left. Getting it

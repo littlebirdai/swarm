@@ -33,12 +33,14 @@ import {
   huddleChatLineHeader,
   isAskDelivery,
   isHuddlePass,
-  isMeetRoomKey,
-  isRecRoomKey,
-  isRoomlessKey,
   isToolResultCarrier,
   reportedWorkIds,
 } from "@codecast/shared/contracts";
+import {
+  isMeetRoomKey,
+  isRecRoomKey,
+  isRoomlessKey,
+} from "@codecast/calls/callRoomKeys";
 import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
 import { authorizeRoom, canReadRoomlessCall } from "./callRooms";
 import { MAX_ATTACHMENTS } from "./chatText";

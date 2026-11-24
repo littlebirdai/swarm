@@ -21,7 +21,7 @@ import {
 } from "bun:test";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 
 const hadGlobals = new Map<string, { had: boolean; was: unknown }>();
 

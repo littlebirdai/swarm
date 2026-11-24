@@ -22,11 +22,13 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import {
   callAnchorKey,
   callPathRef,
+  type CallAnchor,
+} from "@codecast/shared/contracts";
+import {
   isMeetRoomKey,
   isRecRoomKey,
   sessionRoomConversationId,
-  type CallAnchor,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useInboxStore, useMyUserId } from "../../store/inboxStore";
 import { navigateMainWindow } from "../../lib/desktop";

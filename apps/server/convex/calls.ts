@@ -71,9 +71,11 @@ import {
   CALL_PUSH_SOUND,
   CALL_PUSH_TYPE_MISSED,
   CALL_PUSH_TYPE_RING,
+} from "@codecast/calls/callPush";
+import {
   channelHuddleMemberIds,
   seatAnswersRing,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 
 export {
   CALL_HEARTBEAT_MS,

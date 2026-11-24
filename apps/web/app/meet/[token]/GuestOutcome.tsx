@@ -16,7 +16,7 @@ import {
   guestLinkRefusalParts,
   type CallGuestView,
   type GuestLinkRefusal,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { GUEST_PRIMARY } from "./MeetChrome";
 

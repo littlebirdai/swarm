@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { GuestNotice } from "@codecast/shared/contracts";
+import type { GuestNotice } from "@codecast/calls/callGuests";
 
 // Mounted, not rendered to a string: what is under test is a press. Putting
 // away the line about a recording that started inside is the guest agreeing

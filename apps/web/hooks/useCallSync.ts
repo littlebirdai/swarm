@@ -28,7 +28,7 @@ import {
   subscribeScribe,
 } from "../lib/calls/transcription";
 import { decideAutoScribe } from "../lib/calls/autoScribe";
-import { channelRoomKey, sessionRoomKey } from "@codecast/shared/contracts";
+import { channelRoomKey, sessionRoomKey } from "@codecast/calls/callRoomKeys";
 import { channelRowRoomKey } from "../lib/chatViews";
 import { soundRoomKnock } from "../lib/sounds";
 import { isNotificationLeader, notifyNative } from "../lib/desktop";

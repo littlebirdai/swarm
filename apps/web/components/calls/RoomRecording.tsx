@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { isRecordingFilming } from "@codecast/shared/contracts";
+import { isRecordingFilming } from "@codecast/calls/callRecordings";
 import { useMyUserId } from "../../store/inboxStore";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";

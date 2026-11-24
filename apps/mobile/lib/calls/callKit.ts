@@ -27,7 +27,7 @@
 import { AppState } from "react-native";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { convex } from "../convex";
-import { parseCallRingPush } from "@codecast/shared/contracts";
+import { parseCallRingPush } from "@codecast/calls/callPush";
 import { captureError } from "../analytics";
 import { nativeModulePresent } from "../optionalNative";
 import {

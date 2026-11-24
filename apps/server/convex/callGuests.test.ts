@@ -1,8 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
+import { CALL_MEMBER_STALE_MS } from "@codecast/calls/callRoomKeys";
 import {
-  CALL_MEMBER_STALE_MS,
   GUEST_CREATOR_NOTICE_ANY_LINK_MS,
   GUEST_DENY_COOLDOWN_MS,
   GUEST_KNOCKS_PER_LINK_PER_MINUTE,
@@ -16,7 +16,7 @@ import {
   GUEST_JOIN_REFUSAL_TEXT,
   GUEST_LINK_REFUSAL_TEXT,
   guestIdentity,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import {
   acceptGuestNotice,
   admitGuest,

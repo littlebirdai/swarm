@@ -15,11 +15,11 @@ import { useSearchParams } from "react-router";
 import { api } from "@codecast/convex/convex/_generated/api";
 import {
   callAnchorKey,
-  lineSeekMs,
   parseCallAnchor,
   parseCallMomentParam,
   type CallAnchor,
 } from "@codecast/shared/contracts";
+import { lineSeekMs } from "@codecast/calls/callRecordings";
 import { TranscriptTurnList } from "../../../../components/calls/TranscriptTurns";
 import {
   groupTurns,
