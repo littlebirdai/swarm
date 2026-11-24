@@ -72,13 +72,13 @@ function renamesSince(base: string | undefined): Array<[string, string]> {
 }
 
 async function main(prune: boolean) {
-  const renames = renamesSince(process.env.LINT_BASE_SHA);
+  const baseSha = process.env.LINT_BASE_SHA || undefined;
+  const renames = renamesSince(baseSha);
   const baseline = carryRenames(
     readBaseline(await Bun.file(baselinePath).text()),
     renames,
   );
-  const baseCounts =
-    process.env.LINT_BASE_SHA && baseBaseline(process.env.LINT_BASE_SHA);
+  const baseCounts = baseSha && baseBaseline(baseSha);
   const base = baseCounts && carryRenames(baseCounts, renames);
   if (base) {
     const { grew } = compareLintCounts(base, baseline);
