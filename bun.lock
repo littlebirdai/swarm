@@ -403,6 +403,7 @@
       "name": "@codecast/agents",
       "version": "0.0.1",
       "dependencies": {
+        "@codecast/docs": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/vault": "workspace:*",
       },
