@@ -21,7 +21,7 @@ import { REGISTERED_FEEDS } from "../../store/clientSyncRegistry";
 // too: this guard carried a line for components/DashboardSyncEffects.tsx long
 // after that file was deleted.
 
-const ROOT = join(import.meta.dir, "..", "..", "..");
+const ROOT = join(import.meta.dir, "..", "..", "..", "..");
 const ALLOWLIST = join(import.meta.dir, "registeredFeeds.allowlist.txt");
 
 /** `api.plans.webList`, `(api as any).plans.webList`, `api["plans"].webList`. */
@@ -37,7 +37,7 @@ const patterns = feeds.map(feedPattern);
 const result = checkRatchet({
   name: "direct subscription to a registered store feed",
   root: ROOT,
-  dirs: ["web/app", "web/components", "mobile/app", "mobile/components"],
+  dirs: ["packages/web/app", "packages/web/components", "apps/mobile/app", "apps/mobile/components"],
   ignoreDirs: ["__tests__"],
   exempt: (rel) => /\.test\.tsx?$/.test(rel),
   count: (src) =>
