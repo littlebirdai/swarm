@@ -1,6 +1,6 @@
 import { rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { compareLintCounts, type LintCounts } from "./lib/lint-baseline";
+import { carryRenames, compareLintCounts, parseRenames, type LintCounts } from "./lib/lint-baseline";
 import { LINT_ROOT, lintLocation, oxlintCommand, parseOxlintReport } from "./lib/oxlint";
 
 const baselineName = "lint-baseline.json";
@@ -38,9 +38,23 @@ function baseBaseline(base: string): LintCounts | undefined {
   return readBaseline(result.stdout.toString());
 }
 
+function git(args: string[]): string | undefined {
+  const result = Bun.spawnSync(["git", ...args], { cwd: LINT_ROOT });
+  return result.exitCode === 0 ? result.stdout.toString() : undefined;
+}
+
+function renamesSince(base: string | undefined): Array<[string, string]> {
+  const ref = base ?? git(["merge-base", "HEAD", "origin/main"])?.trim() ?? "HEAD";
+  const out = git(["diff", "--find-renames", "--name-status", "-z", ref]);
+  if (out === undefined) throw new Error(`Could not read renames since ${ref}.`);
+  return parseRenames(out);
+}
+
 async function main(prune: boolean) {
-  const baseline = readBaseline(await Bun.file(baselinePath).text());
-  const base = process.env.LINT_BASE_SHA && baseBaseline(process.env.LINT_BASE_SHA);
+  const renames = renamesSince(process.env.LINT_BASE_SHA);
+  const baseline = carryRenames(readBaseline(await Bun.file(baselinePath).text()), renames);
+  const baseCounts = process.env.LINT_BASE_SHA && baseBaseline(process.env.LINT_BASE_SHA);
+  const base = baseCounts && carryRenames(baseCounts, renames);
   if (base) {
     const { grew } = compareLintCounts(base, baseline);
     for (const { file, rule, before, after } of grew) {

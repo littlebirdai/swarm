@@ -30,3 +30,31 @@ export function compareLintCounts(baseline: LintCounts, current: LintCounts) {
 
   return { grew, shrank, pruned };
 }
+
+export function carryRenames(counts: LintCounts, renames: ReadonlyArray<readonly [string, string]>): LintCounts {
+  const carried: LintCounts = Object.create(null);
+  for (const [file, rules] of Object.entries(counts)) carried[file] = rules;
+  for (const [from, to] of renames) {
+    if (!Object.hasOwn(carried, from) || Object.hasOwn(carried, to)) continue;
+    carried[to] = carried[from]!;
+    delete carried[from];
+  }
+  return carried;
+}
+
+export function parseRenames(nameStatus: string): Array<[string, string]> {
+  const fields = nameStatus.split("\0");
+  const renames: Array<[string, string]> = [];
+  for (let i = 0; i < fields.length; ) {
+    const status = fields[i++];
+    if (!status) continue;
+    if (status.startsWith("R") || status.startsWith("C")) {
+      const from = fields[i++]!;
+      const to = fields[i++]!;
+      if (status.startsWith("R")) renames.push([from, to]);
+    } else {
+      i++;
+    }
+  }
+  return renames;
+}

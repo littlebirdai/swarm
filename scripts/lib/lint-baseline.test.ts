@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { compareLintCounts } from "./lint-baseline";
+import { carryRenames, compareLintCounts, parseRenames } from "./lint-baseline";
 
 test("reports a count that grew", () => {
   const { grew } = compareLintCounts({ "a.ts": { comments: 1 } }, { "a.ts": { comments: 2 } });
@@ -36,4 +36,23 @@ test("prunes lower counts and removes zero counts without adding allowances", ()
   const baseline = { "a.ts": { comments: 3, hooks: 1, imports: 2 }, "b.ts": { comments: 1 } };
   const current = { "a.ts": { comments: 1, effects: 1, imports: 3 }, "c.ts": { comments: 1 } };
   expect(compareLintCounts(baseline, current).pruned).toEqual({ "a.ts": { comments: 1, imports: 2 } });
+});
+
+test("a renamed file keeps its baselined counts under its new path", () => {
+  const baseline = { "old.ts": { comments: 64 }, "kept.ts": { comments: 1 } };
+  const carried = carryRenames(baseline, [["old.ts", "new.ts"]]);
+  expect(carried).toEqual({ "new.ts": { comments: 64 }, "kept.ts": { comments: 1 } });
+  const { grew, pruned } = compareLintCounts(carried, { "new.ts": { comments: 64 }, "kept.ts": { comments: 1 } });
+  expect(grew).toEqual([]);
+  expect(pruned).toEqual({ "kept.ts": { comments: 1 }, "new.ts": { comments: 64 } });
+});
+
+test("a rename never overwrites a path that already has counts", () => {
+  const baseline = { "a.ts": { comments: 3 }, "b.ts": { comments: 1 } };
+  expect(carryRenames(baseline, [["a.ts", "b.ts"]])).toEqual(baseline);
+});
+
+test("reads renames from git's -z name-status output and ignores copies and other statuses", () => {
+  const out = ["R100", "old.ts", "new.ts", "M", "x.ts", "C075", "a.ts", "b.ts", "R087", "p/q.ts", "r/q.ts", ""].join("\0");
+  expect(parseRenames(out)).toEqual([["old.ts", "new.ts"], ["p/q.ts", "r/q.ts"]]);
 });
