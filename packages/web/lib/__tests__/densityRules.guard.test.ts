@@ -116,7 +116,7 @@ describe("a transcript row is one line", () => {
 // laid out as a span on the paragraph's lines), so it wraps with the words and
 // never sets a line height of its own.
 describe("a reference on the phone sits in the text line", () => {
-  const src = read("../mobile/components/EntityPill.tsx");
+  const src = read("../../apps/mobile/components/EntityPill.tsx");
   const pill = src.match(/\n {2}pill: \{([^}]*)\}/)?.[1] ?? "";
   test("the pill is Text, never a box", () => {
     expect(src).toMatch(/return \(\n {4}<RNText\n {6}style=\{\[styles\.pill/);

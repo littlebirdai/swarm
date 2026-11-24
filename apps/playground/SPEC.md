@@ -119,7 +119,7 @@ read as "simple, fast, fun, and real software", in that order.
     local wrapper over the same files, never copies of the art),
   - `KeyCap` (`packages/web/components/KeyCap.tsx`) for keyboard hints,
   - `@platform/agent` (`runAssistant`, `defineTool`, `Type`) for the builder.
-- Never edit `packages/web`, `packages/convex` or `platform/` for this product
+- Never edit `packages/web`, `apps/server` or `platform/` for this product
   except to export something genuinely shared (and then reuse it from both).
 
 ### Convex data model (playground deployment)
@@ -160,7 +160,7 @@ field in its comments. The tables, by what they hold:
 - `reports`: "Report this app", one row per visitor per app.
 
 All public functions take the visitor id + secret and verify the hash (the
-`callGuests.ts` pattern in packages/convex), except registering and the reads behind
+`callGuests.ts` pattern in apps/server), except registering and the reads behind
 an app link and the home page (the app, the gallery, the feed), which say only
 what anyone can already see, so those pages draw before their visitor is known. Never trust a client-sent
 visitor id alone.

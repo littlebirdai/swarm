@@ -1,6 +1,6 @@
 import type { CheckResult, ConvoMessage, Freeze, GateResult, ProductionReply, Score } from '@platform/evals';
 
-import type { SurfaceRequest } from '../../../packages/convex/convex/lib/anthropic';
+import type { SurfaceRequest } from '../../../apps/server/convex/lib/anthropic';
 import { DRY_RUN_SCRIPT_REL } from './paths';
 
 export type { SurfaceRequest };

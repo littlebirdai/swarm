@@ -136,7 +136,7 @@ describe("render gallery", () => {
   test("shows every system subtype either app draws", () => {
     const subtypes = new Set(rows.map((r) => r.subtype).filter(Boolean));
     const web = read("web/components/conversation/blocks/systemBlocks.tsx");
-    const mobile = read("mobile/app/session/[id].tsx");
+    const mobile = read("../apps/mobile/app/session/[id].tsx");
     const named = new Set([
       ...[...web.matchAll(/subtype === "(\w+)"/g)].map((m) => m[1]),
       ...[...mobile.matchAll(/message\.subtype === '(\w+)'/g)].map((m) => m[1]),

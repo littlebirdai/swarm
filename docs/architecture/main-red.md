@@ -1,6 +1,6 @@
 # Red main
 
-When CI on a repository's default branch goes red, codecast names the commit that broke it, raises one event for that culprit, and briefs the session that wrote it. When the branch is green again it raises a second event. Code: `packages/convex/convex/mainRed.ts` (the judging), `packages/shared/contracts/mainRed.ts` (the pure rules, the payload, the brief).
+When CI on a repository's default branch goes red, codecast names the commit that broke it, raises one event for that culprit, and briefs the session that wrote it. When the branch is green again it raises a second event. Code: `apps/server/convex/mainRed.ts` (the judging), `packages/shared/contracts/mainRed.ts` (the pure rules, the payload, the brief).
 
 ## What is judged
 

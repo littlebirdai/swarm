@@ -7,13 +7,13 @@ One iOS Live Activity per phone shows every live session's work state. The serve
 | Piece | Where | Owns |
 |---|---|---|
 | Wire contract and merge | `packages/shared/contracts/liveActivity.ts` | The content state shape, the ordering (waiting, failed, done, working), the linger clocks, the change keys |
-| Swift twin | `packages/mobile/targets/widget/CodecastActivityAttributes.swift` and its copy in the native module | The same struct, decoded by name (`attributes-type`) |
-| Refresh and push | `packages/convex/convex/liveActivity.ts` | Session collection, the pure start / update / end / wait decision, the APNs send |
-| Refresh scheduling | `packages/convex/convex/lib/liveActivityRefresh.ts` | One job per user; write sites call it |
-| APNs core | `packages/convex/convex/apns.ts` | The provider JWT and the HTTP send, shared with VoIP rings |
-| Native module | `packages/mobile/modules/codecast-live-activity` | Streams the push-to-start token and each activity's token to JS; starts locally on phones without push-to-start |
-| Widget extension | `packages/mobile/targets/widget` | The Lock Screen strip and the Dynamic Island |
-| App hook | `packages/mobile/hooks/useLiveActivity.ts` | Registers tokens, starts locally when the server cannot |
+| Swift twin | `apps/mobile/targets/widget/CodecastActivityAttributes.swift` and its copy in the native module | The same struct, decoded by name (`attributes-type`) |
+| Refresh and push | `apps/server/convex/liveActivity.ts` | Session collection, the pure start / update / end / wait decision, the APNs send |
+| Refresh scheduling | `apps/server/convex/lib/liveActivityRefresh.ts` | One job per user; write sites call it |
+| APNs core | `apps/server/convex/apns.ts` | The provider JWT and the HTTP send, shared with VoIP rings |
+| Native module | `apps/mobile/modules/codecast-live-activity` | Streams the push-to-start token and each activity's token to JS; starts locally on phones without push-to-start |
+| Widget extension | `apps/mobile/targets/widget` | The Lock Screen strip and the Dynamic Island |
+| App hook | `apps/mobile/hooks/useLiveActivity.ts` | Registers tokens, starts locally when the server cannot |
 
 ## One classifier
 
@@ -44,6 +44,6 @@ A development build's tokens only work against the APNs sandbox host. The native
 
 ## Verifying
 
-- `bun test` in `packages/shared` and `packages/convex` covers the merge, the decision and the refresh against a fake database.
+- `bun test` in `packages/shared` and `apps/server` covers the merge, the decision and the refresh against a fake database.
 - `npx convex run liveActivity:probeLiveActivityConfig '{}'` sends a start to a bogus token. `BadDeviceToken` proves the key and the topic are accepted.
 - The simulator renders the strip through the local start path. Push tokens never arrive on a simulator.

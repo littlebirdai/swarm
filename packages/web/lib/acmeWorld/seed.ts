@@ -1,7 +1,7 @@
 // Loads the Acme world (./world) into the shared store through the store's own
 // sync writers, so every screen renders it exactly as it renders server rows.
 // Both apps call it once at boot in their fixture mode: the phone's store
-// shots (packages/mobile/lib/storeShots/seed.ts) and the web docs shots
+// shots (apps/mobile/lib/storeShots/seed.ts) and the web docs shots
 // (../docsShots). Mobile's Metro reaches this file, so imports stay relative.
 
 import { placeInboxRows, sessionPlacement, useInboxStore } from "../../store/inboxStore";

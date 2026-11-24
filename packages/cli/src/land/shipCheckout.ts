@@ -344,7 +344,7 @@ export interface RunOptions {
   lease?: (log: Log) => Promise<() => Promise<void>>;
 }
 
-/** What a deploy step's push did to its target, as the step reports it (packages/convex/deploy.sh writes it). */
+/** What a deploy step's push did to its target, as the step reports it (apps/server/deploy.sh writes it). */
 export type PushChanges = { machine?: string; via?: "deploy.sh"; adds?: string[]; drops?: string[]; changes_read_at?: number; pushed_at?: number };
 
 /**

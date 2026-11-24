@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { bootstrapMessage } from '../../../../../packages/convex/convex/anchors';
+import { bootstrapMessage } from '../../../../../apps/server/convex/anchors';
 import type { CliReadMessage } from '../../adapters/convo';
 import { routeGates } from '../../adapters/replay';
 import { readFixture } from '../../adapters/resolver';

@@ -5,8 +5,8 @@
     ".conductor",
     ".git",
     "packages/web/dist",
-    "packages/mobile/ios/build",
-    "packages/mobile/dist",
+    "apps/mobile/ios/build",
+    "apps/mobile/dist",
     "dist",
     "dist-ssr",
     "dist-perf",
@@ -19,10 +19,10 @@
     "apps/browser-extension/dist",
     "apps/vscode-extension/dist",
     "apps/desktop/dist",
-    "packages/convex/.conductor",
-    "packages/mobile/.conductor",
-    "packages/mobile/android/.gradle",
-    "packages/mobile/android/build",
-    "packages/mobile/android/app/build"
+    "apps/server/.conductor",
+    "apps/mobile/.conductor",
+    "apps/mobile/android/.gradle",
+    "apps/mobile/android/build",
+    "apps/mobile/android/app/build"
   ]
 }

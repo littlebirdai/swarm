@@ -13,7 +13,7 @@ bun packages/web/scripts/docs-shots.ts --batch <name>     # one batch
 bun packages/web/scripts/docs-shots.ts <name> <name>      # just these
 ```
 
-Each shot is one entry in `packages/web/docs-shots/batches/<batch>.ts`: the route, any setup, the crop, and the output path under `packages/web/public`. The script captures at 2x and composes the capture through `packages/web/docs-shots/frame.html` (window, element or phone frame, Modern palette plate) into a `.webp`. `packages/web/docs-shots/README.md` has the details. Phone shots come from the iOS simulator in store shots mode (`packages/mobile/store-shots/`) and go through the same frame with `--batch phone`.
+Each shot is one entry in `packages/web/docs-shots/batches/<batch>.ts`: the route, any setup, the crop, and the output path under `packages/web/public`. The script captures at 2x and composes the capture through `packages/web/docs-shots/frame.html` (window, element or phone frame, Modern palette plate) into a `.webp`. `packages/web/docs-shots/README.md` has the details. Phone shots come from the iOS simulator in store shots mode (`apps/mobile/store-shots/`) and go through the same frame with `--batch phone`.
 
 ## The README set
 

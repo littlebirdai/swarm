@@ -5,6 +5,12 @@
 #
 # Prune it (drops gone entries, lowers numbers that came down, adds nothing):
 #   cd packages/shared && RATCHET_WRITE=prune bun test ratchet/maxLines.ratchet.test.ts
+apps/mobile/app/(tabs)/inbox.tsx 1000
+apps/mobile/app/(tabs)/tasks.tsx 1250
+apps/mobile/app/call.tsx 950
+apps/mobile/app/session/[id].tsx 6500
+apps/mobile/components/MarkdownRenderer.tsx 950
+apps/mobile/components/session/NewSessionSheet.tsx 850
 packages/cli/src/app/cli.ts 950
 packages/cli/src/blame.ts 1000
 packages/cli/src/browser/bridge/host.test.ts
@@ -60,103 +66,97 @@ packages/cli/src/workflow/runner.test.ts
 packages/cli/src/workflow/runner.ts
 packages/cli/src/workspace/lifecycle.test.ts 1000
 packages/cli/src/workspace/lifecycle.ts 950
-packages/convex/convex/accountSwitch.test.ts 1650
-packages/convex/convex/accountSwitch.ts 2700
-packages/convex/convex/agentTasks.ts
-packages/convex/convex/anchors.ts 900
-packages/convex/convex/artifactPages.ts 2300
-packages/convex/convex/artifacts.test.ts 1100
-packages/convex/convex/artifacts.ts
-packages/convex/convex/artifactsHttp.ts
-packages/convex/convex/assistant.entry.test.ts 900
-packages/convex/convex/assistant/turns.test.ts
-packages/convex/convex/assistant/turns.ts 1200
-packages/convex/convex/billing.test.ts 1150
-packages/convex/convex/callGuests.test.ts 1700
-packages/convex/convex/callGuests.ts 1550
-packages/convex/convex/callRecordings.test.ts 2150
-packages/convex/convex/callRecordings.ts 2050
-packages/convex/convex/calls.test.ts 1000
-packages/convex/convex/calls.ts 1400
-packages/convex/convex/capabilities.test.ts 1800
-packages/convex/convex/capabilityState.ts 1950
-packages/convex/convex/ccAccountsShared.ts
-packages/convex/convex/changesProse.ts 1350
-packages/convex/convex/chat.test.ts
-packages/convex/convex/chat.ts 5000
-packages/convex/convex/cloud.ts 1150
-packages/convex/convex/codeComments.ts 1100
-packages/convex/convex/comments.ts 1400
-packages/convex/convex/comments.v2.test.ts 1300
-packages/convex/convex/composerSuggestions.ts 1000
-packages/convex/convex/conversations.projection.test.ts 900
-packages/convex/convex/conversations.ts
-packages/convex/convex/devices.ts 2200
-packages/convex/convex/dispatch.test.ts 1500
-packages/convex/convex/dispatch.ts
-packages/convex/convex/docs.ts 2550
-packages/convex/convex/executionBindings.test.ts 1550
-packages/convex/convex/executionBindings.ts 3300
-packages/convex/convex/githubApi.ts
-packages/convex/convex/githubApp.ts 1500
-packages/convex/convex/githubWebhooks.checks.test.ts 850
-packages/convex/convex/githubWebhooks.ts 2350
-packages/convex/convex/googleOAuth.test.ts 1100
-packages/convex/convex/googleOAuth.ts 1000
-packages/convex/convex/http.ts 4800
-packages/convex/convex/inboxFilters.test.ts 1200
-packages/convex/convex/ingest.ts 1450
-packages/convex/convex/issueSync.ts 1900
-packages/convex/convex/lib/callRecordingRuns.ts 1100
-packages/convex/convex/lineTrial.test.ts 900
-packages/convex/convex/lineTrial.ts 2150
-packages/convex/convex/managedSessions.ts 1250
-packages/convex/convex/messages.ts
-packages/convex/convex/notifications.needsInput.test.ts 900
-packages/convex/convex/notifications.ts
-packages/convex/convex/oauthConnectors.test.ts 850
-packages/convex/convex/org.ts
-packages/convex/convex/orgHealth.ts
-packages/convex/convex/orgInit.ts 1800
-packages/convex/convex/orgProposals.test.ts 1850
-packages/convex/convex/orgProposals.ts 1550
-packages/convex/convex/orgRoles.ts
-packages/convex/convex/pendingMessages.teamSend.test.ts
-packages/convex/convex/pendingMessages.test.ts 950
-packages/convex/convex/pendingMessages.ts
-packages/convex/convex/plans.ts 1950
-packages/convex/convex/prCli.ts
-packages/convex/convex/prShepherd.ts 850
-packages/convex/convex/pushRouter.test.ts 950
-packages/convex/convex/repos.ts 1400
-packages/convex/convex/schema.ts
-packages/convex/convex/secrets.test.ts 1050
-packages/convex/convex/secrets.ts 1550
-packages/convex/convex/sessionDecisions.test.ts 1300
-packages/convex/convex/sessionDecisions.ts
-packages/convex/convex/sessionInsights.ts 900
-packages/convex/convex/sessionMigrations.ts 1300
-packages/convex/convex/sessionOwnership.ts 1150
-packages/convex/convex/signals.test.ts 1400
-packages/convex/convex/signals.ts 2300
-packages/convex/convex/slackSync.ts 3250
-packages/convex/convex/smallViews.v2.test.ts 850
-packages/convex/convex/sources/sentry.test.ts 950
-packages/convex/convex/syncLog.test.ts 950
-packages/convex/convex/taskWaits.test.ts 950
-packages/convex/convex/taskWaits.ts 950
-packages/convex/convex/tasks.ts 4950
-packages/convex/convex/teams.ts 1650
-packages/convex/convex/transcripts.test.ts 2050
-packages/convex/convex/transcripts.ts 3000
-packages/convex/convex/users.ts 4150
-packages/convex/convex/workflow_runs.ts
-packages/mobile/app/(tabs)/inbox.tsx 1000
-packages/mobile/app/(tabs)/tasks.tsx 1250
-packages/mobile/app/call.tsx 950
-packages/mobile/app/session/[id].tsx 6500
-packages/mobile/components/MarkdownRenderer.tsx 950
-packages/mobile/components/session/NewSessionSheet.tsx 850
+apps/server/convex/accountSwitch.test.ts 1650
+apps/server/convex/accountSwitch.ts 2700
+apps/server/convex/agentTasks.ts
+apps/server/convex/anchors.ts 900
+apps/server/convex/artifactPages.ts 2300
+apps/server/convex/artifacts.test.ts 1100
+apps/server/convex/artifacts.ts
+apps/server/convex/artifactsHttp.ts
+apps/server/convex/assistant.entry.test.ts 900
+apps/server/convex/assistant/turns.test.ts
+apps/server/convex/assistant/turns.ts 1200
+apps/server/convex/billing.test.ts 1150
+apps/server/convex/callGuests.test.ts 1700
+apps/server/convex/callGuests.ts 1550
+apps/server/convex/callRecordings.test.ts 2150
+apps/server/convex/callRecordings.ts 2050
+apps/server/convex/calls.test.ts 1000
+apps/server/convex/calls.ts 1400
+apps/server/convex/capabilities.test.ts 1800
+apps/server/convex/capabilityState.ts 1950
+apps/server/convex/ccAccountsShared.ts
+apps/server/convex/changesProse.ts 1350
+apps/server/convex/chat.test.ts
+apps/server/convex/chat.ts 5000
+apps/server/convex/cloud.ts 1150
+apps/server/convex/codeComments.ts 1100
+apps/server/convex/comments.ts 1400
+apps/server/convex/comments.v2.test.ts 1300
+apps/server/convex/composerSuggestions.ts 1000
+apps/server/convex/conversations.projection.test.ts 900
+apps/server/convex/conversations.ts
+apps/server/convex/devices.ts 2200
+apps/server/convex/dispatch.test.ts 1500
+apps/server/convex/dispatch.ts
+apps/server/convex/docs.ts 2550
+apps/server/convex/executionBindings.test.ts 1550
+apps/server/convex/executionBindings.ts 3300
+apps/server/convex/githubApi.ts
+apps/server/convex/githubApp.ts 1500
+apps/server/convex/githubWebhooks.checks.test.ts 850
+apps/server/convex/githubWebhooks.ts 2350
+apps/server/convex/googleOAuth.test.ts 1100
+apps/server/convex/googleOAuth.ts 1000
+apps/server/convex/http.ts 4800
+apps/server/convex/inboxFilters.test.ts 1200
+apps/server/convex/ingest.ts 1450
+apps/server/convex/issueSync.ts 1900
+apps/server/convex/lib/callRecordingRuns.ts 1100
+apps/server/convex/lineTrial.test.ts 900
+apps/server/convex/lineTrial.ts 2150
+apps/server/convex/managedSessions.ts 1250
+apps/server/convex/messages.ts
+apps/server/convex/notifications.needsInput.test.ts 900
+apps/server/convex/notifications.ts
+apps/server/convex/oauthConnectors.test.ts 850
+apps/server/convex/org.ts
+apps/server/convex/orgHealth.ts
+apps/server/convex/orgInit.ts 1800
+apps/server/convex/orgProposals.test.ts 1850
+apps/server/convex/orgProposals.ts 1550
+apps/server/convex/orgRoles.ts
+apps/server/convex/pendingMessages.teamSend.test.ts
+apps/server/convex/pendingMessages.test.ts 950
+apps/server/convex/pendingMessages.ts
+apps/server/convex/plans.ts 1950
+apps/server/convex/prCli.ts
+apps/server/convex/prShepherd.ts 850
+apps/server/convex/pushRouter.test.ts 950
+apps/server/convex/repos.ts 1400
+apps/server/convex/schema.ts
+apps/server/convex/secrets.test.ts 1050
+apps/server/convex/secrets.ts 1550
+apps/server/convex/sessionDecisions.test.ts 1300
+apps/server/convex/sessionDecisions.ts
+apps/server/convex/sessionInsights.ts 900
+apps/server/convex/sessionMigrations.ts 1300
+apps/server/convex/sessionOwnership.ts 1150
+apps/server/convex/signals.test.ts 1400
+apps/server/convex/signals.ts 2300
+apps/server/convex/slackSync.ts 3250
+apps/server/convex/smallViews.v2.test.ts 850
+apps/server/convex/sources/sentry.test.ts 950
+apps/server/convex/syncLog.test.ts 950
+apps/server/convex/taskWaits.test.ts 950
+apps/server/convex/taskWaits.ts 950
+apps/server/convex/tasks.ts 4950
+apps/server/convex/teams.ts 1650
+apps/server/convex/transcripts.test.ts 2050
+apps/server/convex/transcripts.ts 3000
+apps/server/convex/users.ts 4150
+apps/server/convex/workflow_runs.ts
 packages/shared/contracts/agentClients.ts 1500
 packages/shared/contracts/capabilities.ts 900
 packages/shared/contracts/capabilityResolver.test.ts 900

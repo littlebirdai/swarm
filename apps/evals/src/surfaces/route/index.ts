@@ -1,7 +1,7 @@
 import type { ConvoMessage } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { parseRouterReply, routerDecision, routerRequest, rosterText, type RouterRoster } from '../../../../../packages/convex/convex/lib/orgRouter';
+import { parseRouterReply, routerDecision, routerRequest, rosterText, type RouterRoster } from '../../../../../apps/server/convex/lib/orgRouter';
 import { ownerOf, type LeadRole } from '../../../../../packages/shared/contracts/orgLead';
 import { castJson } from '../../adapters/cast';
 import { apiConfig, toConvoMessages } from '../../adapters/convo';

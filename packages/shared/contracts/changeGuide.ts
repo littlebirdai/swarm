@@ -13,7 +13,7 @@
 //   ## Parse the guide `packages/shared/contracts/changeGuide.ts:40-120`
 //   One function turns the markdown into steps...
 //
-//   ## Store it on the task `packages/convex/convex/schema.ts:5775`
+//   ## Store it on the task `apps/server/convex/schema.ts:5775`
 //   ...
 //
 // A heading without a location is prose inside the step above it (or the
@@ -56,7 +56,7 @@ const LOCATION_BARE = new RegExp(String.raw`(?:^|[\s(])` + LOCATION_BODY + Strin
 /**
  * The step's location on a heading line, and the title with it taken out. A
  * title may name a file in backticks too ("`deploy.sh` uses the remote
- * `packages/convex/deploy.sh:45-57`"): the location is the ticked path with a
+ * `apps/server/deploy.sh:45-57`"): the location is the ticked path with a
  * line range, else the last ticked path, since the location ends the line.
  */
 export function parseStepHeading(text: string): { title: string; file: string; start?: number; end?: number } | null {

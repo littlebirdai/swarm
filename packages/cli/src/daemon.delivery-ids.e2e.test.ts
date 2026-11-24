@@ -16,8 +16,8 @@ import { TmuxDeliveryJournal } from "./tmuxDeliveryJournal.js";
 import { SyncService } from "./syncService.js";
 import { tmuxRun } from "./tmux.js";
 import { hasBinary, spawnClientPane, startFakeModelEndpoint, waitFor } from "./test-helpers/messagingHarness.js";
-import { addMessages } from "../../convex/convex/messages";
-import { makeFakeDb } from "../../convex/convex/testDb";
+import { addMessages } from "../../../apps/server/convex/messages";
+import { makeFakeDb } from "../../../apps/server/convex/testDb";
 
 describe.skipIf(!hasBinary("tmux") || !hasBinary("claude"))("delivery ids through a real Claude pane", () => {
   afterAll(killIsolatedTmuxServer);

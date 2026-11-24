@@ -191,7 +191,7 @@ The mobile app draws the same characters from the same sources. It imports
 `packages/web/components/org/avatars/`. Metro bundles those files as assets,
 so there is one copy of the art and one resolver for both clients.
 
-`packages/mobile/components/identity/` holds the React Native drawing:
+`apps/mobile/components/identity/` holds the React Native drawing:
 
 - `MobileSessionFace` always draws a face, with the agent badge. It is an `Image`; it does not draw through `react-native-svg`.
 - `MobileIdentityFace` is the phone's `SessionGlyph`: the face when the row is
@@ -209,5 +209,5 @@ phone has no character picker yet, so choosing a face is done on the web.
 The phone's guard rails: `components/identity/identity.test.tsx` renders every
 key and fails any import in that folder outside React Native, the app and the
 shared packages; `metro.config.test.cjs` proves every module on the face path
-resolves the app's one pinned `react-native-svg`; `packages/mobile/scripts/audit-export.mjs`
+resolves the app's one pinned `react-native-svg`; `apps/mobile/scripts/audit-export.mjs`
 checks an exported bundle for one copy of each native library and all 24 files.

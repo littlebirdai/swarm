@@ -30,16 +30,16 @@ describe("parseStepHeading", () => {
     expect(parseStepHeading("Wire it (src/a.ts:L3-L9)")).toEqual({ title: "Wire it", file: "src/a.ts", start: 3, end: 9 });
   });
   test("route files keep their brackets", () => {
-    expect(parseStepHeading("Rows `packages/mobile/app/task/[id].tsx:81-88`")).toEqual({ title: "Rows", file: "packages/mobile/app/task/[id].tsx", start: 81, end: 88 });
+    expect(parseStepHeading("Rows `apps/mobile/app/task/[id].tsx:81-88`")).toEqual({ title: "Rows", file: "apps/mobile/app/task/[id].tsx", start: 81, end: 88 });
     expect(parseStepHeading("Page — app/tasks/[id]/page.tsx:12")).toEqual({ title: "Page", file: "app/tasks/[id]/page.tsx", start: 12, end: 12 });
-    expect(parseStepHeading("Tabs `packages/mobile/app/(tabs)/index.tsx:3-9`")).toEqual({ title: "Tabs", file: "packages/mobile/app/(tabs)/index.tsx", start: 3, end: 9 });
+    expect(parseStepHeading("Tabs `apps/mobile/app/(tabs)/index.tsx:3-9`")).toEqual({ title: "Tabs", file: "apps/mobile/app/(tabs)/index.tsx", start: 3, end: 9 });
     expect(parseStepHeading("Tabs app/(tabs)/index.tsx:3")).toEqual({ title: "Tabs", file: "app/(tabs)/index.tsx", start: 3, end: 3 });
     expect(parseStepHeading("Catch-all `app/[[...slug]]/page.tsx`")).toEqual({ title: "Catch-all", file: "app/[[...slug]]/page.tsx" });
     expect(parseStepHeading("Wire it (src/a.ts)")).toEqual({ title: "Wire it", file: "src/a.ts" });
   });
 
   test("takes the ticked path with a line range, else the last, when the title names a file in backticks too", () => {
-    expect(parseStepHeading("`deploy.sh` uses the resolved remote `packages/convex/deploy.sh:45-57`")).toEqual({ title: "`deploy.sh` uses the resolved remote", file: "packages/convex/deploy.sh", start: 45, end: 57 });
+    expect(parseStepHeading("`deploy.sh` uses the resolved remote `apps/server/deploy.sh:45-57`")).toEqual({ title: "`deploy.sh` uses the resolved remote", file: "apps/server/deploy.sh", start: 45, end: 57 });
     expect(parseStepHeading("`dev.sh:12` reads it before `scripts/dev.sh`")).toEqual({ title: "reads it before `scripts/dev.sh`", file: "dev.sh", start: 12, end: 12 });
     expect(parseStepHeading("Rename `a.ts` to `src/b.ts`")).toEqual({ title: "Rename `a.ts` to", file: "src/b.ts" });
   });

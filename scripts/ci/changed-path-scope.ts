@@ -115,14 +115,14 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   // step of test-cli.
   ["evals", ["apps/evals/"]],
   ["web", ["packages/web/"]],
-  ["convex", ["packages/convex/"]],
+  ["convex", ["apps/server/"]],
   ["shared", ["packages/shared/"]],
   // The vendored mirror is its own area: a change to it runs the platform
   // tests and the manifest drift check, which "shared" alone never did
   // (ct-49675).
   ["platform", ["platform/"]],
   ["electron", ["apps/desktop/"]],
-  ["mobile", ["packages/mobile/"]],
+  ["mobile", ["apps/mobile/"]],
   ["extension", ["apps/browser-extension/", "apps/vscode-extension/"]],
   ["playground", ["apps/playground/"]],
   ["infra", ["infra/"]],

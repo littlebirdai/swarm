@@ -6,7 +6,7 @@ export const meta: SurfaceMeta = {
   title: 'The semantic router: which role an unplaced request belongs to',
   route: 'call',
   model: CALL_MODEL,
-  sources: surfaceSources('route', 'packages/convex/convex/lib/orgRouter.ts', 'packages/convex/convex/orgRoute.ts', 'packages/shared/contracts/orgRoute.ts', 'packages/convex/convex/lib/anthropic.ts'),
+  sources: surfaceSources('route', 'apps/server/convex/lib/orgRouter.ts', 'apps/server/convex/orgRoute.ts', 'packages/shared/contracts/orgRoute.ts', 'apps/server/convex/lib/anthropic.ts'),
   reps: { check: 5 },
   // One cheap call over a roster of a dozen roles, plus the judge.
   maxUsdPerRep: 0.03,

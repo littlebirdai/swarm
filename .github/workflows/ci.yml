@@ -194,8 +194,8 @@ jobs:
 
       # Each package's own `typecheck` script, which runs the programs
       # .codecast/check.toml points `cast check` at, except mobile:
-      # packages/mobile has no `typecheck` script, so CI does not typecheck it
-      # and `cast check mobile` is its only check. cli's widens rootDir to the
+      # the job filter excludes apps/mobile. Its program runs locally via
+      # `cast check mobile`. The CLI program widens rootDir to the
       # repo root because it imports the convex generated api. web's also runs
       # the sim program (its app tsconfig excludes tests), and evals is its own
       # program over its code plus the convex and cli files it imports, and
@@ -232,7 +232,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (convex package)
-        working-directory: packages/convex
+        working-directory: apps/server
         run: bun test convex/ scripts/
 
   test-web:
@@ -484,7 +484,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit and guard tests (mobile package)
-        working-directory: packages/mobile
+        working-directory: apps/mobile
         # --isolate: identity.test.tsx replaces react-native with mock.module,
         # which is permanent in one process, the same hazard test-web has.
         run: bun test --isolate

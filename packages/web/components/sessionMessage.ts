@@ -5,7 +5,7 @@
 //
 // The session→session wrapper is produced by `cast send` — the wire format is
 // defined server-side by formatSessionMessage in
-// packages/convex/convex/pendingMessages.ts; keep the tag name in sync.
+// apps/server/convex/pendingMessages.ts; keep the tag name in sync.
 //
 //   <session-message from="jx7c6zk">
 //   the body

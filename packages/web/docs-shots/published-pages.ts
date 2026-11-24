@@ -20,7 +20,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { brandArtifactHtml } from "../../convex/convex/artifactPages";
+import { brandArtifactHtml } from "../../../apps/server/convex/artifactPages";
 import { attachCastTab, type CastTab } from "../scripts/castTab";
 import { DOCS_SHOTS_PAGES_ORIGIN } from "../lib/docsShots/flag";
 import { MIN, PEOPLE, SESSIONS } from "../lib/acmeWorld/world";

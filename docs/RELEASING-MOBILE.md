@@ -16,7 +16,7 @@
 ### 1. Initialize EAS
 
 ```bash
-cd packages/mobile
+cd apps/mobile
 npx eas init
 ```
 
@@ -58,13 +58,13 @@ The checked-in values are Codecast's own (`owner: "ashotp"`, `com.ashotp.codecas
 ### 4. Configure EAS Credentials
 
 ```bash
-cd packages/mobile
+cd apps/mobile
 npx eas credentials
 ```
 
 Choose "iOS" > "production" and follow prompts to generate:
 - Distribution Certificate
-- Provisioning Profiles, one for the app and one for the `CodecastWidget` target (`packages/mobile/targets/widget`, bundle id `<app bundle id>.widget`)
+- Provisioning Profiles, one for the app and one for the `CodecastWidget` target (`apps/mobile/targets/widget`, bundle id `<app bundle id>.widget`)
 
 EAS manages these automatically with your Apple Team ID (`ios.appleTeamId` in `app.json`).
 
@@ -72,18 +72,18 @@ Submission authenticates with an App Store Connect API key rather than an Apple 
 
 ### 5. Set Environment Variables
 
-The app reads `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST`. `packages/mobile/.env` is gitignored, so cloud builds need them as EAS environment variables:
+The app reads `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST`. `apps/mobile/.env` is gitignored, so cloud builds need them as EAS environment variables:
 ```bash
 npx eas env:create production --name EXPO_PUBLIC_CONVEX_URL --value "https://convex.yourdomain.com" --visibility plaintext
 npx eas env:create preview --name EXPO_PUBLIC_CONVEX_URL --value "https://convex.yourdomain.com" --visibility plaintext
 ```
 
-`eas update` bundles on your machine, so OTA updates read the local `packages/mobile/.env` instead. Keep it set to production values.
+`eas update` bundles on your machine, so OTA updates read the local `apps/mobile/.env` instead. Keep it set to production values.
 
 ## Build Commands
 
 ```bash
-cd packages/mobile
+cd apps/mobile
 
 # Development build (simulator)
 bun run build:dev
@@ -103,7 +103,7 @@ bun run release:ios
 
 ## Release Process
 
-Build from a clean checkout of `origin/main` (`git worktree add --detach <dir> origin/main`, then `bun install --frozen-lockfile` and copy `packages/mobile/.env`). EAS uploads uncommitted changes, so building from a shared tree can ship another session's half-finished edit.
+Build from a clean checkout of `origin/main` (`git worktree add --detach <dir> origin/main`, then `bun install --frozen-lockfile` and copy `apps/mobile/.env`). EAS uploads uncommitted changes, so building from a shared tree can ship another session's half-finished edit.
 
 ### TestFlight (Internal Testing)
 
@@ -152,11 +152,11 @@ bun run update:preview       # preview channel (internal ad hoc builds)
 bun run update:production    # production channel (TestFlight and App Store builds)
 ```
 
-`scripts/deploy-all.sh` pushes the production OTA as part of a full deploy (`--preview` sends it to preview instead) and skips it when nothing under `packages/mobile` changed.
+`scripts/deploy-all.sh` pushes the production OTA as part of a full deploy (`--preview` sends it to preview instead) and skips it when nothing under `apps/mobile` changed.
 
 `runtimeVersion` uses the `appVersion` policy, so an update reaches only binaries with the same `version` as the tree that published it. After a version bump, OTA updates stop reaching the older binaries.
 
-An update also runs on binaries built before any native library it uses. A native package outside the frozen baseline in `packages/mobile/lib/nativeDeps.guard.test.ts` must never be imported statically: load it through `optionalNative` (`packages/mobile/lib/optionalNative.ts`) and handle `null`. A new native package needs a new binary build (see the repo-root `CLAUDE.md`).
+An update also runs on binaries built before any native library it uses. A native package outside the frozen baseline in `apps/mobile/lib/nativeDeps.guard.test.ts` must never be imported statically: load it through `optionalNative` (`apps/mobile/lib/optionalNative.ts`) and handle `null`. A new native package needs a new binary build (see the repo-root `CLAUDE.md`).
 
 ## Version Management
 

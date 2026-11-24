@@ -9,7 +9,7 @@
 // and nothing here ever prints them. `--refresh-env` on any script re-reads.
 //
 // Tokens are signed by the same signLivekitJwt the Convex control plane uses
-// (packages/convex/convex/lib/livekitJwt.ts), imported straight from its .ts
+// (apps/server/convex/lib/livekitJwt.ts), imported straight from its .ts
 // source through Node's type stripping, so the grant shape a synthetic
 // participant carries cannot drift from a real member's.
 import { execFileSync } from "node:child_process";
@@ -79,7 +79,7 @@ export function loadLivekitEnv({ refresh = false } = {}) {
 let signer;
 async function sign(opts) {
   if (!signer) {
-    // Node warns on this import that packages/convex declares no module
+    // Node warns on this import that apps/server declares no module
     // type; it says nothing useful here, so it is dropped for this one load.
     // Warnings are emitted on a later tick, hence the wait before restoring.
     const listeners = process.listeners("warning");

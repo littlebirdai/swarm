@@ -36,7 +36,7 @@ describe("team setup pieces are defined once", () => {
   // create the team", so the projection must keep echoing the field.
   test("getUserTeams echoes client_key back to the client", () => {
     const teams = readFileSync(
-      join(root, "..", "convex", "convex", "teams.ts"),
+      join(root, "..", "..", "apps", "server", "convex", "teams.ts"),
       "utf8",
     );
     const projection = teams.slice(

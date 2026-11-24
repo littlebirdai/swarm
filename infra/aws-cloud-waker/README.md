@@ -21,7 +21,7 @@ The owner/device tuple must match both the conversation owner and a registered r
 
 ## Release sequence
 
-1. The release owner typechecks and deploys a reviewed, up-to-date candidate through `packages/convex/deploy.sh`, before shipping clients. Do not deploy the shared in-flight checkout.
+1. The release owner typechecks and deploys a reviewed, up-to-date candidate through `apps/server/deploy.sh`, before shipping clients. Do not deploy the shared in-flight checkout.
 2. Set dedicated credentials on that exact deployment, using private files and the CLI's `env set NAME --from-file <file>` support. Do not put secrets in argv, terminal output, source patches or task comments. Leave the allowlist empty until credentials and the backend are ready.
 3. Set `CAST_CLOUD_WAKE_HOSTS` last. This switches the configured targets to server scheduling and suppresses their laptop wake/claim paths. Other triggers remain daemon-owned. The two minute device heartbeat threshold avoids starting an instance that has just answered.
 4. Inspect internal `cloudWake:status`. A cron dispatches due bound triggers every minute; another reconciles expired leases and lost wake schedules. A bounded, owner-scoped recovery scan reconstructs wake intent if a final heartbeat cleared it before pending work was delivered and the host then went offline. Delivered, failed and cancelled messages do not wake the host. Each wake has at most five attempts. Success is followed by a heartbeat check; a failed or missing heartbeat remains visible as failure, not silently done.

@@ -1,5 +1,5 @@
 // The rows the Ops page holds in the store, as the ingest, replay, metric and
-// app functions return them (packages/convex/convex/ingest.ts sourceView and
+// app functions return them (apps/server/convex/ingest.ts sourceView and
 // groupView, replays.ts replayView, metrics.ts watchView, sources/app.ts).
 // Types only: the server is the shape's owner.
 import type { GroupKind, GroupStatus, SourceProvider, SourceStatus, Transition, MetricWatchHistory, WatchDirection, WatchKind } from "@codecast/shared/contracts/ingest";

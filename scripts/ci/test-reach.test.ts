@@ -39,9 +39,10 @@ describe("resolveImport", () => {
     expect(resolveImport("@codecast/shared", from)).toBe(join(ROOT, "packages/shared/index.ts"));
     expect(resolveImport("@codecast/shared/contracts", from)).toBe(join(ROOT, "packages/shared/contracts/index.ts"));
     expect(resolveImport("@codecast/electron", from)).toBe(join(ROOT, "apps/desktop/main.js"));
+    expect(resolveImport("mobile", from)).toBe(join(ROOT, "apps/mobile/index.ts"));
     // No exports map: the subpath is a path inside the package. A file bun
     // cannot load (a .d.ts) still lands in the package's area.
-    expect(resolveImport("@codecast/convex/convex/_generated/dataModel", from)?.startsWith(join(ROOT, "packages/convex/"))).toBe(true);
+    expect(resolveImport("@codecast/convex/convex/_generated/dataModel", from)?.startsWith(join(ROOT, "apps/server/"))).toBe(true);
   });
 
   test("maps @platform to the mirror and drops builtins and npm packages", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { SECRET_SHAPES, findSecrets } from "@codecast/shared/contracts/secretShapes";
-import { redactSecrets as redactOnServer } from "../../convex/convex/redact";
+import { redactSecrets as redactOnServer } from "../../../apps/server/convex/redact";
 import { VENDOR_TOKEN_RE, isCredentialFilePath, liveVendorToken } from "./secretPatterns.js";
 import { redactSecrets } from "./secretRedaction.js";
 

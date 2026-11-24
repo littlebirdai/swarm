@@ -318,6 +318,7 @@ cast setup              # Auto-start on login (launchd/systemd/Task Scheduler)
 ```
 codecast/
   apps/
+    mobile/             iOS/Android app (Expo + React Native)
     desktop/            Native macOS desktop app
     browser-extension/  Chrome extension behind `cast browser`
     vscode-extension/   VS Code / Cursor blame integration
@@ -326,7 +327,6 @@ codecast/
     cli/                CLI daemon, commands, and background sync engine
     web/                Vite + React web app
     convex/             Self-hosted Convex backend (schema, queries, mutations)
-    mobile/             iOS/Android app (Expo + React Native)
     shared/             Encryption and cross-platform utilities
     evals/              Prompt evals against frozen moments
   scripts/              Deploy, build, and dev server scripts
@@ -387,7 +387,7 @@ per-client reality as merged; ✓ = supported, ✗ = not available.
 ```bash
 bun install
 cp packages/web/.env.example packages/web/.env.local
-cp packages/convex/.env.example packages/convex/.env.local
+cp apps/server/.env.example apps/server/.env.local
 cp packages/cli/.env.example packages/cli/.env.local
 ```
 
@@ -400,9 +400,9 @@ Configure your Convex instance URL in each `.env.local`. See [Getting Started](d
 ./dev.sh 1        # http://local.1.codecast.sh (parallel instance)
 ```
 
-Starts the Vite web app on port 3200 (3200 + N for instance N) and the gated Convex pusher (`packages/convex/scripts/gated-push.ts`), which pushes each quiet, typechecked change to the deployment your env names and refuses to start from a tree behind `codecast-sh/codecast`'s main (even in a fork clone). Run `sudo ./setup-hosts.sh` once so the `local.*.codecast.sh` names resolve (it needs nginx installed; `nginx.dev.conf.example` shows how to add https, which the desktop app needs); without it, use `http://localhost:3200`. The CLI daemon runs separately with `cast start`.
+Starts the Vite web app on port 3200 (3200 + N for instance N) and the gated Convex pusher (`apps/server/scripts/gated-push.ts`), which pushes each quiet, typechecked change to the deployment your env names and refuses to start from a tree behind `codecast-sh/codecast`'s main (even in a fork clone). Run `sudo ./setup-hosts.sh` once so the `local.*.codecast.sh` names resolve (it needs nginx installed; `nginx.dev.conf.example` shows how to add https, which the desktop app needs); without it, use `http://localhost:3200`. The CLI daemon runs separately with `cast start`.
 
-Deploy Convex only through `packages/convex/deploy.sh`, never a raw `npx convex deploy`: a deploy pushes the whole tree, so one from a stale checkout deletes newer functions from the deployment.
+Deploy Convex only through `apps/server/deploy.sh`, never a raw `npx convex deploy`: a deploy pushes the whole tree, so one from a stale checkout deletes newer functions from the deployment.
 
 ### Run the daemon from source
 

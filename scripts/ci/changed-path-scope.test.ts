@@ -21,7 +21,7 @@ describe("areaOf", () => {
     expect(areaOf("packages/cli/src/daemon.ts")).toBe("cli");
     expect(areaOf("apps/evals/src/x.ts")).toBe("evals");
     expect(areaOf("packages/web/components/DiffView.tsx")).toBe("web");
-    expect(areaOf("packages/convex/convex/tasks.ts")).toBe("convex");
+    expect(areaOf("apps/server/convex/tasks.ts")).toBe("convex");
     expect(areaOf("packages/shared/contracts/agentClients.ts")).toBe("shared");
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
     expect(areaOf("platform/vendor-manifest.txt")).toBe("platform");
@@ -29,7 +29,7 @@ describe("areaOf", () => {
     expect(areaOf("apps/playground/src/main.tsx")).toBe("playground");
     expect(areaOf("infra/convex-host/Caddyfile")).toBe("infra");
     expect(areaOf("infra/README.md")).toBe("infra");
-    expect(areaOf("packages/mobile/app/index.tsx")).toBe("mobile");
+    expect(areaOf("apps/mobile/app/index.tsx")).toBe("mobile");
     expect(areaOf("apps/browser-extension/background.js")).toBe("extension");
     expect(areaOf("apps/vscode-extension/src/extension.ts")).toBe("extension");
   });
@@ -101,7 +101,7 @@ describe("classifyChangedPaths", () => {
   });
 
   test("a convex change runs the convex, web, cli and mobile tests", () => {
-    expect(ran(["packages/convex/convex/tasks.ts"])).toEqual(
+    expect(ran(["apps/server/convex/tasks.ts"])).toEqual(
       ["build", "test-cli", "test-convex", "test-mobile", "test-web", "typecheck"],
     );
   });
@@ -146,8 +146,8 @@ describe("classifyChangedPaths", () => {
   });
 
   test("a mobile change runs the mobile tests only", () => {
-    expect(flags(["packages/mobile/app/index.tsx"]).mobile).toBe(true);
-    expect(ran(["packages/mobile/app/index.tsx"])).toEqual(["test-mobile"]);
+    expect(flags(["apps/mobile/app/index.tsx"]).mobile).toBe(true);
+    expect(ran(["apps/mobile/app/index.tsx"])).toEqual(["test-mobile"]);
   });
 
   // web imports electron's window registry, so an electron change reaches
@@ -225,7 +225,7 @@ describe("classifyChangedPaths", () => {
 
 test("the classifier runs as a script and prints the flags", async () => {
   const proc = Bun.spawn(["bun", new URL("./changed-path-scope.ts", import.meta.url).pathname], {
-    stdin: new TextEncoder().encode("packages/mobile/app/index.tsx\n"),
+    stdin: new TextEncoder().encode("apps/mobile/app/index.tsx\n"),
     stdout: "pipe",
     stderr: "pipe",
   });

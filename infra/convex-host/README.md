@@ -127,7 +127,7 @@ idles at 5 to 20% CPU between roughly 22:00 and 07:00 UTC).
    whether ports answer: all four containers up, `pg_is_in_recovery()` false,
    `https://codecast.sh` 200, and one real query against Postgres
    (`_system/frontend/tableSize:default` on `messages`, admin key from
-   `packages/convex/.env.local`).
+   `apps/server/.env.local`).
 
 Slow query lines in the Postgres log for the first minute after a start are the
 cold cache, not a fault.

@@ -21,7 +21,7 @@
 2. Copy environment files:
    ```bash
    cp packages/web/.env.example packages/web/.env.local
-   cp packages/convex/.env.example packages/convex/.env.local
+   cp apps/server/.env.example apps/server/.env.local
    cp packages/cli/.env.example packages/cli/.env.local
    ```
 
@@ -33,7 +33,7 @@
    ./dev.sh 1    # http://local.1.codecast.sh (port 3201, multi-instance)
    ```
 
-   `dev.sh` runs Vite and the gated Convex pusher, which pushes your Convex changes to the deployment in `packages/convex/.env.local`. [Getting Started](docs/GETTING-STARTED.md) covers the full setup.
+   `dev.sh` runs Vite and the gated Convex pusher, which pushes your Convex changes to the deployment in `apps/server/.env.local`. [Getting Started](docs/GETTING-STARTED.md) covers the full setup.
 
 ### Nginx (optional)
 
@@ -50,10 +50,10 @@ Codecast is a Bun monorepo with these packages:
 | Package | Description |
 |---------|-------------|
 | `packages/cli` | `cast` CLI and daemon that watches coding sessions and syncs to Convex |
-| `packages/convex` | Convex backend: schema, queries, mutations, auth |
+| `apps/server` | Convex backend: schema, queries, mutations, auth |
 | `packages/web` | React + Vite web app |
 | `apps/desktop` | Electron desktop app |
-| `packages/mobile` | Expo/React Native iOS app |
+| `apps/mobile` | Expo/React Native iOS app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
 | `apps/browser-extension` | Chrome extension behind `cast browser` |
 | `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |
@@ -89,7 +89,7 @@ All UI state lives in `inboxStore` (Zustand at `packages/web/store/inboxStore.ts
 All data mutations go through `inboxStore` actions (optimistic local-first updates), never via direct `useMutation` calls. The pattern:
 
 1. Define an `action()` in `inboxStore.ts` that optimistically mutates local state
-2. Add a matching handler in `packages/convex/convex/dispatch.ts` to persist
+2. Add a matching handler in `apps/server/convex/dispatch.ts` to persist
 3. The mutative middleware queues the write in an outbox and dispatches it to Convex after the optimistic update
 4. A write the server refuses for good (`isRefusedDispatchError`) is reverted by its caller; any other failure stays queued and the server's echo settles it
 
@@ -109,7 +109,7 @@ Run the test files you touched rather than whole suites; CI runs every suite on 
 
 ## Deployment
 
-Convex deploys go only through `packages/convex/deploy.sh`, which refuses a tree behind `codecast-sh/codecast`'s main, even in a fork clone (a stale tree's snapshot deletes newer functions). Web deploys on every push to `main` (Railway). CLI releases are cut from CI with `gh workflow run cut-cli-release.yml -R codecast-sh/codecast`. See [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) for self-hosting instructions.
+Convex deploys go only through `apps/server/deploy.sh`, which refuses a tree behind `codecast-sh/codecast`'s main, even in a fork clone (a stale tree's snapshot deletes newer functions). Web deploys on every push to `main` (Railway). CLI releases are cut from CI with `gh workflow run cut-cli-release.yml -R codecast-sh/codecast`. See [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) for self-hosting instructions.
 
 ## Commits
 

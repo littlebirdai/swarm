@@ -22,7 +22,7 @@ Phase 2 is done when all of the following hold:
 |---|---|---|
 | Window isolation | **One store instance per window.** Export the existing `createInboxStore` (inboxStore.ts:12775) as a test seam. The harness points the `useInboxStore` facade's `getState/setState/subscribe/getInitialState` at the active window's instance while that window runs. No AsyncLocalStorage, and no production-wide `windowLocal` refactor. | The engine middleware keeps `dispatchBinding`, `dispatchEpoch`, `inFlightOutboxIds`, `retiredOutboxIds`, the tees and the outbox functions in a closure per instance (platform/packages/engine/src/middleware.ts:597-630). Swapping state into one instance cannot separate them. I checked that no production module captures `useInboxStore.getState` into a variable, so a facade swap routes every caller. |
 | Other module singletons | Keep a harness-side **window slot registry** (`sim/windowSlots.ts`) that classifies each top-level mutable as `window` (saved and restored per window), `memo` (reset on every switch), `transient` (must be idle at a switch) or `shared` (with a reason). Production files gain only a small `__simSlots()` get/set export where no seam exists. A guard test fails on any unclassified top-level `let`/`Map`/`Set` reachable from the sim. | Fixes the `_heldOverlayFacts` leak (inboxStore.ts:2424) and every singleton like it. It does not rewrite hot paths, and the guard stops the list from drifting the way `REPLICA_KEYS` did. |
-| Server substrate | The fake db (`testDb.ts`, with additive options) plus `fn._handler`, driven by a router in `packages/convex/convex/simBackend.testing.ts`. convex-test is not used as the substrate. | Real sync-log interceptor, pinned ids, chosen `_id`s. Names with two dots are skipped by the Convex bundler (bundler/index.js:367, verified), and the file stays in `cast check convex`. |
+| Server substrate | The fake db (`testDb.ts`, with additive options) plus `fn._handler`, driven by a router in `apps/server/convex/simBackend.testing.ts`. convex-test is not used as the substrate. | Real sync-log interceptor, pinned ids, chosen `_id`s. Names with two dots are skipped by the Convex bundler (bundler/index.js:367, verified), and the file stays in `cast check convex`. |
 | Server fidelity added in Phase 2 | 32-char ids, `_creationTime`, `patch(undefined)` removes the field, a rollback journal, single-flight top-level calls, arg validation against `fn.exportArgs()`, and a `convexToJson` wire boundary. | Cheap, and each one closes a named gap. |
 | Server fidelity deferred | Return validation, schema and document validation, index-prefix enforcement, and automatic cron firing. Crons run only as explicit calls. | Each is likely to produce a batch of triage findings. Phase 3. |
 | Team slot | Feed `teamInboxIds` through the existing `applyTeamInboxIds` (useSyncTeamInboxSessions.ts:18) and an extracted liveness applier. The invariant is membership equality. | Matches production. The judges flagged a new `applyTeamInboxPayload` as a duplicate. |
@@ -56,7 +56,7 @@ scenario files (dsl verbs)                    sim/scenarios/*.scenario.ts
 invariants + reports + labels                 sim/invariants.ts, report.ts, labels.ts
 ```
 
-### 3.2 Server: `packages/convex/convex/simBackend.testing.ts`
+### 3.2 Server: `apps/server/convex/simBackend.testing.ts`
 
 This file must not import `bun:test`, because `cast check convex` has no bun types.
 
@@ -495,7 +495,7 @@ It is used only for real OCC, real scheduler timing, HTTP routes, the prod error
 1. **Scratch copy.** Make a copy with `git ls-files -co --exclude-standard`, so no `.env.local` travels. Never use the main checkout or a `cast ws` worktree, because they copy the prod admin key. Symlink node_modules.
 2. **Refusals.** Refuse to run if `CONVEX_SELF_HOSTED_*`, `CONVEX_DEPLOY_KEY` or any `.env.local` is visible.
 3. **Start the backend.** Run `env -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY -u CONVEX_DEPLOYMENT -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous npx convex dev --env-file <tmp: CONVEX_DEPLOYMENT=anonymous:anonymous-agent> --codegen disable --typecheck disable --tail-logs disable` in a tmux pane and leave it running. Verified with convex 1.36.1: `--once` stops the local backend when the command exits; the CLI recognizes an anonymous deployment only by a name starting with `anonymous-`; a new one is named `anonymous-agent` under `CONVEX_AGENT_MODE` whatever name was asked for, with its state in `~/.convex/anonymous-convex-backend-state/anonymous-agent/`; a first push on a loaded machine can fail with a 4s module-load timeout and is retried by saving a file under `convex/`.
-4. **Check the URL.** Assert that the resolved URL host is `127.0.0.1` before the first request (the CLI writes `CONVEX_URL` to the scratch copy's `packages/convex/.env.local`).
+4. **Check the URL.** Assert that the resolved URL host is `127.0.0.1` before the first request (the CLI writes `CONVEX_URL` to the scratch copy's `apps/server/.env.local`).
 5. **Act as users.** Use `ConvexHttpClient.setAdminAuth(adminKey, actingAsIdentity)`, with the admin key from the deployment's state `config.json`.
 6. **Never** use `deploy.sh`, `gated-push.ts`, `bun run dev`, or the package `deploy` script.
 
@@ -513,7 +513,7 @@ The Evals UI's Multiplayer sim pages (docs/architecture/evals-ui.md, sections 3.
 ```
 
 - `<home>` is `$CODECAST_SIM_HOME`, else `~/.local/share/codecast/sim`. The stamp is the UTC start to the millisecond, then the pid, so names sort by time.
-- The runner writes `session.json` before it spawns the tests, with `gitHead` and `dirty` (`treeState`: any tracked or untracked edit under `packages/web`, `packages/convex`, `packages/shared` or `platform/packages`, through a shadow copy of the index so the real one is never touched). It passes the folder as `SIM_SESSION`. While the tests run it stores the patch (`storeTreePatch`: `git diff HEAD --binary` over the same paths, untracked files included as intent to add), then rewrites `session.json` with `treePatch`, `finishedAt` and `exit`. `gunzip` plus `git apply` of the patch on `gitHead` rebuilds the tree the session ran. Ctrl-C waits for the tests to exit, so the exit is recorded.
+- The runner writes `session.json` before it spawns the tests, with `gitHead` and `dirty` (`treeState`: any tracked or untracked edit under `packages/web`, `apps/server`, `packages/shared` or `platform/packages`, through a shadow copy of the index so the real one is never touched). It passes the folder as `SIM_SESSION`. While the tests run it stores the patch (`storeTreePatch`: `git diff HEAD --binary` over the same paths, untracked files included as intent to add), then rewrites `session.json` with `treePatch`, `finishedAt` and `exit`. `gunzip` plus `git apply` of the patch on `gitHead` rebuilds the tree the session ran. Ctrl-C waits for the tests to exit, so the exit is recorded.
 - The DSL appends one `runs.jsonl` row per run, whatever its end (`passed` false for a failure or a harness error). `dir` names the artifact folder when it was written inside the session; artifacts written to `--out` elsewhere get no `dir`.
 - Pruning runs after each session: the 200 newest are kept, and an older one survives only if a run in it failed or it exited nonzero. A session with no `finishedAt` is left alone for a day. Patches no remaining session names are removed with them.
 - A bare `bun test` (no runner) has no session: artifacts go to `<tmpdir>/codecast-sim` as before, and the Evals UI shows those folders read-only as "unsessioned".
@@ -536,9 +536,9 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 
 | Path | Unit |
 |---|---|
-| packages/convex/convex/simBackend.testing.ts | U1 |
-| packages/convex/convex/simValidate.testing.ts | U1 |
-| packages/convex/convex/simBackend.test.ts | U1 |
+| apps/server/convex/simBackend.testing.ts | U1 |
+| apps/server/convex/simValidate.testing.ts | U1 |
+| apps/server/convex/simBackend.test.ts | U1 |
 | packages/shared/contracts/levenshtein.ts | U1 (edit distance moved out of cli/src/commandSuggestion.ts so the sim backend's suggestions reuse it) |
 | packages/web/lib/dispatchBinding.ts | U3 |
 | packages/web/lib/__tests__/dispatchBinding.test.ts | U3 |
@@ -576,7 +576,7 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 
 | Path | Unit | What |
 |---|---|---|
-| packages/convex/convex/testDb.ts | U1 | additive options (section 3.2) |
+| apps/server/convex/testDb.ts | U1 | additive options (section 3.2) |
 | packages/shared/package.json | U1 | `exports` entry for `contracts/levenshtein`. It stays out of the contracts barrel, which the daemon loads at boot |
 | packages/cli/src/commandSuggestion.ts, commandSuggestion.test.ts | U1 | import `levenshtein` from `@codecast/shared/contracts/levenshtein` |
 | packages/cli/src/bench/bootGraph.guard.test.ts | U1 | index.ts ceiling up by one for levenshtein.ts |
@@ -600,11 +600,11 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 | packages/web/hooks/useBootstrapCollection.ts | U9 | the effect body becomes `startBootstrapFloor(run)`, plus `bootstrapFloorKey`, `floorScopesStamped` and `bootstrapFloorFor(state, ...)` (one read of a window's state); the hook calls the same function |
 | packages/web/store/syncReplication.ts | U9 | `followerActionTee(channel, selfId)` (the synced follower's mut tee) and `applyBridgedGesture(msg)` (the gesture receiver), extracted so production and the sim share them |
 | packages/web/src/providers.tsx | U9 | the gesture bridge receiver calls `applyBridgedGesture` |
-| packages/convex/convex/simBackend.testing.ts | U9 | `sessionDecisions` in `MODULES` |
+| apps/server/convex/simBackend.testing.ts | U9 | `sessionDecisions` in `MODULES` |
 | packages/web/store/__tests__/sim/windowSlots.ts | U9 | classifications for the 13 bindings the window's imports reach (message warming, the coarse-tick subscribers, the image URL cache, guest share tokens), each `shared` with its reason |
 | packages/web/store/__tests__/inboxSimHarness.ts | U7 | the virtual clock now comes from `sim/realm.ts` and is re-exported; two type errors it carried from before Phase 2 (the comparer's `platform` label, a nullable `set_digest`) fixed so `cast check sim` is green |
 | packages/web/hooks/useWorkspaceCollection.ts | U11 | `export function activeWorkspaceKeyOf(state)`, the active workspace key off store state; the hook's four call sites use it and INV-workspace-rows reads it |
-| packages/convex/convex/chat.ts | U11 | `MENTION_WAKES_PER_SENDER_HOUR` and `MENTION_WAKES_PER_TARGET_HOUR` exported, for INV-chat and INV-ping-pong |
+| apps/server/convex/chat.ts | U11 | `MENTION_WAKES_PER_SENDER_HOUR` and `MENTION_WAKES_PER_TARGET_HOUR` exported, for INV-chat and INV-ping-pong |
 | packages/shared/contracts/__fixtures__/teamWorldGen.ts, teamWorldGen.test.ts | U11 | `agent_tasks`: one armed trigger behind each generated `armed_trigger_kind` (`triggerIdFor`), so INV-triggers holds from genesis |
 | packages/web/store/__tests__/sim/window.ts | U11 | `refeed()` (the read-your-writes loop now calls it) and a `feeds` getter (live feeds plus bootstrap floors) |
 | packages/web/store/__tests__/sim/world.ts | U11 | genesis inserts `gen.agent_tasks`; `sweepFindings()` delegates to `scopeSweep` |
@@ -626,7 +626,7 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 | packages/web/store/__tests__/sim/actors.ts | U14 | `makeActors` takes `ActorWorld`, the structural surface its verbs use |
 | packages/web/store/__tests__/sim/report.ts | U14 | optional `replay` lines in `FailureContext` |
 | packages/web/store/__tests__/sim/windowSlots.ts, packages/web/store/inboxStore.ts | U14 | `_lastParityCheckAt` and the placement caches are `window` slots (the U2 seam carries them), so the dev parity check keeps its per-window throttle and a window's next turn reuses its own caches; the memo resets and `syncTransaction` are loaded once with the seams |
-| packages/convex/convex/simBackend.testing.ts | U14 | the wire pair in one pass, one wired copy per memo miss or hit, resolved functions cached per backend (section 3.2) |
+| apps/server/convex/simBackend.testing.ts | U14 | the wire pair in one pass, one wired copy per memo miss or hit, resolved functions cached per backend (section 3.2) |
 | packages/web/hooks/useInboxDigestCompare.ts | U14 | `startInboxDigestCompare(convex, subscribeTick, io?)` |
 | docs/architecture/sync-convergence.md | U15 | Validation plan points at sync-sim.md |
 | docs/architecture/sync-host.md | U15 | Invariants section names `INV-followers`, `INV-fixpoint` |
@@ -635,7 +635,7 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 | packages/web/store/syncReplication.ts | review | `replicationHostFor`, `replicationFollowerFor` and `promoteToHost` (the runtime options and the promotion order), shared by `startSyncReplication` and `sim/device.ts` |
 | packages/web/store/inboxStore.ts | review | the U2 seam shrinks to `__inboxStoreWindowBindings` (live bindings plus a by-value setter); the copying moves to `sim/windowSlots.ts`, `resetMemos` goes, `freshInboxData` is local again |
 | packages/cli/src/deliveryEchoLedger.ts | review | the daemon's pairing of echoes with deliveries; the sim daemon's `ack` stamps its echo with the delivered row's id the same way |
-| packages/convex/convex/lib/chatWakeIds.ts, chat.ts | review | the chat wake client ids (`chatMentionClientId`, `chatRelayClientId`) and their parsers, written by chat.ts and read by the sim's invariants |
+| apps/server/convex/lib/chatWakeIds.ts, chat.ts | review | the chat wake client ids (`chatMentionClientId`, `chatRelayClientId`) and their parsers, written by chat.ts and read by the sim's invariants |
 
 ## 5. Work units
 
@@ -660,10 +660,10 @@ What it builds: section 3.2. `simBackend.test.ts` covers eight cases:
 8. `runAfter` produces an `onSchedule` job that `runScheduled` executes with a null identity.
 
 Acceptance:
-- `cd packages/convex && bun test convex/simBackend.test.ts` passes.
-- `cd packages/convex && bun test convex/` shows the same fail count as before the change, and a pass count larger only by `simBackend.test.ts`'s tests plus the two `moduleLoad.test.ts` entries it adds for the new `.testing.ts` files. Record both.
+- `cd apps/server && bun test convex/simBackend.test.ts` passes.
+- `cd apps/server && bun test convex/` shows the same fail count as before the change, and a pass count larger only by `simBackend.test.ts`'s tests plus the two `moduleLoad.test.ts` entries it adds for the new `.testing.ts` files. Record both.
 - `cast check convex` is green.
-- `grep -c "bun:test" packages/convex/convex/*.testing.ts` gives 0.
+- `grep -c "bun:test" apps/server/convex/*.testing.ts` gives 0.
 
 **U2 Store seams.** `inboxStore.ts`, `gestureBridge.ts`, `syncTransaction.ts`, `viewNav.ts`.
 
@@ -827,7 +827,7 @@ Run these from `packages/web`:
 - `bun test --isolate store/__tests__/`;
 - `cast check` (all programs).
 
-Then run `cd packages/convex && bun test convex/`. Time `bun run sim` and the legacy suites, and post the table in ct-55688. Check that `git diff --stat` touches only the files listed in section 4.
+Then run `cd apps/server && bun test convex/`. Time `bun run sim` and the legacy suites, and post the table in ct-55688. Check that `git diff --stat` touches only the files listed in section 4.
 
 ## 6. Scenario catalog
 

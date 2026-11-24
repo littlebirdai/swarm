@@ -561,7 +561,7 @@
    },
    {
     "name": "brandArtifactHtml (published page bar, comments panel, history)",
-    "file": "packages/convex/convex/artifactPages.ts:1347 (barHtml :92, BrandOpts :50)",
+    "file": "apps/server/convex/artifactPages.ts:1347 (barHtml :92, BrandOpts :50)",
     "role": "The chrome of every codecast.sh/a/<slug> page. The server injects it into the published HTML: title, author, session chip, version chip, views, a comments bubble that opens the discussion panel with pinned or anchored comments, the menu, and a hide pill. It is vanilla HTML and JS strings, not React.",
     "props": "brandArtifactHtml(html: string, opts: BrandOpts { title, author, updatedAt, shareUrl, version, currentVersion, metaUrl?, apiBase?, slug, kind, sessionShortId, sessionConversationId, sessionTitle, views, commentCount, commentsEnabled, gated, editMode, live, hasThumb })",
     "deps": "A pure string function, called from artifactsHttp.ts serve (:1170). Its inline script: when metaUrl is absent, it returns early at :534 (plain bar, no network). With metaUrl it POSTs a view beacon to apiBase+'/cli/artifacts/view' (:535-537), polls fetch(metaUrl) (:593) for { version, views, comment_count, comments: [{ id, author_name, author_avatar, verified, parent_id, text, anchor, version, created_at, delivered }], versions, session, gated } (shape at artifactsHttp.ts:969-990 and artifacts.ts:250), and posts comments to /cli/artifacts/comment. Storage is memory-first because localStorage throws under an opaque origin (:465-469). It imports MD_THEME_CSS from artifactMarkdown.ts, which pulls in marked and highlight.js (convex package deps).",

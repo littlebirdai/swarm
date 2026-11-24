@@ -35,9 +35,9 @@ export const CHANGE = {
   /** On main after Land. */
   landed: "e3f0a71",
   subject: "fix(web): total of an empty cart is 0",
-  files: ["packages/web/lib/cart/total.ts", "packages/convex/convex/checkout.ts"],
+  files: ["packages/web/lib/cart/total.ts", "apps/server/convex/checkout.ts"],
   /** Lines added and removed per file; total.ts is the diff the trace blames. */
-  diff: { "packages/web/lib/cart/total.ts": { add: 2, del: 4 }, "packages/convex/convex/checkout.ts": { add: 3, del: 1 } },
+  diff: { "packages/web/lib/cart/total.ts": { add: 2, del: 4 }, "apps/server/convex/checkout.ts": { add: 3, del: 1 } },
   targets: ["web", "backend"] as const,
   deploys: { web: "dp-411", backend: "dp-412" },
   landedOn: "Nov 3",

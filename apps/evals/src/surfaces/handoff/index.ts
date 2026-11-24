@@ -9,8 +9,8 @@ import {
   handoffBriefRequest,
   shapeHandoffTranscript,
   type HandoffSourceFacts,
-} from '../../../../../packages/convex/convex/handoff';
-import { isRefusalProse, isSummarizableMessage } from '../../../../../packages/convex/convex/idleSummary';
+} from '../../../../../apps/server/convex/handoff';
+import { isRefusalProse, isSummarizableMessage } from '../../../../../apps/server/convex/idleSummary';
 import { readConversation, toConvoMessages, toRows, type MessageRow } from '../../adapters/convo';
 import { readSessionMoment, SESSION_LINE_FORMS } from '../../adapters/moment';
 import { gate, type SurfaceImpl } from '../../surface';

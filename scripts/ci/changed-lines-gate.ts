@@ -278,9 +278,9 @@ export const CHECKS: Check[] = [
   },
   {
     id: "tsc-convex",
-    label: "tsc (packages/convex)",
-    scope: "packages/convex/",
-    run: runTsc("packages/convex", "convex/tsconfig.json"),
+    label: "tsc (apps/server)",
+    scope: "apps/server/",
+    run: runTsc("apps/server", "convex/tsconfig.json"),
   },
 ];
 

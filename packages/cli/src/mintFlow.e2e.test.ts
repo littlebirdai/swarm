@@ -9,8 +9,8 @@ import { encryptProviderKey } from "../../web/lib/providerKeyCrypto";
 import { getProviderKeyPublicKey, decryptProviderKeyPayload } from "./providerKeyCrypto";
 import { submitApprovalCode } from "./mintFlowControl";
 import { extractSetupToken } from "./ccAccounts";
-import { requestMintToken, submitMintCode, reportMintFlow } from "../../convex/convex/accountSwitch";
-import { makeFakeDb } from "../../convex/convex/testDb";
+import { requestMintToken, submitMintCode, reportMintFlow } from "../../../apps/server/convex/accountSwitch";
+import { makeFakeDb } from "../../../apps/server/convex/testDb";
 
 test("browser code crosses the command transport and finishes a real terminal approval", async () => {
   const dir = mkdtempSync(join(tmpdir(), "cast-mint-e2e-"));

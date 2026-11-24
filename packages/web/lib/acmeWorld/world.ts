@@ -1,10 +1,10 @@
 // The Acme workspace: the fixture world both apps render with no server, for
-// public images. The phone's store shots (packages/mobile/lib/storeShots) and
+// public images. The phone's store shots (apps/mobile/lib/storeShots) and
 // the web docs shots (../docsShots) seed it into the shared store through
 // ./seed. It tells the same story, with the same people and words, as the
 // homepage film (app/(marketing)/heroFly/fixtures), mirrored rather than
 // imported: those files sit under a web route, which the native bundle may
-// never reach (packages/mobile/lib/bundleGraph.guard.test.ts). Mobile's Metro
+// never reach (apps/mobile/lib/bundleGraph.guard.test.ts). Mobile's Metro
 // reaches this file too, so its imports stay relative (root CLAUDE.md).
 //
 // Every id is `hero-*`, never Convex-shaped, so nothing here can resolve to

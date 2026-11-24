@@ -8,8 +8,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parseLineProfileText } from "../packages/cli/src/lineProfile";
 import { evalSignals, signalArgv } from "../apps/evals/src/signals";
-import { insightBlockerSignals } from "../packages/convex/convex/signals";
-import { LESSON_SIGNAL, lessonFingerprint } from "../packages/convex/convex/lineLearn";
+import { insightBlockerSignals } from "../apps/server/convex/signals";
+import { LESSON_SIGNAL, lessonFingerprint } from "../apps/server/convex/lineLearn";
 
 const root = path.join(import.meta.dir, "..");
 const read = (rel: string) => readFileSync(path.join(root, rel), "utf8");

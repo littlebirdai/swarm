@@ -76,9 +76,9 @@ type Policy = "press" | "auto";
 /** codecast's own targets and their `when` paths (.codecast/deploy.toml; backend takes the convex ship step's). */
 const TARGETS: { name: TargetName; when: string[]; policy: Policy; runs?: "push" }[] = [
   { name: "web", when: ["packages/web/**", "packages/shared/**", "platform/**"], policy: "press", runs: "push" },
-  { name: "backend", when: ["packages/convex/**", "packages/shared/**", "platform/**"], policy: "press" },
+  { name: "backend", when: ["apps/server/**", "packages/shared/**", "platform/**"], policy: "press" },
   { name: "cli", when: ["packages/cli/**", "packages/shared/**", "platform/**"], policy: "press" },
-  { name: "mobile", when: ["packages/mobile/**", "packages/shared/**"], policy: "press" },
+  { name: "mobile", when: ["apps/mobile/**", "packages/shared/**"], policy: "press" },
   { name: "desktop", when: ["apps/desktop/**"], policy: "press" },
 ];
 const POLICY_WORDS: Record<Policy, string> = { press: "on a press", auto: "auto" };
