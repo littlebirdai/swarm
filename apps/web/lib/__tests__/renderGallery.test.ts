@@ -151,7 +151,7 @@ describe("render gallery", () => {
   });
 
   test("calls a tool of every family", () => {
-    const src = read("packages/shared/render/toolKinds.ts");
+    const src = read("packages/render/src/toolKinds.ts");
     const families = [
       ...src.matchAll(/const (\w+)_TOOL_IDS = new Set\(\[([\s\S]*?)\]\)/g),
     ].map((m) => ({

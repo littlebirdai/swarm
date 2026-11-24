@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { sanitizeCanvasCss } from "./canvasCss";
+import { sanitizeCanvasCss } from "../src/canvasCss";
 
 test("CSS parser blocks escaped URLs, imports, media functions, malformed and custom-property egress", () => {
   for (const css of [

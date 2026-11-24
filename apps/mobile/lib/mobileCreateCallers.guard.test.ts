@@ -338,7 +338,7 @@ describe("mobile send button is a real tap target", () => {
   test("session send is 44pt and lives outside the jump overlay", () => {
     // The send button's size lives in the shared session style.
     const sharedStyle = readFileSync(
-      `${import.meta.dir}/../../../packages/shared/render/mobileSessionStyle.ts`,
+      `${import.meta.dir}/../../../packages/render/src/mobileSessionStyle.ts`,
       "utf8",
     );
     expect(sharedStyle).toMatch(

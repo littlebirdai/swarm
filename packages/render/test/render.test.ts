@@ -34,7 +34,7 @@ import {
   shellLead,
   activityLine,
   ACTIVITY_TEXT_MAX,
-} from "./index";
+} from "../src/index";
 
 const tc = (name: string, input: unknown) => ({
   name,

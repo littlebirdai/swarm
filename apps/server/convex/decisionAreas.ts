@@ -48,7 +48,7 @@ import {
   type AreaSignal,
   type AreasRosterMember,
   type AreasRosterProject,
-} from "@codecast/shared/contracts/decisionAreas";
+} from "@codecast/decisions/decisionAreas";
 
 type Ctx = { db: any; scheduler?: any };
 

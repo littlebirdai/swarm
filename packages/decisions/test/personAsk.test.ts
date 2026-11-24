@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { askDueAt, personAskDue } from "./personAsk";
+import { askDueAt, personAskDue } from "../src/personAsk";
 
 const at = (iso: string) => Date.parse(iso);
 const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`);

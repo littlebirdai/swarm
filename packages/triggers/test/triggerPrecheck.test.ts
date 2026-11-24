@@ -9,7 +9,7 @@ import {
   TRIGGER_PRECHECK_STATE_CHARS,
   type TriggerFiringSource,
   type TriggerPrecheckResult,
-} from "./triggerPrecheck";
+} from "../src/triggerPrecheck";
 
 // Who asked for this firing, and does the --precheck gate get a say?
 // The gate exists to stop a schedule spending a session on a guess. A person

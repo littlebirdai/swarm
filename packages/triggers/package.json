@@ -1,0 +1,18 @@
+{
+  "name": "@codecast/triggers",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./triggerEvents": "./src/triggerEvents.ts",
+    "./triggerPrecheck": "./src/triggerPrecheck.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  }
+}

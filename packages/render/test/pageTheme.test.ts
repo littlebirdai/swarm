@@ -5,7 +5,7 @@ import {
   PAGE_PARK_MESSAGE,
   PAGE_THEME_DEFAULTS,
   PAGE_THEME_TOKENS,
-} from "./pageTheme";
+} from "../src/pageTheme";
 
 describe("injectPageTheme", () => {
   test("goes first in <head>, so the page's own styles win", () => {

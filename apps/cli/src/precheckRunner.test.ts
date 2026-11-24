@@ -18,7 +18,7 @@ import { pollUntil } from "./test-helpers/pollUntil.js";
 import {
   triggerPrecheckPassed,
   describeTriggerPrecheckFailure,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerPrecheck";
 
 function withCwd(run: (cwd: string) => Promise<void>): () => Promise<void> {
   return async () => {

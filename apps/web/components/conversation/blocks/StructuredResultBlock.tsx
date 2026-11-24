@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { Braces, SquareCheck } from "lucide-react";
+import { structuredPayloadKeysFromRaw } from "@codecast/render/toolCall";
 import {
-  structuredPayloadKeysFromRaw,
   structuredResultModel,
   type StructuredField,
   type StructuredRecord,
   type StructuredSection,
   type StructuredTone,
-} from "@codecast/shared/render";
+} from "@codecast/render/structuredResult";
 import { entityRemarkPlugins } from "../../../lib/remarkEntityIds";
 import {
   MESSAGE_MD_COMPONENTS,

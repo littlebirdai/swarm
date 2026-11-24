@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { extractNestedActions, isShellTool } from "@codecast/shared/render";
+import { extractNestedActions } from "@codecast/render/toolCall";
+import { isShellTool } from "@codecast/render/toolKinds";
 import { atomicWriteFile } from "./atomicWrite.js";
 import type { ParsedMessage } from "./parser.js";
 import type { EventEmitter } from "node:events";

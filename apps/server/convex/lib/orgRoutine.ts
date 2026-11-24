@@ -5,7 +5,7 @@
 import {
   ORG_AREA_CHANGE_EVENT,
   SESSION_NEEDS_INPUT_EVENT,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerEvents";
 import { COMPANY_REVIEW_TITLE } from "@codecast/shared/contracts/orgReview";
 import { isHeadOfPeopleRole } from "./orgAccess";
 

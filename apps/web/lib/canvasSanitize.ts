@@ -1,6 +1,6 @@
 import createDOMPurify from "dompurify";
 import { isTrustedAbsoluteImageSrc } from "./trustedImageOrigins";
-import { sanitizeCanvasCss } from "../../../packages/shared/render/canvasCss";
+import { sanitizeCanvasCss } from "@codecast/render/canvasCss";
 
 // Sanitization policy for cast-canvas content (and all-HTML message bodies).
 // Conversations sync across a team, so canvases are untrusted. Two invariants:

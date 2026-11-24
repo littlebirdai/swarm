@@ -38,7 +38,7 @@ import {
   type DigestSection,
 } from "./templates";
 import { BRAND } from "./render";
-import { decisionOwnerOf } from "@codecast/shared/contracts/decisionAreas";
+import { decisionOwnerOf } from "@codecast/decisions/decisionAreas";
 
 // The scheduling policy — grace, window, cooldown, presence, lookback, the
 // per-sweep and per-section caps, the sweep loop, the unsubscribe token and its

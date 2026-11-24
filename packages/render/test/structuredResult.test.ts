@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { structuredResultModel, structuredTone } from "./structuredResult";
+import { structuredResultModel, structuredTone } from "../src/structuredResult";
 
 describe("structuredResultModel", () => {
   test("a reviewer's verdict, findings and notes", () => {

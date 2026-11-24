@@ -186,7 +186,7 @@ describe("command groups stay off the boot graph", () => {
       //
       // 216 files, 2,998 KB and 301 after the 2026-09-14 release, down from the
       // 218 / 3,020 / 303 the second cut pinned. toolKinds.ts is a split of
-      // shared/render/toolCall.ts (its family classifiers, no new reach) and
+      // packages/render/src/toolCall.ts (its family classifiers, no new reach) and
       // sits on both graphs where toolCall.ts already was. orgInit.ts registers
       // the `cast org init` verbs; their bodies, the analyzer prompt and the
       // proposal contract it embeds load inside each action (orgInitRun.ts).

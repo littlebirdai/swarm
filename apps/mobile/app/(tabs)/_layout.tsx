@@ -5,7 +5,7 @@ import { TabBarIcon, useTabSignals } from "@/components/nav/TabBarIcon";
 import { InboxDrawer } from "@/components/inbox/InboxDrawer";
 import { setInboxDrawerOpen, useInboxDrawerOpen } from "@/lib/inboxDrawer";
 import { TAB_BAR_HEIGHT, useAppearanceKey, useTheme } from "@/constants/Theme";
-import { TYPE_SCALE } from "@codecast/shared/render/typeScale";
+import { TYPE_SCALE } from "@codecast/render/typeScale";
 import { Mono, useMonoFace } from "@/constants/fonts";
 import { useTextSize } from "@/hooks/useTextSize";
 import { sizeStyle } from "@/lib/textSize";
@@ -15,7 +15,7 @@ import {
   MOBILE_TAB,
   MOBILE_TAB_BAR_STYLE,
   MOBILE_TAB_LABEL_STYLE,
-} from "@codecast/shared/render/mobileTabsStyle";
+} from "@codecast/render/mobileTabsStyle";
 
 export default function TabLayout() {
   const Theme = useTheme();

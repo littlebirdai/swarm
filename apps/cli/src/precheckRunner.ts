@@ -30,7 +30,7 @@ import {
   TRIGGER_PRECHECK_STATE_CHARS,
   TRIGGER_PRECHECK_TIMEOUT_MS,
   type TriggerPrecheckResult,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerPrecheck";
 import { scrubAgentEnv } from "./agentEnv.js";
 import { agentSpawnPath } from "./agentSpawnPath.js";
 import { endStation } from "./workflow/stationProcs.js";

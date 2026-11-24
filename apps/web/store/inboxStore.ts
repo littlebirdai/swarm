@@ -367,7 +367,7 @@ import {
 } from "@codecast/policy/permissionRules";
 import type { BrowserPaneOffer } from "@codecast/browser/browserPaneOffer";
 import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
-import { escalationTargetIds } from "@codecast/shared/contracts/decisionEscalation";
+import { escalationTargetIds } from "@codecast/decisions/decisionEscalation";
 import {
   isAgentSpawnedConversation,
   isAgentTeamWorker,
@@ -426,7 +426,7 @@ export type TriggerEdit = {
   schedule_type?: "once" | "recurring" | "event";
   interval_ms?: number;
   run_at?: number;
-  event_filter?: import("@codecast/shared/contracts").TriggerScopeFilter;
+  event_filter?: import("@codecast/triggers/triggerEvents").TriggerScopeFilter;
 };
 export type TriggerStripRequest = {
   convId: string;

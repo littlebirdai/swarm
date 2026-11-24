@@ -13,7 +13,7 @@ import {
 } from "./taskScheduler.js";
 import { deviceId } from "./remote/device.js";
 import { runTriggerPrecheck } from "./precheckRunner.js";
-import { triggerPrecheckPassed } from "@codecast/shared/contracts";
+import { triggerPrecheckPassed } from "@codecast/triggers/triggerPrecheck";
 
 /**
  * Device-affinity regression tests (ct-36854): a daemon must never claim a

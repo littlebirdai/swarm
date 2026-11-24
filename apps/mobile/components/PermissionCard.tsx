@@ -11,7 +11,7 @@ import {
   permissionSourceTags,
   removalCountLabel,
   type PermissionRemoval,
-} from "@codecast/shared/render/permissionCardStyle";
+} from "@codecast/render/permissionCardStyle";
 
 type Permission = {
   _id: Id<"pending_permissions">;

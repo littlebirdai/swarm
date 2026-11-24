@@ -764,6 +764,8 @@ packages/docs/src/drafting.ts 950
 packages/keyboard/src/shortcutCatalog.ts 1550
 packages/mods/src/authoring.d.ts 900
 packages/policy/src/permissionRules.ts 900
+packages/render/src/toolCall.ts 1350
+packages/render/test/render.test.ts 850
 packages/shared/contracts/agentClients.test.ts 850
 packages/shared/contracts/agentClients.ts 1650
 packages/shared/contracts/appConnector.ts 1000
@@ -795,8 +797,6 @@ packages/shared/contracts/secrets.ts 1300
 packages/shared/contracts/snippets.ts 2050
 packages/shared/contracts/usageLimits.ts 850
 packages/shared/entities/index.ts 1650
-packages/shared/render/render.test.ts 850
-packages/shared/render/toolCall.ts 1350
 packages/shared/replay/mobile.ts 900
 packages/shared/replay/replay.test.ts 1350
 packages/shared/replay/rrweb.ts 850

@@ -1,4 +1,4 @@
-import { toolVisual, type ToolColorToken } from "@codecast/shared/render";
+import { toolVisual, type ToolColorToken } from "@codecast/render/toolVisual";
 import { AGENT_CLIENTS, fromConvexAgentType } from "@codecast/shared/contracts";
 
 /** The name above an assistant turn: the registry's name for the client

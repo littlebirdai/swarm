@@ -16,13 +16,11 @@ import {
 } from "@/lib/sessionIdentity";
 import {
   extractNestedActions,
-  formatToolName,
-  isEditTool,
-  isWriteTool,
   toolSummary as sharedToolSummary,
-  toolVisual,
-  type ToolColorToken,
-} from "@codecast/shared/render";
+} from "@codecast/render/toolCall";
+import { formatToolName } from "@codecast/render/toolNames";
+import { isEditTool, isWriteTool } from "@codecast/render/toolKinds";
+import { toolVisual, type ToolColorToken } from "@codecast/render/toolVisual";
 
 /**
  * The shared-message page as a pure view. Rendered in three places with the

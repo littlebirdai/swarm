@@ -18,7 +18,7 @@ import { parseProductViewRef } from "../../../../packages/shared/contracts/produ
 import {
   PAGE_HEIGHT_MESSAGE,
   injectPageTheme,
-} from "../../../../packages/shared/render/pageTheme.ts";
+} from "@codecast/render/pageTheme";
 
 // ─── Checkpoints ──────────────────────────────────────────
 

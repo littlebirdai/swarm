@@ -10,7 +10,7 @@ import {
   type DecisionChange,
 } from "./decisionFacts";
 import type { LineNeed } from "./lineNeeds";
-import { byImpact } from "@codecast/shared/contracts/decisionImpact";
+import { byImpact } from "@codecast/decisions/decisionImpact";
 
 /** How the list is ordered: impact (the asker's 1-5 score, people reached, findings, severity) by default, or by one column. */
 export type InboxOrder =

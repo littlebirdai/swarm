@@ -19,7 +19,7 @@ import type { ChatMessageRow } from "@codecast/web/store/inboxStore";
 import { Text as RNText } from "@/components/Themed";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
-import { TYPE_SCALE } from "@codecast/shared/render/typeScale";
+import { TYPE_SCALE } from "@codecast/render/typeScale";
 import { MarkdownContent } from "@/components/MarkdownRenderer";
 import {
   MessageLongPressContext,

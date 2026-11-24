@@ -38,7 +38,7 @@ import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import {
   MOBILE_PULSE,
   MOBILE_SESSION_STYLE,
-} from "@codecast/shared/render/mobileSessionStyle";
+} from "@codecast/render/mobileSessionStyle";
 import { AgentLogoSvg } from "@/components/AgentLogo";
 import { ImageViewer } from "@/components/chat/ImageViewer";
 import {

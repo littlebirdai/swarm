@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatToolName } from "@codecast/shared/render";
+import { formatToolName } from "@codecast/render/toolNames";
 import { MenuKeyCaps } from "../KeyboardShortcutsHelp";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { allowAllLedger } from "../consequential/ledgers";

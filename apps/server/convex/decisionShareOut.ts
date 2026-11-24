@@ -19,7 +19,7 @@ import {
   planShareOut,
   type ShareOutMove,
   type ShareOutRow,
-} from "@codecast/shared/contracts/decisionAreas";
+} from "@codecast/decisions/decisionAreas";
 import { isProtectedCategory } from "./lib/decisionCategory";
 import { syncDecisionInbox } from "./lib/decisionInbox";
 import { roleOfConversation } from "./lib/actor";

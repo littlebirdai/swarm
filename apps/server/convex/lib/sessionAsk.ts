@@ -10,13 +10,9 @@
 // No Convex imports: tests and the step query both load this leaf.
 
 import { countMatches } from "@codecast/shared/search";
-import {
-  formatToolName,
-  isEditTool,
-  isWriteTool,
-  toolPathFromInput,
-  toolSummary,
-} from "@codecast/shared/render";
+import { formatToolName } from "@codecast/render/toolNames";
+import { isEditTool, isWriteTool } from "@codecast/render/toolKinds";
+import { toolPathFromInput, toolSummary } from "@codecast/render/toolCall";
 import { CHEAP_MODEL, type SurfaceRequest } from "./anthropic";
 import { citationSpans, spanLines } from "./sessionAskCitations";
 import { clipText, wellFormedString } from "./wellFormed";

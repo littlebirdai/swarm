@@ -30,7 +30,7 @@ import { currentTranscriptDeadline } from "./workers/ingestDeadline.js";
 import type {
   TriggerFiringSource,
   TriggerPrecheckResult,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerPrecheck";
 import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import { withoutDeliveryId } from "@codecast/shared/contracts";

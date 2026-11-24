@@ -13,7 +13,7 @@
 // Spread into the org slice (orgSlice createOrgSlice), so the store gains
 // both without a line of its own.
 import { action } from "./mutativeMiddleware";
-import type { AreaAssignment } from "@codecast/shared/contracts/decisionAreas";
+import type { AreaAssignment } from "@codecast/decisions/decisionAreas";
 import { teamMembersOf } from "../lib/activeTeam";
 
 export type ShareOutMoveInput = { decision_id: string; to: string };

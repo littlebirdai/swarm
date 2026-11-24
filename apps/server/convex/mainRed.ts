@@ -35,7 +35,10 @@ import { announce, brief, linkScope, runThatMerged } from "./lib/mainRedBrief";
 import { recordExternalEventOnce } from "./externalEvents";
 import { commitBySha, mainCommitsAfter } from "./deployTargetsState";
 import type { CiRun } from "./ingest";
-import { MAIN_GREEN_EVENT, MAIN_RED_EVENT } from "@codecast/shared/contracts";
+import {
+  MAIN_GREEN_EVENT,
+  MAIN_RED_EVENT,
+} from "@codecast/triggers/triggerEvents";
 import {
   parseFailures,
   type CiFailure,

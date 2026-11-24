@@ -1,6 +1,6 @@
 "use client";
 
-import { getRelativePath } from "@codecast/shared/render";
+import { getRelativePath } from "@codecast/render/format";
 import { useDiffViewerStore } from "../../../store/diffViewerStore";
 
 // Files a Bash call changed on disk, as the daemon observed them around the

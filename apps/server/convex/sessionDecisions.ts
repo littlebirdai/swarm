@@ -105,7 +105,7 @@ import {
   type CommandRun,
 } from "@codecast/shared/contracts/commandRun";
 import { proposalAnswersError } from "@codecast/shared/contracts/expectations";
-import { invalidImpact } from "@codecast/shared/contracts/decisionImpact";
+import { invalidImpact } from "@codecast/decisions/decisionImpact";
 import { reopenTaskWaits, scheduleDecisionSettle } from "./taskWaits";
 import {
   currentDecisions,

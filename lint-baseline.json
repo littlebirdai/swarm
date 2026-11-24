@@ -28870,6 +28870,27 @@
   "packages/daemon/src/terminalStream.ts": {
     "swarm/no-comments": 59
   },
+  "packages/decisions/src/approvalAnswers.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/decisions/src/decisionAreas.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/decisions/src/decisionCategory.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/decisions/src/decisionEscalation.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/decisions/src/decisionImpact.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/decisions/src/personAsk.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/decisions/test/personAsk.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -29050,6 +29071,57 @@
   "packages/ratchet/test/ratchet.test.ts": {
     "swarm/no-comments": 9
   },
+  "packages/render/src/codeRuns.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/render/src/codecastMark.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/render/src/format.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/render/src/index.ts": {
+    "swarm/no-comments": 9
+  },
+  "packages/render/src/mobileSessionStyle.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/render/src/mobileTabsStyle.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/render/src/pageTheme.ts": {
+    "swarm/no-comments": 37
+  },
+  "packages/render/src/permissionCardStyle.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/render/src/structuredResult.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/render/src/toolCall.ts": {
+    "swarm/no-comments": 119
+  },
+  "packages/render/src/toolKinds.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/render/src/toolNames.ts": {
+    "swarm/no-comments": 34
+  },
+  "packages/render/src/toolVisual.ts": {
+    "swarm/no-comments": 30
+  },
+  "packages/render/src/typeScale.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/render/test/pageTheme.test.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/render/test/render.test.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/render/test/typeScale.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/sessions/src/agentStatus.ts": {
     "swarm/no-comments": 231
   },
@@ -29206,9 +29278,6 @@
   "packages/shared/contracts/appSurfaces.ts": {
     "swarm/no-comments": 11
   },
-  "packages/shared/contracts/approvalAnswers.ts": {
-    "swarm/no-comments": 3
-  },
   "packages/shared/contracts/assistant.replyAsks.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29313,18 +29382,6 @@
   },
   "packages/shared/contracts/decisionAnswers.ts": {
     "swarm/no-comments": 36
-  },
-  "packages/shared/contracts/decisionAreas.ts": {
-    "swarm/no-comments": 29
-  },
-  "packages/shared/contracts/decisionCategory.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/decisionEscalation.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/decisionImpact.ts": {
-    "swarm/no-comments": 4
   },
   "packages/shared/contracts/deliveryFailed.test.ts": {
     "swarm/no-comments": 1
@@ -29713,12 +29770,6 @@
   "packages/shared/contracts/peerTransport.ts": {
     "swarm/no-comments": 16
   },
-  "packages/shared/contracts/personAsk.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/personAsk.ts": {
-    "swarm/no-comments": 12
-  },
   "packages/shared/contracts/pipeline.test.ts": {
     "swarm/no-comments": 1
   },
@@ -29914,23 +29965,11 @@
   "packages/shared/contracts/transcriptChunk.ts": {
     "swarm/no-comments": 80
   },
-  "packages/shared/contracts/triggerEvents.test.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/triggerEvents.ts": {
-    "swarm/no-comments": 72
-  },
   "packages/shared/contracts/triggerLifecycle.test.ts": {
     "swarm/no-comments": 20
   },
   "packages/shared/contracts/triggerLifecycle.ts": {
     "swarm/no-comments": 68
-  },
-  "packages/shared/contracts/triggerPrecheck.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/triggerPrecheck.ts": {
-    "swarm/no-comments": 31
   },
   "packages/shared/contracts/unattended.ts": {
     "swarm/no-comments": 9
@@ -29982,57 +30021,6 @@
   },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9
-  },
-  "packages/shared/render/codeRuns.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/render/codecastMark.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/render/format.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/render/index.ts": {
-    "swarm/no-comments": 9
-  },
-  "packages/shared/render/mobileSessionStyle.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/render/mobileTabsStyle.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/render/pageTheme.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/render/pageTheme.ts": {
-    "swarm/no-comments": 37
-  },
-  "packages/shared/render/permissionCardStyle.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/render/render.test.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/render/structuredResult.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/render/toolCall.ts": {
-    "swarm/no-comments": 119
-  },
-  "packages/shared/render/toolKinds.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/render/toolNames.ts": {
-    "swarm/no-comments": 34
-  },
-  "packages/shared/render/toolVisual.ts": {
-    "swarm/no-comments": 30
-  },
-  "packages/shared/render/typeScale.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/render/typeScale.ts": {
-    "swarm/no-comments": 10
   },
   "packages/shared/replay/capture.test.ts": {
     "swarm/no-comments": 10
@@ -30219,6 +30207,18 @@
   },
   "packages/time/test/time.test.ts": {
     "swarm/no-comments": 5
+  },
+  "packages/triggers/src/triggerEvents.ts": {
+    "swarm/no-comments": 72
+  },
+  "packages/triggers/src/triggerPrecheck.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/triggers/test/triggerEvents.test.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/triggers/test/triggerPrecheck.test.ts": {
+    "swarm/no-comments": 7
   },
   "packages/vault/src/entityRef.ts": {
     "swarm/no-comments": 79

@@ -4,7 +4,12 @@
 
 import {
   BROWSER_BATCH_TOOL,
-  formatToolName,
+  shellLead,
+  toolResultHint,
+  toolSummary,
+} from "@codecast/render/toolCall";
+import { formatToolName } from "@codecast/render/toolNames";
+import {
   isEditTool,
   isGlobTool,
   isGrepTool,
@@ -12,10 +17,7 @@ import {
   isShellTool,
   isTodoTool,
   isWriteTool,
-  shellLead,
-  toolResultHint,
-  toolSummary,
-} from "@codecast/shared/render";
+} from "@codecast/render/toolKinds";
 import { splitPath } from "./middleTruncate";
 
 export type RowKind =

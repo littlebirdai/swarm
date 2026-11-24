@@ -1,4 +1,4 @@
-import { isAgentTool } from "@codecast/shared/render";
+import { isAgentTool } from "@codecast/render/toolKinds";
 import type { Message } from "../components/conversation/types";
 
 export type RunningSubagent = { id: string; label: string };

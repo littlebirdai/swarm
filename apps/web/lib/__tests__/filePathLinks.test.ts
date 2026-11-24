@@ -61,7 +61,7 @@ describe("file path mentions in prose", () => {
       "either/or and km/h, TCP/IP, application/json",
       "on 08/20/2026 at /tasks/:id and /files?f=x",
       "see https://github.com/ashot/codecast/blob/main/x.ts or codecast.sh/a/slug",
-      "import from @codecast/shared/render",
+      "import from @codecast/render/toolNames",
       "the /inbox route, w/ the team",
       "ratio 1/2 or 3/4",
       // A word list and a git branch read like three-segment paths and are neither (tc-22's proposal).

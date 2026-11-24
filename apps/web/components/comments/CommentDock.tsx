@@ -3,7 +3,7 @@ import { Quote, FileCode2, CheckCircle2, RotateCcw } from "lucide-react";
 import { SlotActions } from "../workspace/Slot";
 import { useInboxStore, selectCommentRailOpen } from "../../store/inboxStore";
 import { useDiffViewerStore } from "../../store/diffViewerStore";
-import { getRelativePath } from "@codecast/shared/render";
+import { getRelativePath } from "@codecast/render/format";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { isConvexId } from "../../lib/entityLinks";
 import { cleanContent } from "../../lib/conversationProcessor";

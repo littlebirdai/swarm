@@ -23,7 +23,7 @@ import {
   type PageInfo,
 } from "@codecast/web/hooks/pageEmbedQuery";
 import { useConvexAuth } from "convex/react";
-import { mobileRelativeTime } from "@codecast/shared/render/mobileSessionStyle";
+import { mobileRelativeTime } from "@codecast/render/mobileSessionStyle";
 
 export function SessionPagesChip({
   conversationId,

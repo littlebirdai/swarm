@@ -16,7 +16,7 @@ import {
   type StructuredRecord,
   type StructuredSection,
   type StructuredTone,
-} from "@codecast/shared/render";
+} from "@codecast/render/structuredResult";
 
 type ThemeT = ReturnType<typeof useTheme>;
 

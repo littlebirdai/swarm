@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { escalationTargetIds } from "./decisionEscalation";
+import { escalationTargetIds } from "../src/decisionEscalation";
 
 const members = [
   { user_id: "owner", role: "admin" },

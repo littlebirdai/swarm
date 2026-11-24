@@ -1,7 +1,7 @@
 import {
   ANTIGRAVITY_MARK_PATH,
   MUSE_MARK_PATH,
-} from "@codecast/shared/render/mobileSessionStyle";
+} from "@codecast/render/mobileSessionStyle";
 import { CodexIcon, GrokIcon } from "./BrandIcons";
 import { LogoMark } from "./Logo";
 import {

@@ -6,12 +6,12 @@ import {
   ANTIGRAVITY_MARK_PATH,
   MOBILE_AGENT_LOGO_BG,
   MUSE_MARK_PATH,
-} from "@codecast/shared/render/mobileSessionStyle";
+} from "@codecast/render/mobileSessionStyle";
 import {
   CODECAST_MARK_ARROW_PATH,
   CODECAST_MARK_C_PATH,
   CODECAST_MARK_VIEWBOX,
-} from "@codecast/shared/render/codecastMark";
+} from "@codecast/render/codecastMark";
 import { isHostedAgentType } from "@codecast/shared/contracts";
 
 export function agentLogoBg(agentType?: string): string {

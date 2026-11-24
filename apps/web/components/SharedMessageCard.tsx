@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import Link from "next/link";
 import { MessageSquareQuote } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { formatToolName } from "@codecast/shared/render";
+import { formatToolName } from "@codecast/render/toolNames";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import {
   parseMessageRefPayload,

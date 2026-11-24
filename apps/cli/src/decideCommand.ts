@@ -36,8 +36,8 @@ import {
   commandLine,
   parseRunCommand,
 } from "@codecast/shared/contracts/commandRun";
-import { invalidImpact } from "@codecast/shared/contracts/decisionImpact";
-import { invalidCategory } from "@codecast/shared/contracts/decisionCategory";
+import { invalidImpact } from "@codecast/decisions/decisionImpact";
+import { invalidCategory } from "@codecast/decisions/decisionCategory";
 import * as fs from "fs";
 import * as http from "http";
 import * as path from "path";

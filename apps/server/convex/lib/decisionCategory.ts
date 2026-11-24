@@ -13,7 +13,7 @@
 import {
   OPEN_CATEGORIES,
   PROTECTED_CATEGORIES,
-} from "@codecast/shared/contracts/decisionCategory";
+} from "@codecast/decisions/decisionCategory";
 
 export { OPEN_CATEGORIES, PROTECTED_CATEGORIES };
 export const DECISION_CATEGORIES = [

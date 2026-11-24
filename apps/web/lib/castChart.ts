@@ -8,7 +8,7 @@
 import type * as PlotNS from "@observablehq/plot";
 import { isSafeCanvasLink, sanitizeCanvasElement } from "./canvasSanitize";
 import { isTrustedAbsoluteImageSrc } from "./trustedImageOrigins";
-import { sanitizeCanvasCss } from "../../../packages/shared/render/canvasCss";
+import { sanitizeCanvasCss } from "@codecast/render/canvasCss";
 
 const safeRender: PlotNS.RenderFunction = (
   index,

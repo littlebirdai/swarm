@@ -5,7 +5,7 @@ import {
   PAGE_THEME_MESSAGE,
   PAGE_THEME_TOKENS,
   type PageThemeTokens,
-} from "../../../packages/shared/render/pageTheme";
+} from "@codecast/render/pageTheme";
 
 /** The --sol-* values this window paints with right now, whatever palette and
  *  visual style produced them. */

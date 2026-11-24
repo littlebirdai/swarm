@@ -897,7 +897,7 @@ describeHostedCadence` and `hostedNextWords`), reading the routine's
   polish round 1" below); `components/hosted/hostedTheme.ts` names each
   colour by meaning over `constants/Theme` (the yes, what waits on the
   person). The assistant wears the codecast mark (`AgentLogoSvg`,
-  `@codecast/shared/render/codecastMark`, shared with the web's `Logo`).
+  `@codecast/render/codecastMark`, shared with the web's `Logo`).
 - **Old addresses.** `/simple/...` links go where the web sends them
   (`lib/laneRedirect.ts`) and on to the phone's screen (`lib/linkRoutes.ts
 PAGE_ROUTES`): home to the inbox, approvals to `/decisions`, routines to

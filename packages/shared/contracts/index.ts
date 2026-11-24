@@ -72,12 +72,7 @@ export * from "./githubAppInstallState";
 export * from "./inboxProjection";
 export * from "./appSurfaces";
 export * from "./conversationFields";
-// The `--on <event>` vocabulary: which events a trigger can wait for, the
-// filter each name arms, and the labels the web renders. Shared because the
-// CLI and the two web trigger pages each held a copy, and they had drifted.
-export * from "./triggerEvents";
 export * from "./fence";
-export * from "./triggerPrecheck";
 export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
 // `cast org init` decisions carry). It sits off the CLI boot graph on purpose

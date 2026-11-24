@@ -3,7 +3,7 @@ import {
   isPlanWriteToolCall,
   summarizeToolGroup,
   type ToolCallLike,
-} from "@codecast/shared/render";
+} from "@codecast/render/toolCall";
 import { isSayToolCall } from "@codecast/web/components/conversation/classify";
 
 /**

@@ -11,7 +11,7 @@ import {
   type PlanSpec as PlatformPlanSpec,
 } from "@platform/assistant/plans";
 import { CHEAP_MODEL } from "./modelOptions";
-import { APPROVAL_ANSWERS } from "./approvalAnswers";
+import { APPROVAL_ANSWERS } from "@codecast/decisions/approvalAnswers";
 
 /** `conversations.agent_type` of a hosted conversation: a Convex action runs
  *  its turns, and no device ever claims it. The registry entry is

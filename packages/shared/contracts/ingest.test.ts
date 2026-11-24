@@ -21,7 +21,7 @@ import {
   INGEST_TRIGGER_EVENTS,
   TRIGGER_EVENT_LABELS,
   TRIGGER_EVENT_SHORTHANDS,
-} from "./triggerEvents";
+} from "@codecast/triggers/triggerEvents";
 import { SIGNAL_KINDS } from "./signalFingerprint";
 
 const NOW = Date.UTC(2026, 9, 3, 12);
