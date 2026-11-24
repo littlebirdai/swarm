@@ -10,7 +10,7 @@ import {
   segmentTopOf,
   type FlowEdgeIn,
   type FlowNodeIn,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 import { globMatch } from "@codecast/shared/contracts/deployTargets";
 import type { PipelineFlow, PipelineStation } from "./pipelineTypes";
 

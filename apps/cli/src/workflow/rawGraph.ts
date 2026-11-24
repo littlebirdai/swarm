@@ -2,7 +2,7 @@
 // it yields, and the small readers parser.ts and variantEdits.ts share. Nothing here resolves a base or a segment.
 import * as path from "path";
 import type { WorkflowNode, WorkflowEdge, NodeShape, NodeType } from "./types";
-import type { FlowEditChange } from "@codecast/shared/contracts/flowEdit";
+import type { FlowEditChange } from "@codecast/flows/flowEdit";
 
 // --- Tokenizer ---
 

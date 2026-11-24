@@ -8,7 +8,7 @@
 // capped list of the items behind each number, so the chart opens every count
 // with no query of its own. Pure.
 import { quietWatchEnd } from "./flowMap";
-import { segmentTopOf } from "./flowPool";
+import { segmentTopOf } from "@codecast/flows/flowPool";
 import { clearsBar, type FlowBar } from "./linePriority";
 import {
   endedFailing,

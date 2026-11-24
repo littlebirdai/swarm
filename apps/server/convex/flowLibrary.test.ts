@@ -11,7 +11,7 @@ import {
   publishableFlowSource,
   flowGraphAttr,
   flowBase,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 
 const api = anyApi as any;
 const TOKEN = "f".repeat(64);

@@ -30,6 +30,7 @@
     "@codecast/docs": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/files": "workspace:*",
+    "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/memory": "workspace:*",

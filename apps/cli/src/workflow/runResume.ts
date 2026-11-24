@@ -10,7 +10,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { codecastPath } from "../codecastDir.js";
 import { isPidAlive } from "../workspace/chrome.js";
-import { tookPastStart } from "@codecast/shared/contracts/runStart";
+import { tookPastStart } from "@codecast/flows/runStart";
 import type { NodeOutcome, WorkflowGraph, WorkflowRunState } from "./types";
 
 // ─── The runner's claim on a run ──────────────────────────

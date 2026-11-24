@@ -4,7 +4,7 @@
 // (`line_workflow_slug`, the shipped one when unset), its intake the projects
 // the role leads, its switch the role's start switch, and its decider the
 // person the role's reporting line ends at.
-import { lineSlugOf } from "@codecast/shared/contracts/lineSlug";
+import { lineSlugOf } from "@codecast/flows/lineSlug";
 import type { OrgRole } from "../../components/org/orgTypes";
 import type { LineAdmission } from "../lineFlow";
 

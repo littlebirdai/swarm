@@ -7,7 +7,7 @@
 // lib/line/flowEditCard.ts; the phone draws the same one.
 import { memo, useContext, useMemo, useState } from "react";
 import Link from "next/link";
-import type { FlowEdit } from "@codecast/shared/contracts/flowEdit";
+import type { FlowEdit } from "@codecast/flows/flowEdit";
 import { FlowDiagram } from "./FlowDiagram";
 import { InlineDiff } from "../../InlineDiff";
 import { JourneyView } from "../../ship/Journey";

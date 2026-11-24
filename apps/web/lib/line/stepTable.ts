@@ -8,10 +8,7 @@
 // decisions are "No answer", counted apart from what is red.
 // Also the run facts every step page reads: why each run that failed at a step
 // failed, and which of them only stopped needing a person's yes. Pure.
-import {
-  LINE_PHASES,
-  PHASE_ORDER,
-} from "@codecast/shared/contracts/linePhases";
+import { LINE_PHASES, PHASE_ORDER } from "@codecast/flows/linePhases";
 import { LANDING_STATIONS, failCause } from "./runReport";
 import { stoppedNeedingYes } from "./lineNeeds";
 import {
@@ -26,7 +23,7 @@ import {
   type WorkRow,
 } from "./stepWork";
 import type { LineModel, LineRunModel, StepKind } from "./lineModel";
-import type { LinePhaseKey } from "@codecast/shared/contracts/linePhases";
+import type { LinePhaseKey } from "@codecast/flows/linePhases";
 
 export type StepRunFacts = {
   causes: Map<string, WorkCause>;

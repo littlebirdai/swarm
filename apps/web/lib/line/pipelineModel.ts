@@ -6,7 +6,7 @@
 // and how many changes stand on it now. The pipeline is config; what is on it
 // now joins the store's runs and deploys here, at read time. Pure: no store,
 // no React, so the phone can draw the same model.
-import { foldFlow, segmentTopOf } from "@codecast/shared/contracts/flowPool";
+import { foldFlow, segmentTopOf } from "@codecast/flows/flowPool";
 import {
   LINE_DEPLOY_STEP_LABELS,
   type LineDeployStep,

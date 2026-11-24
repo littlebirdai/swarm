@@ -10,8 +10,8 @@ import {
   publishableFlowSource,
   sourceTakesSessionChange,
   withGraphAttrs,
-} from "./flowPool";
-import { flowEditWords, type FlowEditChange } from "./flowEdit";
+} from "../src/flowPool";
+import { flowEditWords, type FlowEditChange } from "../src/flowEdit";
 
 test("withGraphAttrs sets and drops graph attributes, quotes and the rest of the source kept", () => {
   const src = `digraph x {\n  graph [kind="line", label="A, b ] c", takes="task", draft="imported", goal="$task_title"]\n  a [label="x"]\n}\n`;

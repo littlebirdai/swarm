@@ -9,10 +9,7 @@
 // the runner, a separate process, parses exactly the graph validated here.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import {
-  withGraphAttrs,
-  flowGraphAttr,
-} from "@codecast/shared/contracts/flowPool";
+import { withGraphAttrs, flowGraphAttr } from "@codecast/flows/flowPool";
 import { spawnSync } from "../proc.js";
 import type { PoolFlow } from "./flowPool.js";
 

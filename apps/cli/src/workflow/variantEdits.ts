@@ -1,11 +1,8 @@
 // A variant's edits (docs/architecture/pipeline.md PL3) written as the edges they mean, so a flow written with
 // after=, skip or when= builds and hashes exactly as the same flow written out by hand. parser.ts inherit() calls
 // variantEdits on each base-plus-variant merge, expands segments, then applyOverrides and withGuides.
-import { SEGMENT_SEP, passScore } from "@codecast/shared/contracts/flowPool";
-import {
-  whenPaths,
-  type FlowEditChange,
-} from "@codecast/shared/contracts/flowEdit";
+import { SEGMENT_SEP, passScore } from "@codecast/flows/flowPool";
+import { whenPaths, type FlowEditChange } from "@codecast/flows/flowEdit";
 import {
   inlineRef,
   mentionsFailure,

@@ -4,7 +4,7 @@
 // order of PRECEDENCE; the phrase is the row's one statement of state. Pure:
 // the caller hands in what the store knows about each problem (its need, its
 // failure, its task row), so the reading of a need has one home (lineNeeds).
-import type { LinePhaseKey } from "@codecast/shared/contracts/linePhases";
+import type { LinePhaseKey } from "@codecast/flows/linePhases";
 import { ageShort, type LineCauseTask } from "../lineFlow";
 import type { CauseHistory } from "./causeHistory";
 import type { LineIssue } from "./lineModel";

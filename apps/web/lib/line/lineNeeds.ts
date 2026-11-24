@@ -27,7 +27,7 @@
 // do (Union's escalations) is the team's, not the viewer's: the Escalation finder's Team asks list holds it (teamAsks).
 // Pure.
 import type { UnlandedFix } from "./approvedFix";
-import { PHASE_ORDER, guessPhase } from "@codecast/shared/contracts/linePhases";
+import { PHASE_ORDER, guessPhase } from "@codecast/flows/linePhases";
 import { stepLabel, type FailCause, type StepAdvice } from "./runReport";
 import { STAGE_WORDS } from "./stageTrack";
 import {

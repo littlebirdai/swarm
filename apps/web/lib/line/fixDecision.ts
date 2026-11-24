@@ -5,7 +5,7 @@
 // the two store homes a fix decision can sit in: sessionDecisions (the viewer's
 // own queue, the full row) and lineCards (every line card in the workspace,
 // a slim row). Pure, so a test reads it.
-import { PHASE_ORDER, guessPhase } from "@codecast/shared/contracts/linePhases";
+import { PHASE_ORDER, guessPhase } from "@codecast/flows/linePhases";
 
 export type FixDecisionRow = {
   _id: string;

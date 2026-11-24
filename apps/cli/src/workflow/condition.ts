@@ -27,7 +27,7 @@
 // context value that is non-empty and not "false" or "0".
 
 import { lastJsonBlock } from "@codecast/shared/contracts";
-import { whenPaths } from "@codecast/shared/contracts/flowEdit";
+import { whenPaths } from "@codecast/flows/flowEdit";
 
 type Token =
   | { kind: "op"; value: string }

@@ -21,8 +21,12 @@ import { INITIATIVE_METRICS_MAX, INITIATIVE_RECORD_MAX } from "./initiative";
 import { metricWindowNoiseError } from "./metricStanding";
 import { everyWords } from "./rolePlaybook";
 export { everyWords } from "./rolePlaybook";
-import { DEFAULT_LINE_SLUG, LINE_SLUG_RE } from "./lineSlug";
-export { DEFAULT_LINE_SLUG, LINE_SLUG_RE, lineSlugOf } from "./lineSlug";
+import { DEFAULT_LINE_SLUG, LINE_SLUG_RE } from "@codecast/flows/lineSlug";
+export {
+  DEFAULT_LINE_SLUG,
+  LINE_SLUG_RE,
+  lineSlugOf,
+} from "@codecast/flows/lineSlug";
 import { andList } from "./orgProposalReply";
 export {
   andList,

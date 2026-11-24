@@ -21,16 +21,18 @@ import {
   isAvatarKey,
 } from "@codecast/shared/contracts/orgAvatars";
 import {
-  DEFAULT_LINE_SLUG,
-  LINE_SLUG_RE,
   andList,
-  lineSlugOf,
   orgAuthorityGrantsError,
   authorityWords,
   orgEveryToMs,
   orgTenureError,
   type OrgAuthorityGrant,
 } from "@codecast/shared/contracts/orgProposal";
+import {
+  DEFAULT_LINE_SLUG,
+  LINE_SLUG_RE,
+  lineSlugOf,
+} from "@codecast/flows/lineSlug";
 import {
   WAKE_TUNE,
   briefBudget,

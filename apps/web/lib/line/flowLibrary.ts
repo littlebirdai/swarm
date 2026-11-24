@@ -4,10 +4,7 @@
 // segments flows are built from as a shelf. A variant names its base with
 // `extends="<file>.cast"` in its graph (a file-pushed variant) or the row's
 // `variant_of` (a flow saved from a session). Pure: no store, no React.
-import {
-  flowGraphAttr,
-  segmentTopOf,
-} from "@codecast/shared/contracts/flowPool";
+import { flowGraphAttr, segmentTopOf } from "@codecast/flows/flowPool";
 import { pushedFlow, type AppFlow, type PushedFlowRow } from "./flowPool";
 
 /** A workflows row as the library reads it: the pool's fields, and what a variant's changes are read from. */

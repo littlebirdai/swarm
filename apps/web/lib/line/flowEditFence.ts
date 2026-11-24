@@ -1,7 +1,7 @@
 // An edit object read out of where it travels (docs/architecture/pipeline.md PL5): a ```flow {"edit": ...} fence body,
 // or what `cast flow edit` printed (the fence, with its diff above it, or `--json`). A leaf: the fence reader
 // (flowFence) and the tool card import it without the drawing's model (flowEditCard), whose imports reach lineModel.
-import type { FlowEdit } from "@codecast/shared/contracts/flowEdit";
+import type { FlowEdit } from "@codecast/flows/flowEdit";
 import { stripAnsi } from "./flowCommandOutput";
 
 /** The edit a `cast flow edit` printed, and the diff it printed above it (`--json` carries both as fields). */

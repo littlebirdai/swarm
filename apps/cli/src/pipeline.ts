@@ -6,7 +6,7 @@
 // `cast flow pipeline` prints it; every deploy targets publish sends it.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { foldFlow, segmentTopOf } from "@codecast/shared/contracts/flowPool";
+import { foldFlow, segmentTopOf } from "@codecast/flows/flowPool";
 import {
   deployStepCommand,
   LINE_DEPLOY_GRAPH,
@@ -30,7 +30,7 @@ import {
   type PipelineWho,
 } from "@codecast/shared/contracts/pipeline";
 import type { DeployTarget } from "@codecast/shared/contracts/deployTargets";
-import type { FlowEditChange } from "@codecast/shared/contracts/flowEdit";
+import type { FlowEditChange } from "@codecast/flows/flowEdit";
 import { targetDeployProfile } from "./lineDeploy.js";
 import { spawnSync } from "./proc.js";
 import { variantChanges } from "./flowLibrary.js";

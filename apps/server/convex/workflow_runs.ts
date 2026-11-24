@@ -32,8 +32,8 @@ import {
   mergeLeft,
   type ChangeCard,
 } from "@codecast/shared/contracts/changeCard";
-import { tookPastStart } from "@codecast/shared/contracts/runStart";
-import { sourceTakesSessionChange } from "@codecast/shared/contracts/flowPool";
+import { tookPastStart } from "@codecast/flows/runStart";
+import { sourceTakesSessionChange } from "@codecast/flows/flowPool";
 import { isTerminalTaskStatus } from "@codecast/shared/tasks";
 import {
   canAccessConversation,

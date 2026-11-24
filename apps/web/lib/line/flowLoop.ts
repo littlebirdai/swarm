@@ -6,7 +6,7 @@
 // Loop view draws it from the flow map, the runs, the deploys and the flows
 // the roles own.
 import type { FlowMap } from "@codecast/shared/contracts/flowMap";
-import { segmentTopOf } from "@codecast/shared/contracts/flowPool";
+import { segmentTopOf } from "@codecast/flows/flowPool";
 import type { AppFlow } from "./flowPool";
 import type { OwnedFlow } from "./ownedFlows";
 

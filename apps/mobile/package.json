@@ -25,6 +25,7 @@
     "@codecast/convex-errors": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",
+    "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/pages": "workspace:*",

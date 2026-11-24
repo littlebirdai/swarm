@@ -8,7 +8,7 @@
 // on the viewer (lineNeeds), which runs failed or went silent (the Inbox's
 // rows), each task's readiness, and whether its project's line is on.
 import { useMemo, useRef } from "react";
-import type { LinePhaseKey } from "@codecast/shared/contracts/linePhases";
+import type { LinePhaseKey } from "@codecast/flows/linePhases";
 import type { LineCauseTask } from "../../../../../lib/lineFlow";
 import type { LineIssue, LineModel } from "../../../../../lib/line/lineModel";
 import type { MapRun } from "../../../../../lib/line/lineMap";

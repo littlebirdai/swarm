@@ -10,13 +10,13 @@ import {
   flowEditWords,
   type FlowEdit,
   type FlowEditChange,
-} from "@codecast/shared/contracts/flowEdit";
+} from "@codecast/flows/flowEdit";
 import {
   foldFlow,
   segmentTopOf,
   type FlowEdgeIn,
   type FlowNodeIn,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 import {
   flowDiagram,
   type DiagramStep,

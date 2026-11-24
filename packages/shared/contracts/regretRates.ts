@@ -2,7 +2,7 @@
 // Pure: the convex query gathers the rows, this counts them, and the role
 // settings and the Flows page read the same answer.
 
-import { guessPhase } from "./linePhases";
+import { guessPhase } from "@codecast/flows/linePhases";
 import { stationWords } from "./flowMap";
 
 /** The window when no traced link says otherwise; the measured one replaces it (windowFromLags). */

@@ -132,6 +132,6 @@ loses nothing it uses, and Graviton costs less for the same memory.
 ## Placement
 
 A launch parks for laptop placement only on a machine some laptop manages
-(`cloud_host` report). `cloudHostManaged` in contracts/cloudPlacement.ts is the
+(`cloud_host` report). `cloudHostManaged` in packages/cloud-hosts/src/cloudPlacement.ts is the
 one predicate; the composer and the server both call it. Every other remote
 machine, a team machine's member devices included, gets a plain start.

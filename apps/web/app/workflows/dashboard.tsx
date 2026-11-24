@@ -1,6 +1,6 @@
 "use client";
 
-import { flowName } from "@codecast/shared/contracts/flowPool";
+import { flowName } from "@codecast/flows/flowPool";
 import Link from "next/link";
 import { useDynamicRuns } from "../../hooks/useSyncWorkflows";
 import { api as _api } from "@codecast/convex/convex/_generated/api";

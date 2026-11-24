@@ -4,7 +4,7 @@
 // `cast org feed` prints for every kind, run rows included. Everything here
 // is a pure formatter over the rows the server returns; index.ts fetches and
 // prints.
-import { flowName } from "@codecast/shared/contracts/flowPool";
+import { flowName } from "@codecast/flows/flowPool";
 import { c } from "./colors.js";
 import {
   decisionHandle,

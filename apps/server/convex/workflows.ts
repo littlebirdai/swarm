@@ -5,8 +5,8 @@ import { ConvexError, v } from "convex/values";
 import { verifyApiToken } from "./apiTokens";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { LINE_SLUG_RE } from "@codecast/shared/contracts/orgProposal";
-import { publishableFlowSource } from "@codecast/shared/contracts/flowPool";
+import { LINE_SLUG_RE } from "@codecast/flows/lineSlug";
+import { publishableFlowSource } from "@codecast/flows/flowPool";
 import { createDataContext } from "./data";
 import { computeWorkspaceKey, isTeamMember } from "./lib/access";
 import {

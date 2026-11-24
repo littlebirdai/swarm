@@ -34,6 +34,7 @@
     "@codecast/docs": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/files": "workspace:*",
+    "@codecast/flows": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/memory": "workspace:*",
     "@codecast/mods": "workspace:*",

@@ -23,6 +23,7 @@
     "@codecast/daemon": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/network": "workspace:*",

@@ -33,7 +33,7 @@ import {
   flowRunState,
   type FlowRunTone,
 } from "@codecast/web/lib/line/flowFence";
-import { takesSessionChange } from "@codecast/shared/contracts/flowPool";
+import { takesSessionChange } from "@codecast/flows/flowPool";
 import {
   gateWaitWords,
   holdWords,
@@ -47,7 +47,7 @@ import {
   type JourneyWait,
   type StageState,
 } from "@codecast/web/lib/ship/journey";
-import type { FlowEdit } from "@codecast/shared/contracts/flowEdit";
+import type { FlowEdit } from "@codecast/flows/flowEdit";
 import {
   asGitDiff,
   editDrawing,

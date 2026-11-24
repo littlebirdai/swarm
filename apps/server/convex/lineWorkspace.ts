@@ -49,7 +49,7 @@ import {
   guessPhase,
   halfOfPhase,
   phaseOfStation,
-} from "@codecast/shared/contracts/linePhases";
+} from "@codecast/flows/linePhases";
 import { verifyApiToken } from "./apiTokens";
 import { projectDeployViews } from "./deploys";
 import { labelFinding } from "./judgeReview";

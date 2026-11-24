@@ -1,4 +1,4 @@
-import type { FlowEditChange } from "@codecast/shared/contracts/flowEdit";
+import type { FlowEditChange } from "@codecast/flows/flowEdit";
 export type NodeShape =
   | "Mdiamond" // start
   | "Msquare" // exit

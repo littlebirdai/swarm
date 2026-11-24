@@ -8,7 +8,7 @@ import {
   endedFailing,
   endedUnmerged,
 } from "@codecast/shared/contracts/changeCard";
-import { tookPastStart } from "@codecast/shared/contracts/runStart";
+import { tookPastStart } from "@codecast/flows/runStart";
 import { mutation } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";

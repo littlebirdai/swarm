@@ -1,5 +1,5 @@
 import { useRunWorkflow, useWorkflowRun } from "../hooks/useSyncWorkflows";
-import { flowName } from "@codecast/shared/contracts/flowPool";
+import { flowName } from "@codecast/flows/flowPool";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import Link from "next/link";
 import { useState } from "react";

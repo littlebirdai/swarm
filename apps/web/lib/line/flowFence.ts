@@ -1,7 +1,7 @@
 // The `flow` fenced block's spec, and a flow run's state in words
 // (docs/architecture/flows.md FL6). Pure: components/line/widgets/FlowFence draws it.
-import { segmentTopOf } from "@codecast/shared/contracts/flowPool";
-import type { FlowEdit } from "@codecast/shared/contracts/flowEdit";
+import { segmentTopOf } from "@codecast/flows/flowPool";
+import type { FlowEdit } from "@codecast/flows/flowEdit";
 import type { ShippedFlow } from "./flowPool";
 import { asEdit } from "./flowEditFence";
 

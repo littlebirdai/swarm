@@ -17,7 +17,7 @@ import {
   flowNodeAttrOf,
   foldFlow,
   type FlowNodeIn,
-} from "../../../packages/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 import { readDeployTargets } from "../../../apps/cli/src/workspace/deployTargetsFile";
 import { shipSpec } from "../../../apps/cli/src/land/shipCheckout";
 import {

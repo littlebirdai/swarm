@@ -17,13 +17,13 @@ import {
   type FlowEdgeIn,
   type FlowNodeIn,
   type PoolFlowSummary,
-} from "@codecast/shared/contracts/flowPool";
-import type { RepoFlow } from "@codecast/shared/contracts/repoFlows";
+} from "@codecast/flows/flowPool";
+import type { RepoFlow } from "@codecast/flows/repoFlows";
 import { SHIPPED_FLOWS } from "./shippedFlows.generated";
 import {
   DEFAULT_LINE_SLUG,
   DEFAULT_STEPS_LABEL,
-} from "@codecast/shared/contracts/lineSlug";
+} from "@codecast/flows/lineSlug";
 import {
   stationsOfNodes,
   type FlowStations,

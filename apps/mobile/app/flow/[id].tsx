@@ -55,10 +55,7 @@ import { useSyncTeamShipFeeds } from "@codecast/web/hooks/useSessionShipState";
 import { useActiveWorkspaceKey } from "@codecast/web/hooks/useWorkspaceCollection";
 import { compactAge } from "@codecast/web/lib/threadState";
 import { flowBySlug, type AppFlow } from "@codecast/web/lib/line/flowPool";
-import {
-  defaultFlowOf,
-  takesSessionChange,
-} from "@codecast/shared/contracts/flowPool";
+import { defaultFlowOf, takesSessionChange } from "@codecast/flows/flowPool";
 import {
   changesAnything,
   libraryEntry,

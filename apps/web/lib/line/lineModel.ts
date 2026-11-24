@@ -127,7 +127,7 @@ import {
   type CloseKind,
   type RunSaid,
 } from "@codecast/shared/contracts/causeHistory";
-import { halfOfPhase } from "@codecast/shared/contracts/linePhases";
+import { halfOfPhase } from "@codecast/flows/linePhases";
 import type { LabelVerdict } from "./lineLabels";
 import { isEmptyFinding, repeatedFindings } from "./findingEvidence";
 import { faultsNaming, stepFaults, type LineFault } from "./lineFaults";

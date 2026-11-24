@@ -8,11 +8,8 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileAsync } from "../proc.js";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
-import type {
-  RepoFlow,
-  RepoFlowsReport,
-} from "@codecast/shared/contracts/repoFlows";
-import { flowGraphAttr } from "@codecast/shared/contracts/flowPool";
+import type { RepoFlow, RepoFlowsReport } from "@codecast/flows/repoFlows";
+import { flowGraphAttr } from "@codecast/flows/flowPool";
 import { repoFlowsDir } from "./flowPool.js";
 import { flowSnapshot } from "./shippedFlows.js";
 
