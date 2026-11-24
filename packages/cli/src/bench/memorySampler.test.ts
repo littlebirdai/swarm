@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { spawn } from "../proc.js";
 import { sampleDaemonMemory } from "./memorySampler.js";
 
-test.skipIf(process.platform !== "darwin" && process.platform !== "linux")(
+test.skipIf(process.platform === "win32")(
   "samples RSS for live PIDs from the daemon inventory and identifies their agent binary",
   async () => {
     const dir = await mkdtemp(join(tmpdir(), "bench-rss-"));
@@ -41,14 +41,16 @@ test.skipIf(process.platform !== "darwin" && process.platform !== "linux")(
   },
 );
 
-test.skipIf(process.platform !== "darwin" && process.platform !== "linux")(
+test.skipIf(process.platform === "win32")(
   "keeps agent RSS when ps prints more than a megabyte of argv",
   async () => {
     const dir = await mkdtemp(join(tmpdir(), "bench-rss-big-"));
     const entry = join(dir, "codex");
     await writeFile(entry, 'console.log("ready"); setInterval(() => {}, 1000);');
-    const prompt = "x".repeat(400 * 1024);
-    const children = [0, 1, 2].map(() => spawn(process.execPath, [entry, prompt], { stdio: ["ignore", "pipe", "ignore"] }));
+    // Linux caps one argument at 128 KiB (MAX_ARG_STRLEN), so the 400 KiB of argv
+    // each child carries is split across four arguments.
+    const prompt = Array.from({ length: 4 }, () => "x".repeat(100 * 1024));
+    const children = [0, 1, 2].map(() => spawn(process.execPath, [entry, ...prompt], { stdio: ["ignore", "pipe", "ignore"] }));
     const closed = children.map(child => new Promise(resolve => child.once("close", resolve)));
     const server = Bun.serve({
       hostname: "127.0.0.1",
