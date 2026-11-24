@@ -19,6 +19,7 @@
     "@codecast/comments": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/hash": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",

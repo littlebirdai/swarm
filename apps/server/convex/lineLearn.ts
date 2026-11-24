@@ -16,7 +16,7 @@ import {
   verdictLabel,
   verdictOfOption,
 } from "@codecast/shared/contracts/changeCard";
-import { fnv1a32 } from "@codecast/shared/contracts";
+import { fnv1a32 } from "@codecast/hash/fnv1a32";
 
 type Answer = { status: string; answer_index?: number; answer_text?: string };
 

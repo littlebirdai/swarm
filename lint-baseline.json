@@ -29339,7 +29339,7 @@
     "swarm/no-comments": 53
   },
   "packages/shared/contracts/inboxProjection.golden.test.ts": {
-    "swarm/no-comments": 88
+    "swarm/no-comments": 86
   },
   "packages/shared/contracts/inboxProjection.property.test.ts": {
     "swarm/no-comments": 18
@@ -29354,7 +29354,7 @@
     "swarm/no-comments": 26
   },
   "packages/shared/contracts/inboxProjection.ts": {
-    "swarm/no-comments": 633
+    "swarm/no-comments": 627
   },
   "packages/shared/contracts/inboxSplit.test.ts": {
     "swarm/no-comments": 2

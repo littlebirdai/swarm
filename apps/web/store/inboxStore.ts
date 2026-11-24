@@ -272,6 +272,7 @@ import {
 // The shared inbox projection (docs/architecture/sync-convergence.md): the
 // working-set selection, fold, fact/stamp field ownership, and the epoch clock.
 // Membership on this replica is the SAME selection the server scan runs.
+import { FNV1A32_OFFSET, fnv1a32Update } from "@codecast/hash/fnv1a32";
 import {
   INBOX_FACT_FIELDS,
   INBOX_PROJECTION_FIELDS,
@@ -295,8 +296,6 @@ import {
   isHardBlocked,
   rowArmedHomes,
   DEAD_AGENT_STATUSES,
-  fnv1a32Update,
-  FNV1A32_OFFSET,
   WORKING_SET_RECENCY_MS,
   isSessionUnread,
   guestIdentity,

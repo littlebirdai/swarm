@@ -5,6 +5,7 @@
 //
 // PURE isomorphic code: no Node or DOM APIs, no BigInt, so the Convex runtime,
 // the daemon, the browser and React Native all run the same bytes.
+import { fnv1a32 } from "@codecast/hash/fnv1a32";
 import {
   ACTIVE_AGENT_STATUSES,
   AGENT_IDLE_GRACE_MS,
@@ -746,26 +747,6 @@ export function computeBucketStale(
 }
 
 // ── Digest ───────────────────────────────────────────────────────────────────
-
-// FNV-1a 32 over the string's UTF-16 code units. Ids and bucket names are
-// ASCII, so this equals the byte form; defined over code units so every runtime
-// hashes identically without an encoder.
-export const FNV1A32_OFFSET = 0x811c9dc5;
-
-// One step of the hash: fold `s` into a running state `h`. Callers that hash a
-// stream of tags (the store's deadline signature) use this instead of
-// concatenating a whole-set string.
-export function fnv1a32Update(h: number, s: string): number {
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h >>> 0;
-}
-
-export function fnv1a32(s: string): number {
-  return fnv1a32Update(FNV1A32_OFFSET, s);
-}
 
 function hex8(n: number): string {
   return (n >>> 0).toString(16).padStart(8, "0");

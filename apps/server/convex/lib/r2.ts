@@ -29,7 +29,8 @@
 // alone for the same reason it leaves the call records: a call belongs to
 // its team, not to whoever was in it.
 
-import { fnv1a32, type CallRecordingKind } from "@codecast/shared/contracts";
+import { fnv1a32 } from "@codecast/hash/fnv1a32";
+import { type CallRecordingKind } from "@codecast/shared/contracts";
 import { presignUrl } from "./awsSigV4";
 
 export type R2Bucket = {

@@ -5,7 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useCallback } from "react";
-import { fnv1a32 } from "@codecast/shared/contracts";
+import { fnv1a32 } from "@codecast/hash/fnv1a32";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useSyncCollection } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";

@@ -2,7 +2,7 @@
 // (docs/proposals/changes-page.md 7.2). Convex's default runtime has no node
 // crypto, so both ride two 32-bit lanes for a 64-bit value: the FNV-1a the
 // inbox digest already uses, and a multiply-xorshift lane beside it.
-import { fnv1a32Update, FNV1A32_OFFSET } from "../contracts/inboxProjection";
+import { fnv1a32Update, FNV1A32_OFFSET } from "@codecast/hash/fnv1a32";
 
 /**
  * FNV-1a's multiply only carries upward, so its low bits are fixed by the

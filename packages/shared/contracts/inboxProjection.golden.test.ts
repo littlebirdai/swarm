@@ -6,7 +6,6 @@ import {
   INBOX_PROJECTION_VERSION,
   INBOX_WINDOW_CAPS,
   digestProjection,
-  fnv1a32,
   inboxSortTimeOfRow,
   projectInbox,
   type InboxBucket,
@@ -353,13 +352,5 @@ describe("inbox projection golden fixtures", () => {
     expect(Math.max(...Object.keys(GOLDEN_HASH_BY_VERSION).map(Number))).toBe(
       INBOX_PROJECTION_VERSION,
     );
-  });
-
-  it("fnv1a32 is the reference FNV-1a over UTF-16 code units", () => {
-    // Reference vectors (ASCII == code units): the empty string, "a", and a
-    // long-enough phrase to exercise the multiply carry.
-    expect(fnv1a32("")).toBe(0x811c9dc5);
-    expect(fnv1a32("a")).toBe(0xe40c292c);
-    expect(fnv1a32("hello world")).toBe(0xd58b3fa7);
   });
 });
