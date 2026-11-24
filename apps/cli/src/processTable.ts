@@ -36,8 +36,7 @@ export type ProcRow = {
   pid: number;
   ppid: number;
   uid?: number;
-  /** Process group id. Part of the identity because a survivor that kept its
-   *  pid but joined a new group is a different process. */
+  /** Process group id. */
   pgid?: number;
   /** `ps lstart` with runs of spaces collapsed ("Tue Aug 25 05:04:18 2026").
    *  Compared verbatim, so a locale-dependent parse never decides a kill. */
@@ -775,13 +774,7 @@ export function bornBeforeCaptureSecond(row: ProcRow): boolean {
   return startedAtMs < Math.floor(row.capturedAtMs / 1_000) * 1_000;
 }
 
-/**
- * Is the process at `snapshot.pid` right now still the one we snapshotted?
- *
- * Pid, start time and process group must all agree, and the snapshot's start
- * time must be older than its capture second. Anything missing fails closed:
- * a table without the identity columns cannot license a SIGKILL.
- */
+/** Is the process at `snapshot.pid` right now still the one we snapshotted? */
 export function sameProcess(
   snapshot: ProcRow,
   live: ProcRow | null | undefined,
@@ -789,7 +782,11 @@ export function sameProcess(
   if (!live || live.pid !== snapshot.pid) return false;
   if (!snapshot.startedAt || snapshot.startedAt !== live.startedAt)
     return false;
-  if (snapshot.pgid === undefined || snapshot.pgid !== live.pgid) return false;
+  if (
+    snapshot.pgid === undefined ||
+    (live.pgid !== snapshot.pgid && live.pgid !== live.pid)
+  )
+    return false;
   return bornBeforeCaptureSecond(snapshot);
 }
 

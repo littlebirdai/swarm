@@ -105,7 +105,49 @@ function nastyStation(
   return { node, pids, started };
 }
 
+function stationThatDetachesOnTerm(): WorkflowNode {
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), "station-procs-"));
+  return {
+    id: "detach",
+    type: "command",
+    script: `perl -MPOSIX -e '
+      $SIG{TERM} = sub {
+        $SIG{TERM} = "IGNORE";
+        POSIX::setsid() >= 0 or die $!;
+        rename("ready", "detached") or die $!;
+      };
+      open(my $f, ">", "starting") or die $!;
+      print $f getpid();
+      close($f);
+      rename("starting", "ready") or die $!;
+      while (1) { sleep 600 }
+    ' & wait`,
+    timeout: 600,
+  } as WorkflowNode;
+}
+
 describe("a station that will not end on its own", () => {
+  test("ends a station child that creates its own session during cancellation", async () => {
+    const node = stationThatDetachesOnTerm();
+    const ready = path.join(tmp, "ready");
+    const detached = path.join(tmp, "detached");
+    const ctx: Record<string, string> = {};
+    const ended = async () => {
+      if (!fs.existsSync(ready)) return false;
+      strays.push(Number(fs.readFileSync(ready, "utf-8")));
+      return true;
+    };
+    expect(
+      await executeCommand(node, ctx, tmp, { ended, everyMs: 100, graceMs }),
+    ).toBe("failure");
+    expect(ctx["detach.output"]).toContain("stopped: the run ended");
+    expect(fs.existsSync(detached)).toBe(true);
+    await pollUntil(
+      async () => (await stillRunning(strays)).length === 0,
+      "the detached child ending",
+    );
+  }, 60_000);
+
   test("is gone entirely after its timeout, setsid and TERM-ignoring children included, and the run moves on", async () => {
     const { node, started } = nastyStation("slow", { timeout: 2 });
     const ctx: Record<string, string> = {};
@@ -189,25 +231,8 @@ describe("a station whose runner goes", () => {
   }, 60_000);
 
   test("ends a station child that creates its own session after TERM", async () => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "station-procs-"));
+    const node = stationThatDetachesOnTerm();
     const ready = path.join(tmp, "ready");
-    const node = {
-      id: "detach",
-      type: "command",
-      script: `perl -MPOSIX -e '
-        $SIG{TERM} = sub {
-          $SIG{TERM} = "IGNORE";
-          POSIX::setsid() >= 0 or die $!;
-          rename("ready", "detached") or die $!;
-        };
-        open(my $f, ">", "starting") or die $!;
-        print $f getpid();
-        close($f);
-        rename("starting", "ready") or die $!;
-        while (1) { sleep 600 }
-      ' & wait`,
-      timeout: 600,
-    } as WorkflowNode;
     const runner = runnerScript(node);
     try {
       await pollUntil(() => fs.existsSync(ready), "the station child starting");
@@ -229,25 +254,33 @@ describe("a station whose runner goes", () => {
     }
   }, 60_000);
 
-  test("leaves a pid alone once it names another process, and KILLs it while it is the same one", async () => {
-    const proc = Bun.spawn(["sleep", "600"], {
-      stdout: "ignore",
-      stderr: "ignore",
-    });
-    strays.push(proc.pid);
-    await new Promise((r) => setTimeout(r, 1_100));
-    const row = snapshotProcessTable().find((p) => p.pid === proc.pid)!;
-    const killIfSame = (identity: string) =>
-      Bun.spawnSync(
-        ["sh", "-c", KILL_IF_SAME, "sh", "0", String(proc.pid), identity],
-        { env: { ...process.env, LANG: "C", LC_ALL: "C" } },
-      );
-    killIfSame(`${row.pgid} Thu Jan  1 00:00:00 1970`.replace(/\s+/g, " "));
-    killIfSame(`${Number(row.pgid) + 1} ${row.startedAt}`);
-    expect(alive(proc.pid)).toBe(true);
-    killIfSame(`${row.pgid} ${row.startedAt}`);
-    expect(await proc.exited).toBe(137);
-  });
+  test.each([false, true])(
+    "checks the start time before KILL (detached=%s)",
+    async (detached) => {
+      const proc = Bun.spawn(["sleep", "600"], {
+        detached,
+        stdout: "ignore",
+        stderr: "ignore",
+      });
+      strays.push(proc.pid);
+      const row = snapshotProcessTable().find((p) => p.pid === proc.pid)!;
+      expect(row.pgid === row.pid).toBe(detached);
+      const killIfSame = (identity: string) =>
+        Bun.spawnSync(
+          ["sh", "-c", KILL_IF_SAME, "sh", "0", String(proc.pid), identity],
+          { env: { ...process.env, LANG: "C", LC_ALL: "C" } },
+        );
+      const oldGroup = Number(row.pgid) + 1;
+      killIfSame(`${detached ? oldGroup : row.pgid} Thu Jan 1 00:00:00 1970`);
+      expect(alive(proc.pid)).toBe(true);
+      if (!detached) {
+        killIfSame(`${oldGroup} ${row.startedAt}`);
+        expect(alive(proc.pid)).toBe(true);
+      }
+      killIfSame(`${detached ? oldGroup : row.pgid} ${row.startedAt}`);
+      expect(await proc.exited).toBe(137);
+    },
+  );
 
   test("ends at the next station any runner starts when its runner was SIGKILLed", async () => {
     const { node, started } = nastyStation("killed");
