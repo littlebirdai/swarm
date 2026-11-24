@@ -1,0 +1,21 @@
+{
+  "request": {
+    "v": 1,
+    "machine": "machine-laptop",
+    "boot": "boot-1"
+  },
+  "response": {
+    "v": 1,
+    "status": "command",
+    "command_id": "command-1",
+    "name": "kill_session",
+    "args": {
+      "session": "session-1"
+    },
+    "claim": {
+      "session": "session-1",
+      "run": 3,
+      "fencing_token": "claim-token-1"
+    }
+  }
+}

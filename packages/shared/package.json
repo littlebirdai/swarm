@@ -4,7 +4,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.contracts.json"
   },
   "main": "./index.ts",
   "types": "./index.ts",
@@ -12,6 +13,7 @@
     ".": "./index.ts",
     "./network": "./network/index.ts",
     "./contracts": "./contracts/index.ts",
+    "./contracts/edge/v1": "./contracts/edge/v1/index.ts",
     "./contracts/agentAccess": "./contracts/agentAccess.ts",
     "./contracts/resourceOffloadIntent": "./contracts/resourceOffloadIntent.ts",
     "./contracts/moveRehearsal": "./contracts/moveRehearsal.ts",

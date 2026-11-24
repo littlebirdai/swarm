@@ -206,7 +206,7 @@ jobs:
         # runner for the other programs turbo runs beside it.
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: bun run typecheck --filter=@codecast/cli --filter=@codecast/web --filter=@codecast/convex --filter=@codecast/evals --filter=@codecast/playground
+        run: bun run typecheck --filter=@codecast/cli --filter=@codecast/web --filter=@codecast/convex --filter=@codecast/evals --filter=@codecast/playground --filter=@codecast/shared
 
   lint:
     needs: [code_paths]
