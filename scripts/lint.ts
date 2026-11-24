@@ -1,9 +1,11 @@
+import { existsSync } from "node:fs";
 import { rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   carryRenames,
   compareLintCounts,
   parseRenames,
+  staleFiles,
   type LintCounts,
 } from "./lib/lint-baseline";
 import {
@@ -74,10 +76,11 @@ function renamesSince(base: string | undefined): Array<[string, string]> {
 async function main(prune: boolean) {
   const baseSha = process.env.LINT_BASE_SHA || undefined;
   const renames = renamesSince(baseSha);
-  const baseline = carryRenames(
-    readBaseline(await Bun.file(baselinePath).text()),
-    renames,
+  const onDisk = readBaseline(await Bun.file(baselinePath).text());
+  const stale = staleFiles(onDisk, (file) =>
+    existsSync(path.join(LINT_ROOT, file)),
   );
+  const baseline = carryRenames(onDisk, renames);
   const baseCounts = baseSha && baseBaseline(baseSha);
   const base = baseCounts && carryRenames(baseCounts, renames);
   if (base) {
@@ -130,12 +133,21 @@ async function main(prune: boolean) {
       "Fix the lint violations above. The lint baseline can only shrink.",
     );
 
-  if (prune && shrank.length) {
+  if (stale.length && !prune) {
+    for (const file of stale) {
+      console.error(`${baselineName} names ${file}, which no longer exists.`);
+    }
+    throw new Error(
+      "Run bun run lint:prune to move or drop those baseline entries.",
+    );
+  }
+
+  if (prune && (shrank.length || stale.length)) {
     const tempPath = `${baselinePath}.tmp.${process.pid}.a`;
     await writeFile(tempPath, JSON.stringify(pruned, null, 2) + "\n");
     await rename(tempPath, baselinePath);
     console.log(
-      `Pruned ${shrank.length} file/rule counts from ${baselineName}.`,
+      `Pruned ${shrank.length} file/rule counts and ${stale.length} stale paths from ${baselineName}.`,
     );
   } else if (shrank.length) {
     console.log(

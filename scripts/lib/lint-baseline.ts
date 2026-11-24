@@ -65,3 +65,12 @@ export function parseRenames(nameStatus: string): Array<[string, string]> {
   }
   return renames;
 }
+
+export function staleFiles(
+  counts: LintCounts,
+  exists: (file: string) => boolean,
+): string[] {
+  return Object.keys(counts)
+    .filter((file) => !exists(file))
+    .sort();
+}
