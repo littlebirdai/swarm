@@ -87,6 +87,8 @@ export function fixtureGit(st: FixtureState): FixtureGit {
       surfaceInfo: (surface) => st.defs.find((d) => d.id === surface) ?? null,
       readHeads: () => ({ heads: Object.fromEntries(st.commits.flatMap((c) => [c.sha, ...(c.mainSha && c.mainSha !== c.sha ? [c.mainSha] : [])].map((sha) => [sha, { mainSha: c.mainSha }]))) }),
       freezeSnapshotPath: () => null,
+      freezePointerPath: (f: string) => `evals/freezes/${f}.json`,
+      freezeDirs: [],
     },
   };
 }

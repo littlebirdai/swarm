@@ -48,6 +48,10 @@ export interface AttributionMeta {
   readHeads(): AttributionHeads | null;
   /** A public freeze's committed snapshot, as a repo path, or null. */
   freezeSnapshotPath(freezeId: string): string | null;
+  /** A public freeze's committed pointer file, as a repo path. */
+  freezePointerPath(freezeId: string): string;
+  /** The repo folders a public freeze's pointer and snapshot live in, which git is asked about. */
+  freezeDirs: readonly string[];
 }
 
 /** A freeze file's fields that grade a rep rather than make up the moment: the per-freeze rubric. */
@@ -281,8 +285,8 @@ export function attribute(input: AttributionInput, meta: AttributionMeta, v: Ver
     if (g?.freezeSha && b?.freezeSha) {
       if (g.freezeSha !== b.freezeSha) changedFreezes.push(f);
     } else if (b?.visibility === 'public' && good.end.sha && bad.end.sha) {
-      movedFiles ??= new Set(good.end.sha === bad.end.sha ? [] : git.changed(good.end.sha, bad.end.sha, ['packages/evals/freezes', 'packages/evals/fixtures']));
-      const paths = [`packages/evals/freezes/${f}.json`, meta.freezeSnapshotPath(f)].filter((x): x is string => !!x && movedFiles!.has(x));
+      movedFiles ??= new Set(good.end.sha === bad.end.sha ? [] : git.changed(good.end.sha, bad.end.sha, [...meta.freezeDirs]));
+      const paths = [meta.freezePointerPath(f), meta.freezeSnapshotPath(f)].filter((x): x is string => !!x && movedFiles!.has(x));
       const moved = paths.map((x) => freezeFileChange(git.show(good.end.sha!, x), git.show(bad.end.sha!, x)));
       if (moved.some((m) => m === 'moment')) changedFreezes.push(f);
       else if (moved.some((m) => m === 'rubric')) rubricFreezes.push(f);

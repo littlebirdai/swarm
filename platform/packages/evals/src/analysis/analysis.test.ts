@@ -29,7 +29,7 @@ const { batchVerdict } = verdict;
 const flipsBetween = <R extends VerdictRun>(rows: R[], a: string, b: string) => flipsBetweenWith(verdict, rows, a, b);
 const footingMarkers = <R extends VerdictRun & EpochRow>(rows: R[]) => footingMarkersWith(rows, verdict.policy.ruler);
 /** What a product knows beyond the rows: here no surface is registered, no heads map is kept and no freeze is public. */
-const meta: AttributionMeta = { declaredPaths: () => [], surfaceInfo: () => null, readHeads: () => null, freezeSnapshotPath: () => null };
+const meta: AttributionMeta = { declaredPaths: () => [], surfaceInfo: () => null, readHeads: () => null, freezeSnapshotPath: () => null, freezePointerPath: (f) => `evals/freezes/${f}.json`, freezeDirs: ['evals/freezes', 'evals/fixtures'] };
 const attribute = (input: AttributionInput) => attributeWith(input, meta, verdict);
 
 // ── The verdict check prints ────────────────────────────────────────────────
@@ -322,14 +322,14 @@ describe('attribution: the first class that differs is the answer', () => {
 
   test('freeze: the frozen moment changed (freezeSha), or a legacy public freeze changed in git', () => {
     expect(run(world({ good: { freezeSha: 'f1' }, bad: { freezeSha: 'f2' } })).answer).toEqual({ kind: 'freeze', freezeIds: [A] });
-    expect(run(world({ good: { visibility: 'public' }, bad: { visibility: 'public' } }), { git: fakeGit([2, 4, 5], { changed: [`packages/evals/freezes/${A}.json`] }) }).answer).toEqual({ kind: 'freeze', freezeIds: [A] });
+    expect(run(world({ good: { visibility: 'public' }, bad: { visibility: 'public' } }), { git: fakeGit([2, 4, 5], { changed: [`evals/freezes/${A}.json`] }) }).answer).toEqual({ kind: 'freeze', freezeIds: [A] });
     expect(run(world()).checklist[1]!.detail).toBe('the frozen moments match (1 private freeze(s) predate freezeSha and are taken as unchanged)');
   });
 
   test("a legacy public freeze whose file changed only in its judge line moved the rubric, not the moment: footing, not freeze", () => {
     const fixture = (judge: string | null) => JSON.stringify({ asOf: '2026-01-01T00:00:00.000Z', snapshot: { text: 'the moment' }, ...(judge ? { judge } : {}) });
     const pub = world({ good: { visibility: 'public' }, bad: { visibility: 'public' } });
-    const pointer = `packages/evals/freezes/${A}.json`;
+    const pointer = `evals/freezes/${A}.json`;
     const rubricOnly = fakeGit([2, 4, 5], { changed: [pointer], show: (sha) => fixture(sha === C(0) ? 'be terse' : null) });
     const a = run(pub, { git: rubricOnly });
     expect(a.answer).toMatchObject({ kind: 'footing', change: 'judge', freezeIds: [A] });
