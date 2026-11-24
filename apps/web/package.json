@@ -34,6 +34,7 @@
     "@codecast/pull-requests": "workspace:*",
     "@codecast/ratchet": "workspace:*",
     "@codecast/shared": "workspace:*",
+    "@codecast/ship": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codecast/vault": "workspace:*",

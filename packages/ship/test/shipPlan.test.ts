@@ -4,7 +4,7 @@ import {
   shipBrief,
   shipProgress,
   type ShipFacts,
-} from "./shipPlan";
+} from "../src/shipPlan";
 
 const base: ShipFacts = {
   target: { kind: "task", id: "t1" },

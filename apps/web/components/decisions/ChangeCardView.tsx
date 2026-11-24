@@ -57,7 +57,7 @@ import { useGoalChip } from "../../hooks/useGoalChip";
 import { lineRefHref } from "../../lib/line/lineWorkspaceUrl";
 import "./changeCard.css";
 import { replyPieces, squash } from "../../lib/conversationFence";
-import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
+import type { ChangeGuide } from "@codecast/ship/changeGuide";
 import { ChangeGuideWalkthrough } from "../tasks/ChangeGuideWalkthrough";
 import {
   keyScopeHasFocus,

@@ -1,10 +1,10 @@
 // One Ship control (docs/architecture/ship.md): the facts each target
 // gathers, against the fake db. The plan itself is tested on the resolver
-// (shared/contracts/shipPlan.test.ts); this pins what feeds it.
+// (packages/ship/test/shipPlan.test.ts); this pins what feeds it.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { gatherShipFacts, shipParent, startShipCore } from "./ship";
-import { resolveShipPlan } from "@codecast/shared/contracts/shipPlan";
+import { resolveShipPlan } from "@codecast/ship/shipPlan";
 
 const OWNER = "users_owner" as any;
 const TEAM = "teams_acme" as any;

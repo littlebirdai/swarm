@@ -29107,12 +29107,6 @@
   "packages/shared/contracts/changeCard.ts": {
     "swarm/no-comments": 122
   },
-  "packages/shared/contracts/changeGuide.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/changeGuide.ts": {
-    "swarm/no-comments": 40
-  },
   "packages/shared/contracts/checkouts.test.ts": {
     "swarm/no-comments": 1
   },
@@ -29854,12 +29848,6 @@
   "packages/shared/contracts/shellWords.ts": {
     "swarm/no-comments": 6
   },
-  "packages/shared/contracts/shipPlan.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/shipPlan.ts": {
-    "swarm/no-comments": 30
-  },
   "packages/shared/contracts/signalFingerprint.test.ts": {
     "swarm/no-comments": 5
   },
@@ -30192,6 +30180,18 @@
   },
   "packages/shared/tasks/tasks.test.ts": {
     "swarm/no-comments": 26
+  },
+  "packages/ship/src/changeGuide.ts": {
+    "swarm/no-comments": 40
+  },
+  "packages/ship/src/shipPlan.ts": {
+    "swarm/no-comments": 30
+  },
+  "packages/ship/test/changeGuide.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/ship/test/shipPlan.test.ts": {
+    "swarm/no-comments": 3
   },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4

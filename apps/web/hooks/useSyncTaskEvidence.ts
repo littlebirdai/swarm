@@ -3,7 +3,7 @@
 // the page paints from cache on the next visit. Feeder returns readiness
 // only; the section reads the store (useTaskEvidence).
 import { useMemo } from "react";
-import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
+import type { ChangeGuide } from "@codecast/ship/changeGuide";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncCollection } from "./useSyncCollection";

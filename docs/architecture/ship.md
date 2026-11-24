@@ -12,7 +12,7 @@ doing the work (the task's newest linked session on a branch, the session
 itself, or the PR's shepherd), the pull request already open from that
 session, the project's published line profile, and, for a task, a line run
 parked at its change card. `resolveShipPlan`
-(`packages/shared/contracts/shipPlan.ts`) turns those facts into the plan. The
+(`packages/ship/src/shipPlan.ts`) turns those facts into the plan. The
 popover renders that plan, `cast ship run --dry-run` prints it, and the press
 runs it, so all three say the same thing.
 

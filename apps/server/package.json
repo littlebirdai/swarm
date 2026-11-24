@@ -27,6 +27,7 @@
     "@codecast/pull-requests": "workspace:*",
     "@codecast/ratchet": "workspace:*",
     "@codecast/shared": "workspace:*",
+    "@codecast/ship": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@convex-dev/auth": "0.0.79",

@@ -13,7 +13,7 @@ import {
   shipProgress,
   type ShipPhase,
   type ShipProgress,
-} from "@codecast/shared/contracts/shipPlan";
+} from "@codecast/ship/shipPlan";
 import { useInboxStore } from "../store/inboxStore";
 import {
   useShipTarget,

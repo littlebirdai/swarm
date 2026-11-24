@@ -1,7 +1,7 @@
 // One Ship control (docs/architecture/ship.md): the one server action every
 // Ship press reaches, from a task, a session, a pull request, a change card or
 // `cast ship run`. It gathers the facts for the target, resolves the plan with
-// the shared resolver (shared/contracts/shipPlan.ts), and either answers the
+// the shared resolver (packages/ship/src/shipPlan.ts), and either answers the
 // line's change card (a line run parked at its card ships through its own
 // ship station) or starts a ship session nested under the work it lands.
 import { v } from "convex/values";
@@ -38,7 +38,7 @@ import {
   type ShipProfileFacts,
   type ShipTarget,
   type ShipTargetKind,
-} from "@codecast/shared/contracts/shipPlan";
+} from "@codecast/ship/shipPlan";
 
 type Ctx = { db: any; scheduler?: any };
 

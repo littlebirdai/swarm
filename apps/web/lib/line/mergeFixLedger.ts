@@ -1,7 +1,7 @@
 // The review of landing one approved fix (MergeFixAct, line-journeys.md LJ8.3
 // "Approved, not merged"), as plain data: what merges, from where to where,
 // whether the line may merge it, and what stands in the way.
-import type { ShipPlan } from "@codecast/shared/contracts/shipPlan";
+import type { ShipPlan } from "@codecast/ship/shipPlan";
 import type { SwitchLedger } from "../../components/consequential/ConsequentialSwitch";
 
 export type FixChange = {

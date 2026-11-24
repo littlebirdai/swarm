@@ -1,4 +1,4 @@
-import { parseChangeGuide } from "@codecast/shared/contracts/changeGuide";
+import { parseChangeGuide } from "@codecast/ship/changeGuide";
 
 import {
   briefBudget,

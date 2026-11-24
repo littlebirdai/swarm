@@ -58,7 +58,7 @@ import {
   projectCommit,
 } from "./changes";
 import { linkedEntityIdsForConversation } from "./conversationLinks";
-import { changeGuideOutline } from "@codecast/shared/contracts/changeGuide";
+import { changeGuideOutline } from "@codecast/ship/changeGuide";
 
 export const EDITION_PROMPT_VERSION = "edition-4";
 

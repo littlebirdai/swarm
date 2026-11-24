@@ -24,7 +24,7 @@ import { readTaskPulseFor } from "./taskPulse.js";
 import {
   changeGuideMarkdown,
   type ChangeGuide,
-} from "@codecast/shared/contracts/changeGuide";
+} from "@codecast/ship/changeGuide";
 import { fmt, c, icons } from "./colors.js";
 import {
   parsePrRef,

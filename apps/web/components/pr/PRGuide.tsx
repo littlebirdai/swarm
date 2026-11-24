@@ -8,10 +8,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Route } from "lucide-react";
-import type {
-  ChangeGuide,
-  ChangeGuideStep,
-} from "@codecast/shared/contracts/changeGuide";
+import type { ChangeGuide, ChangeGuideStep } from "@codecast/ship/changeGuide";
 import { ChangeGuideWalkthrough } from "../tasks/ChangeGuideWalkthrough";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { usd } from "../consequential/lineStartLedger";

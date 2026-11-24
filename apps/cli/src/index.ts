@@ -25660,8 +25660,7 @@ work
       parseHandoffStatus,
     } = await import("./taskClaim.js");
     const { pageSlugFromRef } = await import("./publishCommand.js");
-    const { parseChangeGuide } =
-      await import("@codecast/shared/contracts/changeGuide");
+    const { parseChangeGuide } = await import("@codecast/ship/changeGuide");
     const { guideDiffReader } = await import("./changeGuideDiff.js");
     let input!: Parameters<typeof buildTaskHandoffBody>[2];
     let body!: Record<string, any>;
