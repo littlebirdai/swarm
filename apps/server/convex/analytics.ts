@@ -1,9 +1,6 @@
 import { v } from "convex/values";
 import { createServerAnalytics } from "@platform/analytics/server";
-import {
-  CODECAST_EVENTS,
-  TELEMETRY_DISABLED_VAR,
-} from "@codecast/shared/analytics";
+import { CODECAST_EVENTS, TELEMETRY_DISABLED_VAR } from "@codecast/analytics";
 import { internalAction } from "./_generated/server";
 
 // Server-side PostHog capture for funnel steps that happen off-browser (CLI

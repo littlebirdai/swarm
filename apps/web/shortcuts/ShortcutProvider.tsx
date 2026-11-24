@@ -13,7 +13,7 @@ import { onShortcutUsed } from "../tips/useTips";
 import { useTabActive } from "../hooks/usePagePresence";
 import type { ShortcutAction } from "./registry";
 import { track } from "../lib/analytics";
-import { TRACKED_SHORTCUTS } from "@codecast/shared/analytics";
+import { TRACKED_SHORTCUTS } from "@codecast/analytics";
 
 const trackedShortcuts = new Set<string>(TRACKED_SHORTCUTS);
 

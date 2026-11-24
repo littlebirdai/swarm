@@ -1,5 +1,5 @@
 // Events only the phone sends. They live beside the app rather than in the
-// shared catalog (@codecast/shared/analytics) because every surface that loads
+// shared catalog (@codecast/analytics) because every surface that loads
 // that catalog pays for it, the CLI's boot included; the app's analytics merges
 // the two (lib/analytics.ts), so the same catalog rules apply.
 import { defineCatalog } from "@platform/analytics/catalog";

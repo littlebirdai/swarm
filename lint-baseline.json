@@ -28516,6 +28516,15 @@
   "infra/replay-player/src/worker.ts": {
     "swarm/no-comments": 51
   },
+  "packages/analytics/src/events.ts": {
+    "swarm/no-comments": 47
+  },
+  "packages/analytics/src/replay.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/analytics/test/events.test.ts": {
+    "swarm/no-comments": 3
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -28533,15 +28542,6 @@
   },
   "packages/shared/agents/index.ts": {
     "swarm/no-comments": 41
-  },
-  "packages/shared/analytics/events.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/analytics/events.ts": {
-    "swarm/no-comments": 47
-  },
-  "packages/shared/analytics/replay.ts": {
-    "swarm/no-comments": 5
   },
   "packages/shared/artifacts/ask.ts": {
     "swarm/no-comments": 8

@@ -43,7 +43,7 @@ import {
 import type {
   CodecastEventName,
   CodecastEventProps,
-} from "@codecast/shared/analytics";
+} from "@codecast/analytics";
 
 // Simulation tracing is a bun only switch. The browser has no `process`, and
 // a bare read threw inside the compare tick, so the tick that should heal a

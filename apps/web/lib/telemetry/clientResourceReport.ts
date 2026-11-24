@@ -1,4 +1,4 @@
-import type { CodecastEventProps } from "@codecast/shared/analytics";
+import type { CodecastEventProps } from "@codecast/analytics";
 
 type Report = CodecastEventProps<"client_resource_report">;
 

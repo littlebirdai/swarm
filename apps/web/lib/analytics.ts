@@ -22,7 +22,7 @@ import {
   POSTHOG_REPLAY_SAMPLE_RATE,
   type CodecastEventName,
   type CodecastEventProps,
-} from "@codecast/shared/analytics";
+} from "@codecast/analytics";
 import { CHUNK_LOAD_ERROR_PATTERNS } from "./chunkReloadGuard";
 import { DOC_REWRITTEN_ERROR } from "@codecast/shared/docs";
 import codecastJson from "../codecast.json";
@@ -112,7 +112,7 @@ export function initAnalytics(): Promise<void> {
       // The catalog is enforced at the track boundary inside the package: an
       // event it does not describe is dropped, and a session stops sending
       // after 1000 events. A browser that sets Do Not Track loads no PostHog
-      // at all. See packages/shared/analytics/events.ts (ct-49565).
+      // at all. See packages/analytics/src/events.ts (ct-49565).
       catalog: CODECAST_EVENTS,
       // The same known-benign list the window listeners below use, applied at
       // the Sentry boundary so it also covers an ErrorBoundary's captureError.

@@ -50,8 +50,7 @@ mock.module("../errorToast", () => ({
 }));
 
 const analytics = await import("../analytics");
-const { POSTHOG_REPLAY_SAMPLE_RATE } =
-  await import("@codecast/shared/analytics");
+const { POSTHOG_REPLAY_SAMPLE_RATE } = await import("@codecast/analytics");
 
 describe("codecast's analytics configuration reaches the package", () => {
   test("keeps the browser SDK behind the idle initialization boundary", async () => {
