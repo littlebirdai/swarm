@@ -2,7 +2,7 @@ import { test, expect, describe, mock } from "bun:test";
 
 // Every element a mod can return, drawn in jsdom through the real renderer
 // and the real store: the regression net for the element table (contract:
-// shared/contracts/mods.ts MOD_ELEMENTS). No convex/react mock: nothing here
+// packages/mods/src/mods.ts MOD_ELEMENTS). No convex/react mock: nothing here
 // queries, and bun shares module mocks across the files of one run.
 mock.module("next/link", () => ({
   default: ({ href, children, ...p }: any) => (
@@ -18,7 +18,7 @@ const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
 const { replaceGlobals } = await import("../../../test-helpers/globals");
 const { useInboxStore } = await import("../../../store/inboxStore");
-const { MOD_ELEMENTS } = await import("@codecast/shared/contracts/mods");
+const { MOD_ELEMENTS } = await import("@codecast/mods/mods");
 const { ConvexProvider } = await import("convex/react");
 const { offlineConvexClient } =
   await import("../../../test-helpers/offlineConvex");

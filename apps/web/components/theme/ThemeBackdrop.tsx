@@ -1,4 +1,4 @@
-// A mod theme's live scene behind the whole app (contracts/theme.ts
+// A mod theme's live scene behind the whole app (packages/mods/src/theme.ts
 // `backdrop`). The scene runs in its own sandboxed frame, the same
 // /mod-host.html every mod runs in, loaded in backdrop mode: the mod's
 // `theme.backdrop` hook draws on a full-window canvas there, with no network
@@ -12,8 +12,8 @@ import {
   MOD_PROTOCOL,
   type FrameToHost,
   type HostToFrame,
-} from "@codecast/shared/contracts/mods";
-import type { ThemeBackdrop as Backdrop } from "@codecast/shared/contracts/theme";
+} from "@codecast/mods/mods";
+import type { ThemeBackdrop as Backdrop } from "@codecast/mods/theme";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { modHost, type ModRow } from "../../lib/mods/host";
 

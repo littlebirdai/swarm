@@ -7,7 +7,7 @@
 // Derived surfaces use the mixes the web's lib/theme/themeVars.ts makes over
 // the same tokens, so a surface here is the colour the web computes.
 import { DEFAULT_THEME } from "@codecast/web/lib/theme/builtinThemes";
-import type { ThemePalette } from "@codecast/shared/contracts/theme";
+import type { ThemePalette } from "@codecast/mods/theme";
 import { mixHex } from "./colorMix";
 import type { ColorScheme, Palette } from "./Theme";
 

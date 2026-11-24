@@ -12,6 +12,7 @@ const ROOT = path.resolve(import.meta.dir, "../../..");
 const SCANNED = [
   "apps/cli/src",
   "packages/machines/src",
+  "packages/mods/src",
   "packages/shared/contracts",
   "apps/server/convex",
 ];

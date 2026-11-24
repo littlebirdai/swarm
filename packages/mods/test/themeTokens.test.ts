@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  THEME_COLOR_TOKENS,
-  THEME_FONT_TOKENS,
-} from "@codecast/shared/contracts/theme";
+import { THEME_COLOR_TOKENS, THEME_FONT_TOKENS } from "../src/theme";
 
 describe("color themes in a mod manifest", () => {
   test("the authoring types name every token, so editors autocomplete the whole contract", () => {

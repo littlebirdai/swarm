@@ -1,5 +1,5 @@
 // The color themes codecast ships, in the same shape a mod declares them
-// (shared/contracts/theme.ts), so the picker, the provider and the boot
+// (packages/mods/src/theme.ts), so the picker, the provider and the boot
 // script treat both alike. Stored as `codecast/<id>`; they are listed ahead
 // of every mod's themes, so a mod named "codecast" cannot shadow one.
 //
@@ -11,7 +11,7 @@
 // Type-only imports: the vite config loads this file to inline the default
 // theme (plugins/colorThemeBoot.ts), and Node cannot run the shared package's
 // TypeScript there. Keys and lookups live in colorTheme.ts.
-import type { ModTheme, ThemePalette } from "@codecast/shared/contracts/theme";
+import type { ModTheme, ThemePalette } from "@codecast/mods/theme";
 
 export const BUILTIN_THEME_SOURCE = "codecast";
 

@@ -1,5 +1,5 @@
 // The web host for codecast mods (plan pl-839; contract in
-// shared/contracts/mods.ts). Each enabled mod runs in its own hidden iframe on
+// packages/mods/src/mods.ts). Each enabled mod runs in its own hidden iframe on
 // /mod-host.html with sandbox="allow-scripts" and no same origin, so its code
 // has an opaque origin and reaches nothing of the app. Everything it does goes
 // through the messages below: it asks for data, the host answers from the
@@ -22,7 +22,7 @@ import {
   type ModManifest,
   type ModNode,
   type ModSurface,
-} from "@codecast/shared/contracts/mods";
+} from "@codecast/mods/mods";
 import { withoutUndo } from "@platform/engine";
 import { useInboxStore, sessionWorkState } from "../../store/inboxStore";
 import {

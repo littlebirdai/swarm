@@ -5529,7 +5529,7 @@ cliRoute("/cli/line-tries/report", async (ctx, body) =>
   ctx.runMutation((api as any).lineActions.reportTry, body),
 );
 
-// Mods (shared/contracts/mods.ts): cast mod dev|publish|ls|logs|versions|pull|rollback|enable|disable|rm
+// Mods (packages/mods/src/mods.ts): cast mod dev|publish|ls|logs|versions|pull|rollback|enable|disable|rm
 cliRoute("/cli/mods/push", async (ctx, body) =>
   ctx.runMutation((api as any).mods.cliPush, body),
 );
@@ -5558,7 +5558,7 @@ cliRoute("/cli/mods/guide", async (ctx, body) =>
   ctx.runQuery((api as any).mods.cliGuide, body),
 );
 
-// Mod objects (shared/contracts/mods.ts objects): cast obj <prefix> create|ls|show|set|done
+// Mod objects (packages/mods/src/mods.ts objects): cast obj <prefix> create|ls|show|set|done
 cliRoute("/cli/objects/create", async (ctx, body) =>
   ctx.runMutation((api as any).modObjects.cliCreate, body),
 );

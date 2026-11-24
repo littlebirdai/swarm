@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  THEME_COLOR_TOKENS,
-  themeErrors,
-} from "@codecast/shared/contracts/theme";
+import { THEME_COLOR_TOKENS, themeErrors } from "@codecast/mods/theme";
 import { BUILTIN_THEMES, DEFAULT_THEME } from "./builtinThemes";
 import {
   availableThemes,

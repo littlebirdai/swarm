@@ -10,7 +10,7 @@ import { Switch } from "../ui/switch";
 import { ModLogList } from "./ModLogList";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { modHost, modNavigate, type ModRow } from "../../lib/mods/host";
-import { permissionsSig } from "@codecast/shared/contracts/mods";
+import { permissionsSig } from "@codecast/mods/mods";
 import { useModHostVersion, useModRows } from "../../lib/mods/useMods";
 import { useInboxStore } from "../../store/inboxStore";
 import { formatRelativeTime } from "../../lib/conversationFormat";

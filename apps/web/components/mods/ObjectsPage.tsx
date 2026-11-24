@@ -5,10 +5,7 @@
 
 import { useMemo, useState } from "react";
 import { DynamicIcon } from "./ModIcon";
-import {
-  objectStatusIsDone,
-  type ModObjectKind,
-} from "@codecast/shared/contracts/mods";
+import { objectStatusIsDone, type ModObjectKind } from "@codecast/mods/mods";
 import { useInboxStore } from "../../store/inboxStore";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 import { formatRelativeTime } from "../../lib/conversationFormat";

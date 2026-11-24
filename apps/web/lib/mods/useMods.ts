@@ -5,11 +5,7 @@
 
 import { useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type {
-  ModNode,
-  ModSurface,
-  ResolvedObject,
-} from "@codecast/shared/contracts/mods";
+import type { ModNode, ModSurface, ResolvedObject } from "@codecast/mods/mods";
 import { useInboxStore, isConvexId } from "../../store/inboxStore";
 import { useSyncCollection } from "../../hooks/useSyncCollection";
 import { modHost, type ModRow, type ModRuntime } from "./host";

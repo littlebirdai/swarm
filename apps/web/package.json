@@ -42,6 +42,7 @@
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",
     "@codecast/memory": "workspace:*",
+    "@codecast/mods": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",
     "@codecast/pages": "workspace:*",

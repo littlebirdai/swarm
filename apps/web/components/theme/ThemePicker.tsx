@@ -7,7 +7,7 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { Check, Plus } from "lucide-react";
-import type { ThemePalette } from "@codecast/shared/contracts/theme";
+import type { ThemePalette } from "@codecast/mods/theme";
 import { cn } from "../../lib/utils";
 import { useInboxStore } from "../../store/inboxStore";
 import { useColorThemes } from "../../hooks/useColorThemes";
