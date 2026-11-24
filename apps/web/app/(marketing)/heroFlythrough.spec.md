@@ -142,7 +142,7 @@ Times are film seconds; named cues are in `fixtures/story.ts`. "Light interactio
 
 ### 4 Chat (19.8 to 29.7)
 
-The code is chapters/phone.motion.ts (`PHONE_AT`); the phone's screen is the codecast iOS app's session screen (components/PhoneSession.tsx, drawn from the same spec, @codecast/shared/render/mobileSessionStyle, as mobile/app/session/[id].tsx), dark, inside the iOS status bar and keyboard.
+The code is chapters/phone.motion.ts (`PHONE_AT`); the phone's screen is the codecast iOS app's session screen (components/PhoneSession.tsx, drawn from the same spec, @codecast/render/mobileSessionStyle, as mobile/app/session/[id].tsx), dark, inside the iOS status bar and keyboard.
 
 The pair sits dashboard worker west, API worker east and a step lower; the phone stands east of the API worker, far enough that a hold on it shows the phone alone. Every move in this chapter is a pan that carries windows off the side of the page.
 

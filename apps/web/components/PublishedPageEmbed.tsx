@@ -629,7 +629,7 @@ const EMBED_MAX_PREFERRED = 2000;
 
 /** The height a framed published page reports its content needs, and the
  *  height it asks to open at (`<meta name="codecast:height">`; see
- *  shared/render/pageTheme.ts). Null until the page reports; a content height
+ *  packages/render/src/pageTheme.ts). Null until the page reports; a content height
  *  too small to be a real layout (a page whose content is all absolutely
  *  positioned measures its body at a few pixels) is ignored. */
 function useReportedHeight(frameRef: RefObject<HTMLIFrameElement | null>) {
