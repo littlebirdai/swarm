@@ -121,7 +121,7 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   // tests and the manifest drift check, which "shared" alone never did
   // (ct-49675).
   ["platform", ["platform/"]],
-  ["electron", ["packages/electron/"]],
+  ["electron", ["apps/desktop/"]],
   ["mobile", ["packages/mobile/"]],
   ["extension", ["apps/browser-extension/", "apps/vscode-extension/"]],
   ["playground", ["apps/playground/"]],

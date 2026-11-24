@@ -6,7 +6,7 @@
 #   /usr/local/bin/codecast (+ cast -> codecast)     the CLI, owned by root
 #   /Library/LaunchAgents/sh.codecast.enroll.plist   runs `codecast mdm enroll`
 #                                                    as each person who logs in
-# plus a postinstall (packages/electron/mdm/scripts) that loads the enroll agent
+# plus a postinstall (apps/desktop/mdm/scripts) that loads the enroll agent
 # for whoever is logged in during the install.
 #
 # Apple silicon only: the desktop app is built for arm64 alone, so an Intel Mac
@@ -23,7 +23,7 @@
 #
 # Inputs (each overridable):
 #   APP=dist/mac-arm64/Codecast.app        from `npm run build` (signed + notarized)
-#   CLI=../web/binaries/codecast-darwin-arm64  from packages/cli/scripts/build-binaries.sh
+#   CLI=../../packages/web/binaries/codecast-darwin-arm64  from packages/cli/scripts/build-binaries.sh
 #   OUT_DIR=dist/mdm
 # Usage: ./scripts/build-mdm-pkg.sh [--no-notarize]
 
@@ -32,7 +32,7 @@ cd "$(dirname "$0")/.."
 HERE="$(pwd)"
 
 APP="${APP:-$HERE/dist/mac-arm64/Codecast.app}"
-CLI="${CLI:-$HERE/../web/binaries/codecast-darwin-arm64}"
+CLI="${CLI:-$HERE/../../packages/web/binaries/codecast-darwin-arm64}"
 OUT_DIR="${OUT_DIR:-$HERE/dist/mdm}"
 INSTALLER_IDENTITY="${MDM_INSTALLER_IDENTITY:-Developer ID Installer: Ashot Petrosian (WRG9THCK9Q)}"
 APP_IDENTITY="${MDM_APP_IDENTITY:-Developer ID Application: Ashot Petrosian (WRG9THCK9Q)}"

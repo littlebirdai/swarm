@@ -79,7 +79,7 @@ const TARGETS: { name: TargetName; when: string[]; policy: Policy; runs?: "push"
   { name: "backend", when: ["packages/convex/**", "packages/shared/**", "platform/**"], policy: "press" },
   { name: "cli", when: ["packages/cli/**", "packages/shared/**", "platform/**"], policy: "press" },
   { name: "mobile", when: ["packages/mobile/**", "packages/shared/**"], policy: "press" },
-  { name: "desktop", when: ["packages/electron/**"], policy: "press" },
+  { name: "desktop", when: ["apps/desktop/**"], policy: "press" },
 ];
 const POLICY_WORDS: Record<Policy, string> = { press: "on a press", auto: "auto" };
 

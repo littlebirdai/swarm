@@ -32,6 +32,8 @@ describe("surfaces", () => {
   test("path map covers areas; only the catch-all release covers all", () => {
     expect(surfaceCoversArea("cli", "shared")).toBe(true);
     expect(surfaceCoversArea("desktop", "web")).toBe(true);
+    expect(surfaceCoversArea("desktop", "desktop")).toBe(true);
+    expect(surfaceCoversArea("desktop", "electron")).toBe(true);
     expect(surfaceCoversArea("backend", "web")).toBe(false);
     expect(surfaceCoversArea("extension", "browser-extension")).toBe(true);
     expect(surfaceCoversArea("mobile", "mobile")).toBe(true);

@@ -25,7 +25,7 @@ describe("areaOf", () => {
     expect(areaOf("packages/shared/contracts/agentClients.ts")).toBe("shared");
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
     expect(areaOf("platform/vendor-manifest.txt")).toBe("platform");
-    expect(areaOf("packages/electron/main.js")).toBe("electron");
+    expect(areaOf("apps/desktop/main.js")).toBe("electron");
     expect(areaOf("apps/playground/src/main.tsx")).toBe("playground");
     expect(areaOf("infra/convex-host/Caddyfile")).toBe("infra");
     expect(areaOf("infra/README.md")).toBe("infra");
@@ -153,7 +153,7 @@ describe("classifyChangedPaths", () => {
   // web imports electron's window registry, so an electron change reaches
   // every job that loads web code.
   test("an electron change runs the electron tests and everything that loads web", () => {
-    const file = "packages/electron/main.js";
+    const file = "apps/desktop/main.js";
     expect(flags([file]).electron).toBe(true);
     expect(ran([file])).toEqual(["build", "test-electron", "test-mobile", "test-web", "typecheck"]);
   });
@@ -181,7 +181,7 @@ describe("classifyChangedPaths", () => {
 
   test("the electron tests rerun for the vendored @platform/desktop they require", () => {
     expect(flags(["platform/packages/desktop/src/index.js"]).run_test_electron).toBe(true);
-    expect(flags(["packages/electron/package.json"]).run_test_electron).toBe(true);
+    expect(flags(["apps/desktop/package.json"]).run_test_electron).toBe(true);
     expect(flags(["packages/web/components/DiffView.tsx"]).run_test_electron).toBe(false);
     expect(flags(["packages/shared/contracts/agentClients.ts"]).run_test_electron).toBe(false);
   });

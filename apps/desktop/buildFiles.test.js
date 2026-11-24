@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/buildFiles.test.js
+// Run: node --test apps/desktop/buildFiles.test.js
 //
 // Every local module the shell requires must be in the packaged build.
 //
@@ -56,7 +56,7 @@ test("every local module reachable from main.js and preload.js is packaged", () 
   assert.deepEqual(
     missing,
     [],
-    `Add these to build.files in packages/electron/package.json, or the packaged app crashes at boot:\n  ${missing.join("\n  ")}`,
+    `Add these to build.files in apps/desktop/package.json, or the packaged app crashes at boot:\n  ${missing.join("\n  ")}`,
   );
 });
 
@@ -81,7 +81,7 @@ test("every tray image is packaged", () => {
   const { TRAY_ASSET_FILES } = require("./trayIcon");
   const allowed = new Set(pkg.build.files);
   const missing = TRAY_ASSET_FILES.filter((f) => !allowed.has(f));
-  assert.deepEqual(missing, [], `Add these to build.files in packages/electron/package.json:\n  ${missing.join("\n  ")}`);
+  assert.deepEqual(missing, [], `Add these to build.files in apps/desktop/package.json:\n  ${missing.join("\n  ")}`);
 });
 
 test("the entry points themselves are packaged", () => {

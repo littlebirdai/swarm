@@ -378,7 +378,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   // convention (Cmd+[ / Cmd+]); elsewhere Ctrl+[ is the sidebar toggle, so the
   // other browser convention (Alt+Arrow) applies. Each window runs its own
   // listener, so the chord walks the history of the window that has focus.
-  // The app menu ("Go" in packages/electron/main.js) carries the same
+  // The app menu ("Go" in apps/desktop/main.js) carries the same
   // accelerators as the fallback for a window without this handler.
   // The desktop app has no browser chrome, so Cmd+L opens the app's own bar.
   // A focused browser pane claims the key first for its page's address.

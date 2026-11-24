@@ -16,7 +16,7 @@ export type BrowserSource =
   // session header, ct-51075). It rides the path as `s=` so the desktop's
   // native view can record who the pane is for: that is what lets that
   // session's `cast browser` find and drive this exact view over the app's
-  // CDP port (packages/electron/browserPanes.js). A pane the human opened by
+  // CDP port (apps/desktop/browserPanes.js). A pane the human opened by
   // hand has none, and no agent may claim it.
   | { kind: "url"; url: string; session?: string }
   | { kind: "watch"; sessionUuid: string }

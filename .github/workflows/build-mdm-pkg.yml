@@ -5,7 +5,7 @@ name: Build MDM installer (Codecast.pkg)
 # dl.codecast.sh/desktop/latest-mac.yml and the darwin-arm64 CLI named by
 # dl.codecast.sh/latest.json, each checked against the digest its manifest
 # records. The pkg's own pieces (enroll LaunchAgent, postinstall) come from this
-# checkout. packages/electron/scripts/build-mdm-pkg.sh does the assembly, the
+# checkout. apps/desktop/scripts/build-mdm-pkg.sh does the assembly, the
 # signing, notarization and stapling.
 #
 # Secrets:
@@ -15,7 +15,7 @@ name: Build MDM installer (Codecast.pkg)
 #     CLI release uses: Installer certs sign pkgs, Application certs sign code.
 #   ASC_API_KEY_P8
 #     base64 of the App Store Connect "Agent" key AuthKey_KR5Y6LS448.p8, the
-#     one packages/electron/notarize.js uses.
+#     one apps/desktop/notarize.js uses.
 # Without the Installer secrets the pkg builds unsigned; a dry run keeps it as
 # a workflow artifact, and a real run refuses to upload it.
 #
@@ -132,7 +132,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd packages/electron
+          cd apps/desktop
           OUT_DIR="$RUNNER_TEMP/out" MDM_INSTALLER_IDENTITY="$INSTALLER_IDENTITY" ./scripts/build-mdm-pkg.sh
           pkg=$(ls "$RUNNER_TEMP"/out/Codecast-*.pkg)
           echo "PKG=$pkg" >> "$GITHUB_ENV"

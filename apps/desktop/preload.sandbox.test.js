@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/preload.sandbox.test.js
+// Run: node --test apps/desktop/preload.sandbox.test.js
 //
 // The preload must come up in the real renderer, under the preferences every
 // window in main.js gives it.

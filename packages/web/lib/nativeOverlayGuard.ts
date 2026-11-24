@@ -1,6 +1,6 @@
 // What the native browser view has to get out of the way of.
 //
-// A native pane (packages/electron/browserPanes.js) is not an element: it is a
+// A native pane (apps/desktop/browserPanes.js) is not an element: it is a
 // Chromium view the shell places over the window, and it paints ABOVE every
 // pixel the app draws. So the command palette, a context menu, the drag veil,
 // a modal and a toast would all appear behind a page the person is reading —

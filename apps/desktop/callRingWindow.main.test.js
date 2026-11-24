@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/callRingWindow.main.test.js
+// Run: node --test apps/desktop/callRingWindow.main.test.js
 //
 // The ring window, exercised through main.js itself.
 //

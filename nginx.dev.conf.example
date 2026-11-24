@@ -35,7 +35,7 @@ http {
     }
 
     # TLS, for https://local.codecast.sh. The desktop app needs it
-    # (packages/electron's dev script loads the https origin). Make a locally
+    # (apps/desktop's dev script loads the https origin). Make a locally
     # trusted certificate with mkcert (brew install mkcert), as your own user:
     #
     #   mkcert -install

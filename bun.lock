@@ -13,6 +13,18 @@
         "typescript": "^5.7.2",
       },
     },
+    "apps/desktop": {
+      "name": "@codecast/electron",
+      "version": "1.1.131",
+      "dependencies": {
+        "@platform/desktop": "file:../../platform/packages/desktop",
+      },
+      "devDependencies": {
+        "@electron/notarize": "^3.1.1",
+        "electron": "^44.3.0",
+        "electron-builder": "^25.0.0",
+      },
+    },
     "apps/playground": {
       "name": "@codecast/playground",
       "dependencies": {
@@ -109,18 +121,6 @@
         "@types/node": "^22.19.17",
         "convex-test": "0.0.54",
         "typescript": "^5.7.2",
-      },
-    },
-    "packages/electron": {
-      "name": "@codecast/electron",
-      "version": "1.1.131",
-      "dependencies": {
-        "@platform/desktop": "file:../../platform/packages/desktop",
-      },
-      "devDependencies": {
-        "@electron/notarize": "^3.1.1",
-        "electron": "^44.3.0",
-        "electron-builder": "^25.0.0",
       },
     },
     "packages/evals": {
@@ -734,7 +734,7 @@
 
     "@codecast/convex": ["@codecast/convex@workspace:packages/convex"],
 
-    "@codecast/electron": ["@codecast/electron@workspace:packages/electron"],
+    "@codecast/electron": ["@codecast/electron@workspace:apps/desktop"],
 
     "@codecast/evals": ["@codecast/evals@workspace:packages/evals"],
 

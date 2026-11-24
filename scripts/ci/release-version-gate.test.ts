@@ -66,7 +66,7 @@ describe("the release scripts call the gate", () => {
   });
 
   test("desktop release.sh gates on the R2 latest-mac.yml version before bumping", async () => {
-    const script = await read("../../packages/electron/scripts/release.sh");
+    const script = await read("../../apps/desktop/scripts/release.sh");
     const gateLine = script.indexOf("release-version-gate.ts");
     const bumpLine = script.indexOf("jq --arg v \"$NEW_VERSION\" '.version = $v' package.json");
     expect(gateLine).toBeGreaterThan(-1);

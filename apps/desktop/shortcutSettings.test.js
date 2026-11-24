@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/shortcutSettings.test.js
+// Run: node --test apps/desktop/shortcutSettings.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { DEFAULT_SHORTCUTS, mergeShortcuts, diffOverrides } = require("./shortcutSettings");

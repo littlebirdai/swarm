@@ -73,7 +73,7 @@ echo ""
 #      (2026-09-24).
 #   6. wait until Railway serves the final commit
 # Flags: --force forces the new CLI on every daemon; --desktop releases the
-# desktop app even with no change under packages/electron; --preview sends
+# desktop app even with no change under apps/desktop; --preview sends
 # the mobile OTA to the preview branch; --skip-checks is accepted for
 # compatibility (CI runs the checks).
 
@@ -183,15 +183,15 @@ fi
 echo ""
 
 
-# 5. Desktop. A change under packages/electron since the last version bump
+# 5. Desktop. A change under apps/desktop since the last version bump
 # needs a release. release.sh builds, notarizes and publishes; the floor waits
 # for the fleet's CLI (see the top of this file).
 echo "5. Checking desktop app for changes..."
-DESKTOP_BASE=$(git log -1 --format=%H -G'"version":' -- packages/electron/package.json)
-if $FORCE_DESKTOP || ! git diff --quiet "$DESKTOP_BASE" HEAD -- packages/electron ':!packages/electron/package.json'; then
-  ./packages/electron/scripts/release.sh patch --no-git --no-floor
-  DESKTOP_VERSION=$(node -p "require('./packages/electron/package.json').version")
-  git add packages/electron/package.json packages/web/server/index.ts
+DESKTOP_BASE=$(git log -1 --format=%H -G'"version":' -- apps/desktop/package.json)
+if $FORCE_DESKTOP || ! git diff --quiet "$DESKTOP_BASE" HEAD -- apps/desktop ':!apps/desktop/package.json'; then
+  ./apps/desktop/scripts/release.sh patch --no-git --no-floor
+  DESKTOP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
+  git add apps/desktop/package.json packages/web/server/index.ts
   git commit -m "chore(electron): release desktop $DESKTOP_VERSION"
   git push origin main
   cast ship mark --surface desktop --sha "$(git rev-parse HEAD)" --version "$DESKTOP_VERSION" || echo "   ! desktop deploy not recorded in codecast"
@@ -207,7 +207,7 @@ if $FORCE_DESKTOP || ! git diff --quiet "$DESKTOP_BASE" HEAD -- packages/electro
     echo "     Set it once they do: cast desktop-force-update $DESKTOP_VERSION"
   fi
 else
-  echo "   Desktop unchanged since v$(node -p "require('./packages/electron/package.json').version") - skipping"
+  echo "   Desktop unchanged since v$(node -p "require('./apps/desktop/package.json').version") - skipping"
 fi
 echo ""
 

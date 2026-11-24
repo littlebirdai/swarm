@@ -65,5 +65,5 @@ after = ["backend"]
 
 [[target]]
 name = "desktop"
-when = ["packages/electron/**"]
-run = "packages/electron/scripts/release.sh patch --no-floor"
+when = ["apps/desktop/**"]
+run = "apps/desktop/scripts/release.sh patch --no-floor"

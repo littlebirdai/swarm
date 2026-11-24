@@ -226,7 +226,7 @@ export function createFieldUndoGuard(opts: { now: () => number; defer: (fn: () =
 
 /** Input types that hold no text of their own (no caret, no edit history):
  *  ⌘Z from one of them is the app's, never the browser's. The desktop main
- *  process asks the same question (packages/electron/editUndo.js
+ *  process asks the same question (apps/desktop/editUndo.js
  *  EDITABLE_PROBE); undoWalk.test pins the two answers together. */
 const NON_TEXT_INPUT = /^(button|checkbox|radio|submit|reset|range|color|file|image|hidden|date|time|datetime-local|month|week)$/i;
 

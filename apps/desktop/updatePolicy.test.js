@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/updatePolicy.test.js
+// Run: node --test apps/desktop/updatePolicy.test.js
 //
 // The desktop updater trusts nothing the feed says on its own: a signed but
 // older build announced as an upgrade, a bundle whose version differs from the

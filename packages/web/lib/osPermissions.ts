@@ -17,7 +17,7 @@
 //   n/a     — this surface has no persistent grant for it (a browser's
 //             screen share asks per use): nothing to set up
 //
-// The desktop shell reads the OS (packages/electron/osPermissions.js); a
+// The desktop shell reads the OS (apps/desktop/osPermissions.js); a
 // browser reads its own permission model. The registry, the store/hook
 // (hooks/useOsPermissions.ts), the row (components/permissions/PermissionRow)
 // and the first-run dialog are the only places that know the difference.

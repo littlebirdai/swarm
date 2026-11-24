@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/osPermissions.test.js
+// Run: node --test apps/desktop/osPermissions.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {

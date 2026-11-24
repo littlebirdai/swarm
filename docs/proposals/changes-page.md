@@ -318,7 +318,7 @@ MVP sources, all landing as `external_events` rows so the existing team event st
 2. **Tag pushes.** `githubWebhooks.ts:1356` returns "Not a branch push" today. Handle `refs/tags/*` there: insert `external_events { kind: "release", repository, payload: {tag, sha} }`.
 3. **Convex deploy marker.** `packages/convex/deploy.sh` runs `cast ship mark --surface backend --sha <HEAD>` after a successful deploy. The CLI command posts to a new authenticated mutation `changes.markDeploy` that inserts `external_events { kind: "deploy", payload: {surface, sha, version?} }` for the repo's team. If the CLI is logged out, the mark is skipped with a warning and the deploy still succeeds.
 
-Surface detection: a surface exists when it has at least one signal in 30 days. Path map defaults live in `packages/shared/changes/surfaces.ts`: cli `packages/cli/, packages/shared/`; desktop `packages/electron/, packages/web/, packages/shared/`; backend `packages/convex/`; web `packages/web/, packages/shared/`; extension `packages/chrome-extension/, apps/browser-extension/`. Teams without a mapped surface but with tags get one surface, `release`, covering everything.
+Surface detection: a surface exists when it has at least one signal in 30 days. Path map defaults live in `packages/shared/changes/surfaces.ts`: cli `packages/cli/, packages/shared/`; desktop `apps/desktop/, packages/web/, packages/shared/`; backend `packages/convex/`; web `packages/web/, packages/shared/`; extension `packages/chrome-extension/, apps/browser-extension/`. Teams without a mapped surface but with tags get one surface, `release`, covering everything.
 
 Phase 2: GitHub `release` and `deployment_status` webhooks (Railway web deploys), which need a GitHub App permission update.
 

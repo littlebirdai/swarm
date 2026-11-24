@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/callWindow.main.test.js
+// Run: node --test apps/desktop/callWindow.main.test.js
 //
 // The call window, exercised through main.js itself rather than described.
 //

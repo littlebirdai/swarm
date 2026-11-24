@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/trayIcon.test.js
+// Run: node --test apps/desktop/trayIcon.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { existsSync } = require("node:fs");

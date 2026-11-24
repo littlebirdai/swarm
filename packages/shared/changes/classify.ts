@@ -168,7 +168,7 @@ export function parseConventional(subject: string): Conventional | null {
 /**
  * Names a scope or a release word may use for an area, beyond the area's own
  * name. `fix(extension)` lands in `apps/browser-extension`, and
- * `release desktop` ships `packages/electron`.
+ * `release desktop` ships `apps/desktop`.
  */
 const AREA_ALIASES: Record<string, readonly string[]> = {
   extension: ["browser-extension", "chrome-extension"],

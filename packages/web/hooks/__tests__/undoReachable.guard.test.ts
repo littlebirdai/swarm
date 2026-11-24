@@ -6,7 +6,7 @@
 // sat outside the dock's clickable region, and ⌘Z in the main window took
 // back an unrelated older entry.
 //
-// The windows are read from the shell (electron/main.js loads each by URL),
+// The windows are read from the shell (apps/desktop/main.js loads each by URL),
 // their pages from the router (src/App.tsx). A window's page must mount
 // useUndoUnreachable, through TransparentWindowLayout or on its own, or the
 // dashboard.
@@ -20,7 +20,7 @@ const read = (rel: string) => readFileSync(join(WEB, rel), "utf8");
 const MAIN_WINDOW_PATHS = new Set(["inbox"]);
 
 function auxiliaryWindowPaths(): string[] {
-  const main = read("../electron/main.js");
+  const main = read("../../apps/desktop/main.js");
   const paths = new Set<string>();
   for (const m of main.matchAll(/loadURL\(`\$\{currentBaseUrl\}\/([a-z][a-z-]*)`\)/g)) paths.add(m[1]!);
   const people = main.match(/const PEOPLE_PATH = "\/([a-z-]+)"/);

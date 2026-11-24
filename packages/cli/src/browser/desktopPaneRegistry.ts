@@ -2,12 +2,12 @@
  * The desktop app's pane registry, as `cast browser` reads it.
  *
  * The codecast desktop app opens a Chrome DevTools Protocol port on loopback
- * (packages/electron/main.js) and puts every browser pane it shows in a
+ * (apps/desktop/main.js) and puts every browser pane it shows in a
  * WebContentsView, which is a target on that port like any tab. So an agent
  * can drive the very view the human is looking at — no screencast, no second
  * browser. The one thing the port cannot say is which target is which pane,
  * and which session the human opened it for. The app writes that down in a
- * file under this CLI's own browser state (packages/electron/browserPanes.js
+ * file under this CLI's own browser state (apps/desktop/browserPanes.js
  * explains why a file and not an endpoint: the port is the boundary the app
  * already accepted; the file adds a name for what is behind it, not a door).
  *

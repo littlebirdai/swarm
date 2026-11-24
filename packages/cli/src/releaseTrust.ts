@@ -64,7 +64,7 @@ manifest_signed() {
 /**
  * \`not_older_than A B\`: succeeds when A is a dotted numeric version and not
  * older than B, compared field by field as cmpVersions does
- * (packages/electron/updatePolicy.js, which the parity test runs it against).
+ * (apps/desktop/updatePolicy.js, which the parity test runs it against).
  * The sh form is for scripts that run where this binary cannot.
  */
 export const VERSION_FLOOR_SH = `not_older_than() {

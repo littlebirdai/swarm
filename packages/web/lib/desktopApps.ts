@@ -1,6 +1,6 @@
 // The desktop's apps: Chat and Work, each a window of its own.
 //
-// The table of which routes belong to which app is packages/electron/
+// The table of which routes belong to which app is apps/desktop/
 // appWindows.mjs, shared with the shell so the two sides can never disagree
 // about where a path lands. This module is the web's side of it: which app
 // THIS document is, which app windows exist, how to open one, and the rule
@@ -15,9 +15,9 @@ import {
   isDesktopApp,
   placeRoute,
   sectionForRoute,
-} from "../../electron/appWindows.mjs";
+} from "../../../apps/desktop/appWindows.mjs";
 import { bridge, getDesktopWindowRole, isDetachedTabWindow, isElectron, isSatelliteWindow, navigateMainWindow } from "./desktop";
-import { appForRoute as appOfRoute } from "../../electron/appWindows.mjs";
+import { appForRoute as appOfRoute } from "../../../apps/desktop/appWindows.mjs";
 import { appWindowPresence, requestAppWindowOpen } from "./appWindowRegistry";
 import { isNonTabRoute } from "./tabRoutes";
 

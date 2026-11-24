@@ -1,4 +1,4 @@
-// Run: node --test packages/electron/meetingDetector.test.js
+// Run: node --test apps/desktop/meetingDetector.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
