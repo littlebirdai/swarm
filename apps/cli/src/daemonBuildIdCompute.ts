@@ -7,7 +7,7 @@
 // A skew there would fail the check on code nobody touched. This walker reads
 // the same bytes everywhere, so the id depends only on the source.
 //
-// What moves the id: any .ts file under apps/cli/src, packages/shared, packages/time or
+// What moves the id: any .ts file under apps/cli/src, packages/* or
 // platform/packages that the daemon reaches, and the `dependencies` block of
 // apps/cli/package.json. What does not: the CLI version string (it changes
 // every release, which is the whole thing this exists to stop), and the
@@ -21,6 +21,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
 import { walkDirsSync } from "./fsWalk.js";
+import { createLibraryResolver } from "../../../scripts/workspace-packages";
 import { BUILD_ID_CHARS } from "./daemonBuildGate.js";
 
 /** The id length in hex characters. Long enough that a collision is not a
@@ -159,8 +160,7 @@ const isFile = (p: string): boolean => {
  *  constant, and hashing that file whole would put the release version inside
  *  the build id, which is the one thing the id must not depend on. The
  *  dependency ranges still contribute, added by hand at the end of the walk. */
-function resolveRelative(fromFile: string, spec: string): string | null {
-  const base = path.resolve(path.dirname(fromFile), spec);
+function resolveSource(base: string): string | null {
   const candidates: string[] = [];
   if (base.endsWith(".js")) {
     const stem = base.slice(0, -3);
@@ -237,7 +237,7 @@ export interface BuildIdResult {
 export function computeDaemonBuildId(repoRoot = findRepoRoot()): BuildIdResult {
   const entry = path.join(repoRoot, ENTRY);
   const excluded = path.join(repoRoot, EXCLUDED);
-  const sharedRoot = path.join(repoRoot, "packages/shared");
+  const resolveLibrary = createLibraryResolver(repoRoot);
   const platformRoot = path.join(repoRoot, "platform/packages");
 
   const visited = new Set<string>();
@@ -257,24 +257,15 @@ export function computeDaemonBuildId(repoRoot = findRepoRoot()): BuildIdResult {
     }
     for (const spec of scanSpecifiers(src)) {
       if (spec.startsWith(".")) {
-        const resolved = resolveRelative(file, spec);
+        const resolved = resolveSource(path.resolve(path.dirname(file), spec));
         if (resolved) queue.push(resolved);
         else external.add(spec);
         continue;
       }
-      if (spec === "@codecast/shared" || spec.startsWith("@codecast/shared/")) {
-        const sub = spec.slice("@codecast/shared".length).replace(/^\//, "");
-        const base = sub ? path.join(sharedRoot, sub) : sharedRoot;
-        const resolved = [base + ".ts", path.join(base, "index.ts")].find(
-          isFile,
-        );
+      if (spec.startsWith("@codecast/")) {
+        const target = resolveLibrary(spec);
+        const resolved = target && resolveSource(target);
         if (resolved) queue.push(resolved);
-        else external.add(spec);
-        continue;
-      }
-      if (spec === "@codecast/time") {
-        const timeEntry = path.join(repoRoot, "packages/time/src/index.ts");
-        if (isFile(timeEntry)) queue.push(timeEntry);
         else external.add(spec);
         continue;
       }

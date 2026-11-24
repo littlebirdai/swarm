@@ -9,7 +9,7 @@
 //
 // This pusher makes a push a proof instead of a reflex:
 //   1. wait until everything the backend bundles (the functions directory,
-//      packages/shared, packages/time and platform/packages) has been quiet for QUIET_MS;
+//      packages/ and platform/packages) has been quiet for QUIET_MS;
 //   2. refuse while the tree is behind origin/main (a snapshot push from a
 //      stale tree deletes newer functions from prod, the 2026-07-15 outage);
 //   3. take a signature of every file that ships;
@@ -67,8 +67,7 @@ export function bundledSources(
 ): { dir: string; prefix: string }[] {
   return [
     { dir: join(root, "apps", "server", "convex"), prefix: "" },
-    { dir: join(root, "packages", "shared"), prefix: "packages/shared/" },
-    { dir: join(root, "packages", "time"), prefix: "packages/time/" },
+    { dir: join(root, "packages"), prefix: "packages/" },
     { dir: join(root, "platform", "packages"), prefix: "platform/packages/" },
   ];
 }

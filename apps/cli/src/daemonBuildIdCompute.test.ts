@@ -37,6 +37,13 @@ beforeAll(() => {
     JSON.stringify({ version: "1.0.0", dependencies: { ws: "8.18.0" } }),
   );
   write("apps/cli/src/daemon.ts", ENTRY_SRC);
+  write(
+    "packages/shared/package.json",
+    JSON.stringify({
+      name: "@codecast/shared",
+      exports: { "./contracts": "./contracts.ts" },
+    }),
+  );
   write("packages/shared/contracts.ts", `export const c = 1;\n`);
   write("platform/packages/cli-kit/src/a.ts", `export const k = 1;\n`);
   write("platform/packages/cli-kit/src/b.ts", `export const k2 = 2;\n`);

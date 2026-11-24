@@ -19,7 +19,12 @@
 // `bun scripts/ci/always-run-tests.ts` runs them; `--list` prints them.
 
 import { join, relative } from "node:path";
-import { crossingTests, jobTestFiles, TREE_WIDE_TEST } from "./test-reach";
+import {
+  crossingTests,
+  JOB_TEST_ROOTS,
+  jobTestFiles,
+  TREE_WIDE_TEST,
+} from "./test-reach";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
@@ -33,14 +38,12 @@ export const SUITES: Array<{
   roots: string[];
   flags: string[];
 }> = [
-  { job: "test-shared", dir: "packages/shared", roots: ["."], flags: [] },
-  {
+  ...JOB_TEST_ROOTS["test-shared"].map((dir) => ({
     job: "test-shared",
-    dir: "packages/edge-contract",
+    dir,
     roots: ["."],
     flags: [],
-  },
-  { job: "test-shared", dir: "packages/time", roots: ["."], flags: [] },
+  })),
   {
     job: "test-convex",
     dir: "apps/server",
@@ -62,15 +65,26 @@ export const SUITES: Array<{
   },
 ];
 
+const filesByJob = new Map<string, string[]>();
+
+function alwaysRunJobFiles(job: string): string[] {
+  let files = filesByJob.get(job);
+  if (!files) {
+    const treeWide = jobTestFiles(job).filter((file) =>
+      TREE_WIDE_TEST.test(file),
+    );
+    const crossing = crossingTests(job).map(({ file }) => join(ROOT, file));
+    files = [...new Set([...treeWide, ...crossing])];
+    filesByJob.set(job, files);
+  }
+  return files;
+}
+
 /** A suite's always-run files, relative to its package directory. */
 export function alwaysRunFiles(suite: (typeof SUITES)[number]): string[] {
   const pkg = join(ROOT, suite.dir);
   const roots = suite.roots.map((root) => `${join(pkg, root)}/`);
-  const treeWide = jobTestFiles(suite.job).filter((file) =>
-    TREE_WIDE_TEST.test(file),
-  );
-  const crossing = crossingTests(suite.job).map(({ file }) => join(ROOT, file));
-  return [...new Set([...treeWide, ...crossing])]
+  return alwaysRunJobFiles(suite.job)
     .filter((file) => roots.some((root) => file.startsWith(root)))
     .map((file) => `./${relative(pkg, file)}`)
     .sort();
