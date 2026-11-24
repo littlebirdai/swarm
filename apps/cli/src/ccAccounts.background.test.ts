@@ -13,6 +13,7 @@ import {
   getAccountsHeartbeatPayloadAsync,
   invalidateAccountsCache,
   profileStoreDir,
+  profileStoreKeychainService,
   writeProfileStoreCredentials,
 } from "./ccAccounts.js";
 
@@ -227,7 +228,15 @@ test.skipIf(process.platform !== "darwin")(
     expect(await ensureProfileStoreAsync("test")).toBe("provisioned");
     expect(await deleteProfileStoreAsync("test")).toBe(true);
     expect(sync).not.toHaveBeenCalled();
-    expect(commands).toHaveBeenCalled();
+    const service = profileStoreKeychainService(profileStoreDir("test"));
+    expect(
+      commands.mock.calls
+        .filter(([file]) => file === "/usr/bin/security")
+        .map(([, args]) => [args?.[0], args?.[args.indexOf("-s") + 1]]),
+    ).toEqual([
+      ["add-generic-password", service],
+      ["delete-generic-password", service],
+    ]);
     expect(
       commands.mock.calls.every((call) => (call[2] as any).timeout === 30_000),
     ).toBe(true);

@@ -153,11 +153,14 @@ describe("/hook/statusline", () => {
   });
 
   test("an account name that is not a profile name is dropped", async () => {
+    seedUsage();
     expect(
       await post("?account=" + encodeURIComponent("../../etc"), PAYLOAD),
     ).toBe(200);
     await new Promise((r) => setTimeout(r, 200));
-    expect(readUsageCache().accounts).toEqual({});
+    const snap = readUsageCache().accounts["uuid-union"];
+    expect(snap?.session?.percent).toBe(40);
+    expect(snap?.weekly?.percent).toBe(61);
   });
 
   test("refuses an oversized body instead of buffering it", async () => {

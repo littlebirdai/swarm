@@ -790,8 +790,6 @@ describe("resnapshotIfActiveFresher (sandboxed $HOME)", () => {
     expect(await resnapshotIfActiveFresher()).toBeNull();
   });
 
-  // The daemon's timers read the credential off the loop; the async read must
-  // answer from the same store as the sync one, file store and file fallback alike.
   it("reads the active file credential through the async and sync readers", async () => {
     writeActive(1234);
     expect(await readActiveCredentialAsync()).toBe(readActiveCredential());

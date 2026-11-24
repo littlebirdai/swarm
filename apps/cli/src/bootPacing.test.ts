@@ -138,6 +138,13 @@ describe("planBootPacing", () => {
   });
 
   test("repeating work returns to the normal bounds once the hold has passed", () => {
+    const cautious = planBootPacing({ crashCount: 1 });
+    expect(bootPacingAfter(cautious, 14 * 60_000)).toBe(cautious);
+    expect(bounds(bootPacingAfter(cautious, 15 * 60_000))).toEqual({
+      ...NORMAL,
+      tier: "cautious",
+      holdMs: 15 * 60_000,
+    });
     const severe = planBootPacing({ memoryPressure: "critical" });
     expect(bootPacingAfter(severe, 29 * 60_000)).toBe(severe);
     const settled = bootPacingAfter(severe, 30 * 60_000);
@@ -167,6 +174,7 @@ describe("planBootPacing", () => {
       "promptScanSpacingMs",
       "schedulerStartDelayMs",
       "fanoutOffsetScale",
+      "holdMs",
     ] as const) {
       expect(n[key]).toBeLessThan(c[key]);
       expect(c[key]).toBeLessThan(s[key]);
