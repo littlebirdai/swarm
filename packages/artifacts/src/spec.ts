@@ -1,5 +1,5 @@
 // How a product (Boards, Sheets, Data) plugs into the artifact layer. A
-// product defines ONE ArtifactSpec in its own file under shared/artifacts and
+// product defines ONE ArtifactSpec in its own file under packages/artifacts and
 // lists it in registry.ts. The spec is pure (no I/O), so the server, the web
 // page and the CLI all run the same code: the server checks kinds, the CLI
 // renders `read` and runs the product's verbs, the web seeds new docs.

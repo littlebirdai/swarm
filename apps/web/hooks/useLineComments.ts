@@ -33,7 +33,7 @@ export type LineComments = {
   threadsByFile: Map<string, Map<string, CodeCommentRow[]>>;
   composing: ComposingLine | null;
   /** `anchorLines`: the text under the anchor, stored with a new thread so it
-   *  can be found again after the code moves (shared/comments/codeAnchor.ts). */
+   *  can be found again after the code moves (packages/comments/src/codeAnchor.ts). */
   openComposer: (
     file: string,
     anchor: DiffLineAnchor,

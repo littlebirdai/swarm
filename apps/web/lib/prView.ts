@@ -167,7 +167,7 @@ export type CodeCommentRow = {
   line_number?: number;
   line_end?: number;
   side?: string;
-  /** The commented lines' text and context (shared/comments/codeAnchor.ts). */
+  /** The commented lines' text and context (packages/comments/src/codeAnchor.ts). */
   anchor_lines?: CodeAnchorText;
   resolved?: boolean;
   resolved_at?: number;

@@ -262,7 +262,7 @@ function MessageReviewImpl({
 
   // Where each quote's block is in the text as it reads now. A doc edited or a
   // plan rewritten under a quote moves its card to the block that still holds
-  // the quoted text, or marks it outdated (shared/comments/proseAnchor). Display
+  // the quoted text, or marks it outdated (packages/comments/src/proseAnchor). Display
   // only: the batch still sends exactly what was quoted.
   const [blockTexts, setBlockTexts] = useState<string[]>([]);
   const placements = useMemo(() => {

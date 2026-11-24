@@ -37,7 +37,7 @@ export type Comment = {
   file_path?: string | null;
   line_number?: number | null;
   // The line's text and context when it was written, to find it again after
-  // the code moves (shared/comments/codeAnchor.ts).
+  // the code moves (packages/comments/src/codeAnchor.ts).
   anchor_lines?: CodeAnchorText | null;
   // Thread resolution: stamped on every comment of a resolved thread. A thread
   // is open while any of its comments is unstamped, so a reply posted after

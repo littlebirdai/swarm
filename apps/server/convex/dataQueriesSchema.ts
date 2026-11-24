@@ -6,7 +6,7 @@ import { v } from "convex/values";
 
 export const dataQueryTables = {
   // One row per (dashboard doc, query key). The key is a hash of the
-  // source and its args (shared/artifacts/dashboardData queryKey), so blocks
+  // source and its args (packages/artifacts/src/dashboardData queryKey), so blocks
   // that read the same rows share one read. A query runs as the person who
   // first bound it (owner_user_id), inside the doc's workspace, the same
   // rule a published page's queries follow.

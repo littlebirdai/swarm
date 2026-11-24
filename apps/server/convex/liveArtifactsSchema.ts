@@ -141,7 +141,7 @@ export const liveArtifactTables = {
     snapshot: v.optional(v.id("_storage")),
   }).index("by_doc_rev", ["doc_id", "rev"]),
 
-  // The words in an artifact (shared/artifacts/search.ts), one row per doc,
+  // The words in an artifact (packages/artifacts/src/search.ts), one row per doc,
   // under the doc's workspace key so a search reads only the viewer's
   // workspaces. Rewritten a little after writes settle (liveSearch.ts).
   live_search: defineTable({

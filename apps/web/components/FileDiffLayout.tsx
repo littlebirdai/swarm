@@ -77,7 +77,7 @@ export type FileLineThreads = {
     placement?: AnchorPlacement,
   ) => React.ReactNode;
   /** Hover handle click. Omit to leave the diff read only. `anchorLines` is
-   *  the text to store with the comment (shared/comments/codeAnchor.ts). */
+   *  the text to store with the comment (packages/comments/src/codeAnchor.ts). */
   onComment?: (
     filename: string,
     anchor: DiffLineAnchor | undefined,

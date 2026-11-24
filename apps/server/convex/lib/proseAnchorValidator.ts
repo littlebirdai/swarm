@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-// Where a prose comment points (shared/comments/proseAnchor.ts ProseAnchor):
+// Where a prose comment points (packages/comments/src/proseAnchor.ts ProseAnchor):
 // the commented text, its neighbours' text and the block's index.
 export const proseAnchorValidator = v.object({
   text: v.string(),
