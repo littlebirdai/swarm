@@ -13,7 +13,7 @@
  * 32-char ids: their table was simply never registered here.
  */
 
-import { isPrivateHost } from "../contracts/browserPaneOffer";
+import { isPrivateHost } from "@codecast/browser/browserPaneOffer";
 import {
   callAnchorHref,
   callFrameHref,

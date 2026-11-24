@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { PANE_OFFER_TTL_MS } from "@codecast/shared/contracts/browserPaneOffer";
+import { PANE_OFFER_TTL_MS } from "@codecast/browser/browserPaneOffer";
 import {
   OPENED_GRACE_MS,
   paneOfferDecision,

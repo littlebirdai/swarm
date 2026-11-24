@@ -9,7 +9,7 @@ import {
   PANE_OFFER_TTL_MS,
   normalizePaneUrl,
   type BrowserPaneOffer,
-} from "@codecast/shared/contracts/browserPaneOffer";
+} from "@codecast/browser/browserPaneOffer";
 import { displayHost, isLoopbackUrl } from "./browserPane";
 
 export type PaneOfferDecision = {

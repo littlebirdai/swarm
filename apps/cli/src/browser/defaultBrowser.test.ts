@@ -4,13 +4,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { FakeExtension, testBridgeHost } from "./bridge/host.testutil.js";
 import {
-  BROWSER_EXTENSION_STORE_URL,
   BROWSER_SNIPPET,
   guideText,
   renderSectionBody,
   snippetBySlug,
 } from "@codecast/shared/contracts";
 import { agentSetupPageUrl } from "@codecast/capabilities/agentToolSetup";
+import { BROWSER_EXTENSION_STORE_URL } from "@codecast/browser/browserExtension";
 
 const dirs: string[] = [];
 const test = (name: string, fn: () => void | Promise<unknown>) =>

@@ -364,7 +364,7 @@ import {
   cascadeFromAnswer,
   permissionRuleKey,
 } from "@codecast/policy/permissionRules";
-import type { BrowserPaneOffer } from "@codecast/shared/contracts/browserPaneOffer";
+import type { BrowserPaneOffer } from "@codecast/browser/browserPaneOffer";
 import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
 import { escalationTargetIds } from "@codecast/shared/contracts/decisionEscalation";
 import {

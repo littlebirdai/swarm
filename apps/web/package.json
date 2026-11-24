@@ -18,6 +18,7 @@
     "@codecast/analytics": "workspace:*",
     "@codecast/artifacts": "workspace:*",
     "@codecast/blame": "workspace:*",
+    "@codecast/browser": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
     "@codecast/comments": "workspace:*",

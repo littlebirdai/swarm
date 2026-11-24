@@ -6,7 +6,7 @@
 // (convex/browserStream.ts) that the far daemon fills with the newest frame,
 // the tab and the agent's recent actions. It speaks the same WatchHandlers and
 // returns the same WatchConnection, so the stream component only chooses
-// which one to dial. Contract: packages/shared/contracts/browserStream.ts.
+// which one to dial. Contract: packages/browser/src/browserStream.ts.
 
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -14,7 +14,7 @@ import {
   BROWSER_RELAY_RENEW_MS,
   BROWSER_RELAY_START_TIMEOUT_MS,
   SIM_RELAY_KEY_PREFIX,
-} from "@codecast/shared/contracts";
+} from "@codecast/browser/browserStream";
 import {
   parseWatchAction,
   type WatchConnection,

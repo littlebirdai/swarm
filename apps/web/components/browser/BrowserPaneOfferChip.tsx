@@ -15,7 +15,7 @@ import { useCallback } from "react";
 import { Globe, X } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { deviceDisplayName } from "@codecast/shared/contracts";
-import type { BrowserPaneOffer } from "@codecast/shared/contracts/browserPaneOffer";
+import type { BrowserPaneOffer } from "@codecast/browser/browserPaneOffer";
 import { useInboxStore } from "../../store/inboxStore";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";

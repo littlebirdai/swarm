@@ -66,7 +66,6 @@ export * from "./stableContext";
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
 export * from "./terminalStream";
-export * from "./browserStream";
 export * from "./callRoomKeys";
 export * from "./recordingAudio";
 export * from "./transcribeLanguage";
@@ -122,8 +121,7 @@ export * from "./fence";
 export * from "./triggerPrecheck";
 export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
-// `cast org init` decisions carry) and browserPaneOffer (an agent offering a
-// page as a pane). Both sit off the CLI boot graph on purpose
+// `cast org init` decisions carry). It sits off the CLI boot graph on purpose
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static
 // graph, so a re-export here is paid by `cast --help`.
 
@@ -134,7 +132,6 @@ export {
 } from "./sessionSnooze";
 export * from "./unattended";
 export * from "./handoffPrompt";
-export * from "./browserExtension";
 export type { AskResult, SideAnswerRow } from "./sessionAsk";
 export { SIDE_ANSWER_EXPIRE_MS, explainAskFailure } from "./sessionAsk";
 export * from "./systemResources";

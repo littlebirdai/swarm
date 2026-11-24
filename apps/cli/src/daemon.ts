@@ -78,7 +78,6 @@ import {
   type ApiErrorBannerKind,
   isMachineDeliveredMessage,
   isValidPaneTarget,
-  isValidBrowserStreamKey,
   isMachineSetting,
   MACHINE_SETTINGS,
   machineSettingValues,
@@ -88,6 +87,7 @@ import {
   localAgentClient,
   isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { isValidBrowserStreamKey } from "@codecast/browser/browserStream";
 import {
   CLOUD_START_RUN_MS,
   canonicalSlashCommand,

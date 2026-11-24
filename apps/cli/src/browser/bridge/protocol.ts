@@ -38,7 +38,7 @@ import {
 import {
   BROWSER_EXTENSION_ID,
   BROWSER_EXTENSION_STORE_URL,
-} from "@codecast/shared/contracts";
+} from "@codecast/browser/browserExtension";
 
 /**
  * Bumped when a message shape changes incompatibly. Both ends report theirs.

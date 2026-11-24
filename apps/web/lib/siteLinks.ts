@@ -1,4 +1,4 @@
-import { BROWSER_EXTENSION_STORE_URL } from "@codecast/shared/contracts";
+import { BROWSER_EXTENSION_STORE_URL } from "@codecast/browser/browserExtension";
 
 /**
  * Every outward link the marketing site repeats: community, source, socials,

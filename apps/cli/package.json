@@ -24,6 +24,7 @@
     "@codecast/artifacts": "workspace:*",
     "@codecast/async": "workspace:*",
     "@codecast/blame": "workspace:*",
+    "@codecast/browser": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/comments": "workspace:*",
     "@codecast/convex-errors": "workspace:*",

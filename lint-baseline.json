@@ -28690,6 +28690,12 @@
   "packages/blame/test/sessionTrailer.test.ts": {
     "swarm/no-comments": 7
   },
+  "packages/browser/src/browserPaneOffer.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/browser/src/browserStream.ts": {
+    "swarm/no-comments": 44
+  },
   "packages/capabilities/src/agentAccess.ts": {
     "swarm/no-comments": 22
   },
@@ -29046,12 +29052,6 @@
   },
   "packages/shared/contracts/briefStanding.ts": {
     "swarm/no-comments": 37
-  },
-  "packages/shared/contracts/browserPaneOffer.ts": {
-    "swarm/no-comments": 22
-  },
-  "packages/shared/contracts/browserStream.ts": {
-    "swarm/no-comments": 44
   },
   "packages/shared/contracts/callGuests.test.ts": {
     "swarm/no-comments": 9
