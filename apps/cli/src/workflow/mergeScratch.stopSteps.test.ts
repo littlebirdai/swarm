@@ -185,9 +185,9 @@ exec ${shellQuote(Bun.which("ps")!)} "$@"
 const running = step(${JSON.stringify(command)});
 await waitFor("armed");
 await waitFor("read");
+const reader = Number(readFileSync("read", "utf8"));
 const stopped = stopSteps(1_000);
 await waitFor("received");
-const reader = Number(readFileSync("read", "utf8"));
 let pending = true;
 try { process.kill(reader, 0); } catch { pending = false; }
 console.log(pending);
