@@ -33,10 +33,7 @@ import {
   type ProposalProof,
 } from "@codecast/shared/contracts/proposalCard";
 import { findingConversation } from "@codecast/shared/contracts/judges";
-import {
-  goalRefLabel,
-  type GoalsBrief,
-} from "@codecast/shared/contracts/goalsBrief";
+import { goalRefLabel, type GoalsBrief } from "@codecast/goals/goalsBrief";
 import { renderChangeCardHtml } from "@codecast/shared/render/changeCardHtml";
 import type { EvalResult } from "@platform/evals/contract";
 import { apiPost, type PublishDeps } from "./castApi.js";

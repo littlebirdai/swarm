@@ -7,7 +7,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowUpRight, X } from "lucide-react";
-import type { InitiativeUpdateRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeUpdateRow } from "@codecast/goals/initiative";
 import { objectHref } from "@codecast/entities";
 import { targetDayOf, targetDayStamp } from "@codecast/time";
 import { useInboxStore } from "../../store/inboxStore";

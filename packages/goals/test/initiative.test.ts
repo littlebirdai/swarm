@@ -11,7 +11,7 @@ import {
   metricReading,
   metricReadings,
   type InitiativeRow,
-} from "./initiative";
+} from "../src/initiative";
 
 const DAY = 86_400_000;
 

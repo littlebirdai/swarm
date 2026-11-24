@@ -1,11 +1,11 @@
-// The paired floor (climb/noise.ts, contracts/climb.ts levelNoise), from
+// The paired floor (climb/noise.ts, packages/goals/src/climb.ts levelNoise), from
 // ct-97276's fifth run: "MDE 0.019 over 3 base runs (the case-level floor) is
 // larger than the plausible 0.008". A climb compares paired; on a reproducible
 // base the difference varies only on the cases a change moves. ct-97125's
 // third climb read +0.0037 with a paired 95% interval of ±0.0021, moving 19
 // of 691 cases by about 0.17.
 import { describe, expect, test } from "bun:test";
-import { levelCanSee, levelNoise } from "@codecast/shared/contracts/climb";
+import { levelCanSee, levelNoise } from "@codecast/goals/climb";
 import { movedHistory, pairedTerms } from "./noise";
 
 // 691 cases spread like real moments (a P(yes) from 0.25 to 0.75), each base run identical, as a cached grader makes them.

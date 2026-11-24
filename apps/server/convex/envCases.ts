@@ -1,4 +1,4 @@
-// Env case sets (envSchema.ts env_heldout*, contracts/envCases.ts): an env's
+// Env case sets (envSchema.ts env_heldout*, packages/goals/src/envCases.ts): an env's
 // dev and held cases, kept here so a run works on any machine.
 //
 // In: `put`, called by `cast env cases put` in chunks; a set goes live when
@@ -24,14 +24,14 @@ import { scopeArgs, scopeOf } from "./lib/ingestScope";
 import { workspaceGrantsAccess } from "./lib/accessKeys";
 import { findInitiative, requireInitiative } from "./lib/initiativeRef";
 import { caseSetSplitValidator } from "./envSchema";
-import { isEnvKey } from "@codecast/shared/contracts/envs";
+import { isEnvKey } from "@codecast/goals/envs";
 import {
   CASE_SET_LIMITS,
   CASES_READ_TTL_MAX_S,
   type CaseSetRead,
   type CaseSetSplit,
   type EnvCaseSetStanding,
-} from "@codecast/shared/contracts/envCases";
+} from "@codecast/goals/envCases";
 
 const READS_COUNT_MAX = 1000;
 const PAGE_ROWS_MAX = 500;

@@ -4,7 +4,7 @@
 // (the whole entry, so the server stores what the page shows), what the
 // server's echo leaves behind (the server's list and no lock), and the ops an
 // undo sends to put one entry back by key. The reducer's own rules are pinned
-// beside it (shared/contracts/initiativeRecord.test.ts).
+// beside it (packages/goals/test/initiativeRecord.test.ts).
 // Run: bun test store/__tests__/initiativeRecord.test.ts
 import {
   afterAll,
@@ -19,7 +19,7 @@ import {
   applyRecordOp,
   type InitiativeRecordOp,
   type InitiativeRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { useInboxStore } from "../inboxStore";
 import { recordOpsBetween, settleRecordOp } from "../initiativeRecord";
 

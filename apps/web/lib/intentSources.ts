@@ -3,7 +3,7 @@
 // The shared contract reads and labels a source; this only answers "where".
 import { entityRoute } from "./entityLinks";
 import { chatHref } from "./chatHref";
-import type { IntentSource } from "@codecast/shared/contracts/initiative";
+import type { IntentSource } from "@codecast/goals/initiative";
 
 /** The route a source opens, or null for a note, a chat message with no channel, or a ref nothing answers to. */
 export function intentSourceHref(s: IntentSource): string | null {

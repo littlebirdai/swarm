@@ -26,7 +26,7 @@ import {
   type InitiativeHealth,
   type InitiativeRow,
   type InitiativeStatus,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { GOAL_STATUS_WORD, goalSaysHealth } from "../org/lines/goalWords";
 import {
   changeLine,

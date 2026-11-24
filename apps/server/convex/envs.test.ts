@@ -11,12 +11,9 @@ import {
   standings,
   workspaceStandings,
 } from "./envs";
-import {
-  ENV_CASE_PAGE,
-  compactCasePages,
-} from "@codecast/shared/contracts/envs";
+import { ENV_CASE_PAGE, compactCasePages } from "@codecast/goals/envs";
 
-// Environment attempts and links (contracts/envs.ts, pl-1049 ct-96178).
+// Environment attempts and links (packages/goals/src/envs.ts, pl-1049 ct-96178).
 // Pinned: the server re-reads the runner's JSON (held content refused), one
 // repo per env key, a link carried in a result lands as the env's link, a
 // goal's levels read the base attempt first, and nobody outside reads them.

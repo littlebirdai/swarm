@@ -1,11 +1,11 @@
 "use client";
 // What the goal's tasks predicted for its numbers, and what each number did
-// after the task shipped (shared/contracts/predictedEffect.ts). Read from the
+// after the task shipped (packages/goals/src/predictedEffect.ts). Read from the
 // tasks in the store, where the prediction and its reading live; drawn only
 // when a task predicts something.
 import { useMemo } from "react";
 import Link from "next/link";
-import { type InitiativeRow } from "@codecast/shared/contracts/initiative";
+import { type InitiativeRow } from "@codecast/goals/initiative";
 import {
   hitRateWords,
   predictionTally,
@@ -14,7 +14,7 @@ import {
   PREDICTION_VERDICT_WORDS,
   type PredictedEffect,
   type RealisedEffect,
-} from "@codecast/shared/contracts/predictedEffect";
+} from "@codecast/goals/predictedEffect";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 import { useMetricSeries } from "../../hooks/useMetricSeries";
 import { RecordSection as Section } from "./InitiativeRecord";

@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "../testDb";
 import { cleanMetrics, requireSeries, seriesLookup } from "./metricSeries";
 import { gatherGoalsBrief } from "../goals";
-import { renderGoalsBrief } from "@codecast/shared/contracts/goalsBrief";
-import { metricReadings } from "@codecast/shared/contracts/initiative";
+import { renderGoalsBrief } from "@codecast/goals/goalsBrief";
+import { metricReadings } from "@codecast/goals/initiative";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;

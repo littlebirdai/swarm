@@ -7,7 +7,7 @@
 // a query reads, the action asks, one mutation writes.
 //
 // A run's ground node is the agent version of the same decision, with the
-// same definitions (shared/contracts/goalsBrief GROUND_FIELDS). Grounding here
+// same definitions (@codecast/goals/goalsBrief GROUND_FIELDS). Grounding here
 // costs one call instead of a hand and a card slot, so the line spends its
 // caps only on causes a person would want worked.
 import { v } from "convex/values";
@@ -40,7 +40,7 @@ import {
   type GoalsBrief,
   type GroundCauseInput,
   type GroundFields,
-} from "@codecast/shared/contracts/goalsBrief";
+} from "@codecast/goals/goalsBrief";
 
 /** Causes one pass grounds; a full pass schedules the next at once. */
 export const GROUND_BATCH = 8;

@@ -1,8 +1,8 @@
 // A task's predicted effect on a goal metric and its read after ship
-// (shared/contracts/predictedEffect.ts). `due_at` is the sweep's queue key
+// (packages/goals/src/predictedEffect.ts). `due_at` is the sweep's queue key
 // (predictions.ts): when to look next, cleared once the read is written.
 import { v } from "convex/values";
-import { PREDICTION_VERDICTS } from "@codecast/shared/contracts/predictedEffect";
+import { PREDICTION_VERDICTS } from "@codecast/goals/predictedEffect";
 
 export const predictedValidator = v.object({
   goal_ref: v.string(),

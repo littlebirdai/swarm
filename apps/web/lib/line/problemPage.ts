@@ -32,7 +32,7 @@ import { wouldLabel } from "./fixDecision";
 import { guessPhase } from "@codecast/flows/linePhases";
 import type { LinePhaseKey } from "@codecast/flows/linePhases";
 import { ASK_LINE } from "@codecast/decisions/personAsk";
-import { NO_GOAL } from "@codecast/shared/contracts/goalsBrief";
+import { NO_GOAL } from "@codecast/goals/goalsBrief";
 import type { SwitchLedger } from "../../components/consequential/ConsequentialSwitch";
 
 export const dayWords = shortDay;

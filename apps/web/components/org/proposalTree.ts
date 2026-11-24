@@ -14,7 +14,7 @@ import {
   type OrgChangeKind,
   type OrgChangeStatus,
 } from "@codecast/shared/contracts/orgProposal";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import type { OrgParentRef, OrgTree } from "./orgTypes";
 import type { OrgProposalChange } from "./orgStaffingTypes";
 import { roleNodeId, type OrgGhostPlan, type OrgGhostStub } from "./orgLayout";

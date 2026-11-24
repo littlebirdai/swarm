@@ -50,7 +50,7 @@ import {
   roleServedInitiatives,
   servedMetricLines,
 } from "./lib/roleInitiatives";
-import { type IntentSource } from "@codecast/shared/contracts/initiative";
+import { type IntentSource } from "@codecast/goals/initiative";
 import { parseCallRef } from "@codecast/entities";
 import { isActiveTask } from "@codecast/shared/tasks";
 import { findInitiative } from "./lib/initiativeRef";

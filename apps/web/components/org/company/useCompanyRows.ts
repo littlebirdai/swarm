@@ -4,7 +4,7 @@
 // signature its own reader already uses, so a heartbeat or a session's churn
 // repaints no sheet.
 import { createContext, useContext, useMemo } from "react";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import type { ProjectItem } from "../../../store/inboxStore";
 import { useInitiatives } from "../../../hooks/useInitiatives";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";

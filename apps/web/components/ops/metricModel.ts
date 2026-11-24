@@ -3,7 +3,7 @@
 // React, no store. The alert rule is the server's (lib/ingestGroups
 // metricCrosses): above alerts when the value is over the line, below when
 // it is under it.
-import { formatSeriesValue } from "@codecast/shared/contracts/initiative";
+import { formatSeriesValue } from "@codecast/goals/initiative";
 import type { WindowDelta } from "./metricSeries";
 import type { OpsSource, OpsWatch } from "./opsTypes";
 

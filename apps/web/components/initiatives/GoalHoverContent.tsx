@@ -4,7 +4,7 @@
 // its number against its target, its day), what it serves and what carries
 // it, in the body every object card shares (ObjectCardBody): a click anywhere
 // opens the goal, its sheet on the Org screen, a new tab on Cmd or Ctrl.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { ObjectCardBody } from "../identity/objectCard";
 import { GoalSummary } from "../org/lines/ObjectSummary";
 

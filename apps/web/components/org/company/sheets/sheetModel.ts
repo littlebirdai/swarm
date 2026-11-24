@@ -1,7 +1,7 @@
 // What an object's page and a role's page work out, without React: the
 // crumb that says where an object sits, the names a Serves line links, whom
 // a role reports to, and what a role is doing this minute.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { personRefOf } from "@codecast/entities";
 import type { OrgRole, OrgSession, OrgTree } from "../../orgTypes";
 import { sessionsLine } from "../nowModel";

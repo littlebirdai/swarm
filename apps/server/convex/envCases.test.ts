@@ -3,11 +3,8 @@ import { makeFakeDb } from "./testDb";
 import { create, update } from "./initiatives";
 import { list, record, standings, workspaceStandings, get } from "./envs";
 import { log, open, page, put } from "./envCases";
-import { heldCaseId } from "@codecast/shared/contracts/envs";
-import {
-  caseSetVersion,
-  parseCaseSet,
-} from "@codecast/shared/contracts/envCases";
+import { heldCaseId } from "@codecast/goals/envs";
+import { caseSetVersion, parseCaseSet } from "@codecast/goals/envCases";
 
 // Env case sets (envCases.ts, pl-1049 ct-96179). Pinned for held: a set goes
 // live only when its last chunk lands; its cases leave only through a fetch,

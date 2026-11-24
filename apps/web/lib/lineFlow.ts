@@ -27,7 +27,7 @@ import {
   priority as linePriority,
   type Severity,
 } from "@codecast/convex/convex/lib/linePriority";
-import { LINE_GOAL, NO_GOAL } from "@codecast/shared/contracts/goalsBrief";
+import { LINE_GOAL, NO_GOAL } from "@codecast/goals/goalsBrief";
 import {
   lineRunOutcome,
   type AnsweredGate,

@@ -27,7 +27,7 @@ import {
   type InitiativeRecordOp,
   type InitiativeScore,
   type RecordOpResult,
-} from "./initiative";
+} from "../src/initiative";
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 4);

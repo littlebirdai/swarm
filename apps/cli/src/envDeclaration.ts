@@ -1,5 +1,5 @@
 // The environments a product repo declares, in `.codecast/envs.toml` beside
-// its line.toml (contracts/envs.ts EnvDeclaration). One loader, read by
+// its line.toml (packages/goals/src/envs.ts EnvDeclaration). One loader, read by
 // `cast env` and the line's eval station. Unknown keys and unknown command
 // placeholders are refused with where they sit, so a typo never runs as a
 // different command than the one written.
@@ -39,7 +39,7 @@ import {
   isEnvSplit,
   type EnvDeclaration,
   type EnvSplit,
-} from "@codecast/shared/contracts/envs";
+} from "@codecast/goals/envs";
 
 export { ENVS_REL_PATH };
 

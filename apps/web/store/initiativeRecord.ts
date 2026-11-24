@@ -11,7 +11,7 @@ import {
   sameRecordEntry,
   type InitiativeRecordList,
   type InitiativeRecordOp,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 
 export type { InitiativeRecordOp };
 

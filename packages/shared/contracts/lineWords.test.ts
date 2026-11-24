@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { deadEndWords, failReasonWords, lineCommentWords } from "./lineWords";
-import { groundedWords, needsWords } from "./goalsBrief";
+import { groundedWords, needsWords } from "@codecast/goals/goalsBrief";
 
 describe("the line's notes in plain words (learning-loop.md LL6)", () => {
   test("a station that finished with no route after it", () => {

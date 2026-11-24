@@ -10,7 +10,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import {
   ofVersion,
   type MetricDefinition,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/metricStanding";
 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;

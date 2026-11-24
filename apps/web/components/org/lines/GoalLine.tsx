@@ -4,7 +4,7 @@
 // progress is its metric, so no task bar. The owner and the status are the
 // pickers the goal's sheet uses: a pick paints the store at once and rides
 // updateInitiative to the server.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { OwnerChip } from "../../initiatives/InitiativeAtoms";
 import { GoalGlyph } from "./lineAtoms";
 import { goalFacts } from "./lineFacts";

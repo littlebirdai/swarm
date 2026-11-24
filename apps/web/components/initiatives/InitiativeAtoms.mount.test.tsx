@@ -97,7 +97,7 @@ async function verifyAtoms() {
   const { createRoot } = await import("react-dom/client");
   const A = await import("./InitiativeAtoms");
   const { metricReading, metricTrend } =
-    await import("@codecast/shared/contracts/initiative");
+    await import("@codecast/goals/initiative");
   const { targetDayStamp, formatShortDate } = await import("@codecast/time");
   const root = createRoot(document.getElementById("root")!);
   const h = React.createElement;

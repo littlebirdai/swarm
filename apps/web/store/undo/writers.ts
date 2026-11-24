@@ -20,7 +20,7 @@
 // table are the server's to derive (closed_at, attempt_count, progress) and
 // are never sent.
 import type { CellChange, Invocation, UndoWriter } from "@platform/engine";
-import { INITIATIVE_RECORD_LISTS } from "@codecast/shared/contracts/initiative";
+import { INITIATIVE_RECORD_LISTS } from "@codecast/goals/initiative";
 import { recordOpsBetween } from "../initiativeRecord";
 
 /** The mutation cannot unset this field once it holds a value. */

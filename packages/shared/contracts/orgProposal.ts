@@ -17,8 +17,11 @@ export {
   type OrgSessionDestination,
 } from "./orgSessionFiling";
 import { autonomyOn, trustForSwitch } from "@codecast/org/roleAutonomy";
-import { INITIATIVE_METRICS_MAX, INITIATIVE_RECORD_MAX } from "./initiative";
-import { metricWindowNoiseError } from "./metricStanding";
+import {
+  INITIATIVE_METRICS_MAX,
+  INITIATIVE_RECORD_MAX,
+} from "@codecast/goals/initiative";
+import { metricWindowNoiseError } from "@codecast/goals/metricStanding";
 import { everyWords } from "./rolePlaybook";
 export { everyWords } from "./rolePlaybook";
 import { DEFAULT_LINE_SLUG, LINE_SLUG_RE } from "@codecast/flows/lineSlug";

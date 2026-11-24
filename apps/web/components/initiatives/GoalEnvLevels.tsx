@@ -1,17 +1,17 @@
 "use client";
-// What predicts the goal, by level (contracts/envs.ts): each environment the
+// What predicts the goal, by level (packages/goals/src/envs.ts): each environment the
 // goal names, lowest level first, with its latest score and interval, the
 // spread of an unchanged arm, its measured link to the level above with the
 // link's age, and what a run cost. Read from the store (hooks/useEnvStandings);
 // drawn only for a goal that names an environment. The CLI writes the list
 // (`cast goal envs`), because the envs are declared in the product's repo.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import {
   ENV_LEVEL_NAME,
   standingCost,
   type EnvStanding,
   type GoalEnv,
-} from "@codecast/shared/contracts/envs";
+} from "@codecast/goals/envs";
 import { useGoalEnvLevels } from "../../hooks/useEnvStandings";
 import { compactAge } from "../../lib/threadState";
 import { RecordSection as Section } from "./InitiativeRecord";

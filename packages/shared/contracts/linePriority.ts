@@ -13,7 +13,7 @@
 //   signals   damped by log2, so doubling the reports adds one step: a p3
 //             cause needs 128 signals to tie a single-signal p0 at the
 //             same severity.
-import type { GoalPriority } from "./goalsBrief";
+import type { GoalPriority } from "@codecast/goals/goalsBrief";
 import type { TaskPriority } from "../tasks";
 
 export type Severity = TaskPriority;

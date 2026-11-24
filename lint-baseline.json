@@ -29155,6 +29155,51 @@
   "packages/flows/test/flowPool.test.ts": {
     "swarm/no-comments": 7
   },
+  "packages/goals/src/climb.ts": {
+    "swarm/no-comments": 50
+  },
+  "packages/goals/src/envCases.ts": {
+    "swarm/no-comments": 33
+  },
+  "packages/goals/src/envs.ts": {
+    "swarm/no-comments": 59
+  },
+  "packages/goals/src/goalsBrief.ts": {
+    "swarm/no-comments": 52
+  },
+  "packages/goals/src/initiative.ts": {
+    "swarm/no-comments": 149
+  },
+  "packages/goals/src/metricStanding.ts": {
+    "swarm/no-comments": 99
+  },
+  "packages/goals/src/openPlans.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/goals/src/predictedEffect.ts": {
+    "swarm/no-comments": 56
+  },
+  "packages/goals/test/climb.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/goals/test/envs.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/goals/test/goalsBrief.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/goals/test/initiative.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/goals/test/initiativeRecord.test.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/goals/test/metricStanding.test.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/goals/test/predictedEffect.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/hosted-assistant/src/assistant.ts": {
     "swarm/no-comments": 50
   },
@@ -29689,12 +29734,6 @@
   "packages/shared/contracts/ciFailures.ts": {
     "swarm/no-comments": 15
   },
-  "packages/shared/contracts/climb.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/climb.ts": {
-    "swarm/no-comments": 50
-  },
   "packages/shared/contracts/closedSession.ts": {
     "swarm/no-comments": 30
   },
@@ -29716,15 +29755,6 @@
   "packages/shared/contracts/deploys.ts": {
     "swarm/no-comments": 40
   },
-  "packages/shared/contracts/envCases.ts": {
-    "swarm/no-comments": 33
-  },
-  "packages/shared/contracts/envs.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/envs.ts": {
-    "swarm/no-comments": 59
-  },
   "packages/shared/contracts/evalResult.ts": {
     "swarm/no-comments": 8
   },
@@ -29742,12 +29772,6 @@
   },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
-  },
-  "packages/shared/contracts/goalsBrief.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/goalsBrief.ts": {
-    "swarm/no-comments": 52
   },
   "packages/shared/contracts/handoffPrompt.ts": {
     "swarm/no-comments": 34
@@ -29796,15 +29820,6 @@
   },
   "packages/shared/contracts/index.ts": {
     "swarm/no-comments": 26
-  },
-  "packages/shared/contracts/initiative.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/initiative.ts": {
-    "swarm/no-comments": 149
-  },
-  "packages/shared/contracts/initiativeRecord.test.ts": {
-    "swarm/no-comments": 17
   },
   "packages/shared/contracts/jointMessage.ts": {
     "swarm/no-comments": 10
@@ -29890,17 +29905,8 @@
   "packages/shared/contracts/metricSeries.test.ts": {
     "swarm/no-comments": 1
   },
-  "packages/shared/contracts/metricStanding.test.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/metricStanding.ts": {
-    "swarm/no-comments": 99
-  },
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/openPlans.ts": {
-    "swarm/no-comments": 7
   },
   "packages/shared/contracts/orgAreas.test.ts": {
     "swarm/no-comments": 12
@@ -29967,12 +29973,6 @@
   },
   "packages/shared/contracts/plainText.ts": {
     "swarm/no-comments": 9
-  },
-  "packages/shared/contracts/predictedEffect.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/predictedEffect.ts": {
-    "swarm/no-comments": 56
   },
   "packages/shared/contracts/problemScore.ts": {
     "swarm/no-comments": 36

@@ -799,7 +799,7 @@ export const ingestTables = {
     source_points: v.optional(
       v.array(v.object({ at: v.number(), value: v.number() })),
     ),
-    /** The definition the watch's values are read under (contracts/metricStanding MetricDefinition): the version a reader last answered or a person declared, when it was set, and the time it covers from (untagged values read earlier are an older definition). */
+    /** The definition the watch's values are read under (@codecast/goals/metricStanding MetricDefinition): the version a reader last answered or a person declared, when it was set, and the time it covers from (untagged values read earlier are an older definition). */
     version: v.optional(v.string()),
     version_at: v.optional(v.number()),
     version_since: v.optional(v.number()),

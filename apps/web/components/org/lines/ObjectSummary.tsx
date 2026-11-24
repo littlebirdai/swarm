@@ -7,7 +7,7 @@
 import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { objectHref, type OrgObjectKind } from "@codecast/entities";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import type { ProjectItem } from "../../../store/inboxStore";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import {

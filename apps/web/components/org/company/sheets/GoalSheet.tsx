@@ -9,10 +9,7 @@
 // its editor.
 import { GoalPredictions } from "../../../initiatives/GoalPredictions";
 import { Fragment, useMemo, useState } from "react";
-import {
-  metricReadings,
-  type InitiativeRow,
-} from "@codecast/shared/contracts/initiative";
+import { metricReadings, type InitiativeRow } from "@codecast/goals/initiative";
 import { useInboxStore } from "../../../../store/inboxStore";
 import { useCoarseNow } from "../../../../hooks/useCoarseNow";
 import {

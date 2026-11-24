@@ -1,4 +1,4 @@
-// The climb's deterministic stations (flows.md FL10, contracts/climb.ts):
+// The climb's deterministic stations (flows.md FL10, packages/goals/src/climb.ts):
 // gauge, admit, screen, confirm and guard.
 //
 // Nothing a station decides rests on the climb's own state file. The state
@@ -30,7 +30,7 @@ import type {
   EnvResult,
   EnvSplit,
   EnvStanding,
-} from "@codecast/shared/contracts/envs";
+} from "@codecast/goals/envs";
 import {
   CLIMB_AA_RUNS,
   baseMeanCases,
@@ -43,7 +43,7 @@ import {
   type ClimbBudget,
   type ClimbCard,
   type LevelNoise,
-} from "@codecast/shared/contracts/climb";
+} from "@codecast/goals/climb";
 import { parseEnvsText } from "../envDeclaration.js";
 import { parseLineProfileText, resolveLineProfile } from "../lineProfile.js";
 import {

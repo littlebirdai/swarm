@@ -1,9 +1,9 @@
 // The live series goals and projects read their numbers from
-// (contracts/initiative InitiativeMetric.series): the workspace's metric
+// (@codecast/goals/initiative InitiativeMetric.series): the workspace's metric
 // watches, from their one home in the store (opsWatches). A surface that
 // shows a goal's or a project's numbers mounts the feeder once and reads the
 // lookup, so every surface and the role's brief read the same value. A metric
-// read over a window (contracts/metricStanding) needs more than the row's
+// read over a window (@codecast/goals/metricStanding) needs more than the row's
 // newest points: its watches' last 30 days at card size, the same answer the
 // Metrics overview's 30d cards read (opsWatchSeries), ride along as history,
 // and the whole of a watch's history at card size when a window reaches past
@@ -11,11 +11,11 @@
 // (convex/lib/metricSeries seriesLookup); these are bucket means, so a band
 // edge right at the target can read differently here than in a brief.
 import { useMemo } from "react";
-import type { MetricSeries } from "@codecast/shared/contracts/initiative";
+import type { MetricSeries } from "@codecast/goals/initiative";
 import {
   metricDenominatorRef,
   windowPlan,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/metricStanding";
 import { useOpsWatches, useSyncOpsWatches } from "./useSyncOps";
 import { useSyncEnvStandings } from "./useEnvStandings";
 import { useSyncSeriesMany, useWatchSeriesMap } from "./useSyncOpsMetrics";

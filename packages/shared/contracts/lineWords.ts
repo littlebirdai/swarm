@@ -3,7 +3,7 @@
 // runner writes these (cli/src/workflow/runner.ts taskStopCard); the web reads
 // comments written before they existed through lineCommentWords, so old and new
 // say the same thing.
-import { groundedNoteWords } from "./goalsBrief";
+import { groundedNoteWords } from "@codecast/goals/goalsBrief";
 
 const stepWords = (id: string) =>
   id.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());

@@ -10,7 +10,7 @@ import {
   parseEnvResult,
   parseGoalEnvSpec,
   readEnvLink,
-} from "./envs";
+} from "../src/envs";
 
 const base = {
   env: "union/second-side-replay",
@@ -479,7 +479,7 @@ describe("case pages", () => {
       casePageHash,
       compactCasePages,
       expandCases,
-    } = require("./envs");
+    } = require("../src/envs");
     const wide = Array.from({ length: 1200 }, (_, i) => ({
       id: `p/${i}/${"x".repeat(80)}`,
       score: 1,

@@ -1,9 +1,6 @@
 // The numbers editor's draft rows (MetricsEditor.tsx) and the metrics a save
 // writes from them: pure, so the component module exports components only.
-import {
-  metricKeyOf,
-  type InitiativeMetric,
-} from "@codecast/shared/contracts/initiative";
+import { metricKeyOf, type InitiativeMetric } from "@codecast/goals/initiative";
 
 /** `window` and `noise` ride along untouched: an edit here never drops how a number is read. */
 export type Draft = {

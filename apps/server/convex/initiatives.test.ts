@@ -18,7 +18,7 @@ import {
   webList,
   webUpdates,
 } from "./initiatives";
-import { INITIATIVE_RECORD_MAX } from "@codecast/shared/contracts/initiative";
+import { INITIATIVE_RECORD_MAX } from "@codecast/goals/initiative";
 import { backfillProjectCountsPage } from "./lib/projectTaskCounts";
 import { servedInitiatives } from "./lib/roleInitiatives";
 

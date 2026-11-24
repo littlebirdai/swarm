@@ -175,7 +175,7 @@ spends a hand only on causes worth one. `lineGround.sweep` takes the oldest
 open causes with no `readiness` and no run, and makes one model call each over
 the cause, its signals and latest comments, and the goals brief of its project
 (of its workspace when it names none). The meaning of each field has one home,
-`GROUND_FIELDS` in `shared/contracts/goalsBrief.ts`, which the ground node's
+`GROUND_FIELDS` in `packages/goals/src/goalsBrief.ts`, which the ground node's
 prompt carries verbatim. A reply it cannot use (a goal_ref the brief does not
 offer, a value outside the vocabulary) leaves the cause `needs_context` with
 the reason, for a person; no reply at all leaves it for the next pass.

@@ -32,7 +32,7 @@ import { targetDayOf } from "@codecast/time";
 import {
   INITIATIVE_RECORD_NOUN,
   type InitiativeRecordOp,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   assigneeLabelOf,
   resolveAssigneeInfo,

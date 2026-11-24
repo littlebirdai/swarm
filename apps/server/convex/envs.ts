@@ -1,11 +1,11 @@
-// Environment attempts and links (envSchema.ts, shared/contracts/envs.ts).
+// Environment attempts and links (envSchema.ts, packages/goals/src/envs.ts).
 // `cast env run` files a runner's result here; `cast env link` records a
 // measured link; a goal's levels read the latest of each for the envs the
 // goal names (initiatives.envs, written through initiatives.update).
 //
 // The result is parsed again here, from the runner's own JSON, so a CLI that
 // skipped the check (or an older one) cannot file a held result that carries
-// case content: held ids must arrive hashed (contracts/envs heldCaseId).
+// case content: held ids must arrive hashed (@codecast/goals/envs heldCaseId).
 // Label, sha and repo are the client's word: the registry records them and
 // trusts them, it does not prove them. An env key belongs to one repo inside a workspace: a second
 // repo declaring the same key is refused rather than mixed into its history.
@@ -30,7 +30,7 @@ import {
   type EnvLink,
   type EnvStanding,
   type GoalEnv,
-} from "@codecast/shared/contracts/envs";
+} from "@codecast/goals/envs";
 
 /** The most the stored cases may weigh; a Convex document holds 1 MB. */
 const CASES_MAX_CHARS = 700_000;

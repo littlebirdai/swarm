@@ -1,6 +1,6 @@
 // Validators for an initiative's measured and written record
 // (initiatives-projects-role-page.md I4, I5), read by the initiatives schema.
-// The shapes are @codecast/shared/contracts/initiative; the assertions at the
+// The shapes are @codecast/goals/initiative; the assertions at the
 // bottom fail the typecheck when the two disagree. A leaf: it imports nothing
 // from the functions graph, so the schema loads it on its own.
 import { v, type Infer } from "convex/values";
@@ -12,7 +12,7 @@ import {
   type InitiativeScore,
   type IntentSource,
   type IntentSourceKind,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 
 const [firstKind, secondKind, ...otherKinds] = INTENT_SOURCE_KINDS.map((k) =>
   v.literal<IntentSourceKind>(k),

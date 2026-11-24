@@ -10,7 +10,7 @@ import {
   INITIATIVE_STATUS_LABEL,
   type InitiativeHealth,
   type InitiativeStatus,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 
 type IconName = React.ComponentProps<typeof FontAwesome>["name"];
 type Visual = { icon: IconName; label: string; color: string };
