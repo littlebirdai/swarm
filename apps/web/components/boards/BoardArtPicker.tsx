@@ -2,7 +2,7 @@
 // Stamp tool places what is picked as a sticker; a sticky's bar sets it as
 // the sticky's illustration.
 import { memo, useMemo, useState } from "react";
-import { BOARD_ART } from "@codecast/shared/artifacts/board";
+import { BOARD_ART } from "@codecast/artifacts/board";
 import { BOARD_ART_URLS } from "./boardArtUrls";
 import { STAMPS } from "./boardColors";
 

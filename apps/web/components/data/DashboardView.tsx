@@ -24,7 +24,7 @@ import {
   type ArtifactOp,
   type ArtifactPosition,
   type Json,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import type { LiveViewProps } from "../live/registry";
 import { useLiveElements } from "../live/useLiveArtifact";
 import {

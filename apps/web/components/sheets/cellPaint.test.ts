@@ -286,7 +286,7 @@ describe("status bar totals", () => {
   test("durations sum as time, mixed formats as plain numbers", async () => {
     const { selectionSummary } = await import("./sheetActions");
     const { LiveSheet } = await import("./sheetCore");
-    const { foldOps, toElement } = await import("@codecast/shared/artifacts");
+    const { foldOps, toElement } = await import("@codecast/artifacts");
     const live = new LiveSheet();
     const ops = [
       { k: "tab:S", put: { kind: "tab", name: "S", order: 0 } },
@@ -327,7 +327,7 @@ describe("typing into a percent cell", () => {
   test("50 means 50%; 0.5 stays 0.5 (shows 50%)", async () => {
     const { checkCommit } = await import("./sheetActions");
     const { LiveSheet } = await import("./sheetCore");
-    const { foldOps, toElement } = await import("@codecast/shared/artifacts");
+    const { foldOps, toElement } = await import("@codecast/artifacts");
     const live = new LiveSheet();
     live.update(
       [
@@ -351,7 +351,7 @@ describe("which top row is a header", () => {
   test("text over figures or a bold row is a header; a row of data is not", async () => {
     const { isHeaderRow } = await import("./sheetActions");
     const { LiveSheet } = await import("./sheetCore");
-    const { foldOps, toElement } = await import("@codecast/shared/artifacts");
+    const { foldOps, toElement } = await import("@codecast/artifacts");
     const at = (rows: Array<Array<{ input: string; b?: boolean }>>) => {
       const ops: unknown[] = [
         { k: "tab:S", put: { kind: "tab", name: "S", order: 0 } },
@@ -411,7 +411,7 @@ describe("what a column-header sort covers", () => {
   test("every block down the column, gaps included, each widened to its table", async () => {
     const { columnTable } = await import("./sheetActions");
     const { LiveSheet } = await import("./sheetCore");
-    const { foldOps, toElement } = await import("@codecast/shared/artifacts");
+    const { foldOps, toElement } = await import("@codecast/artifacts");
     const ops: unknown[] = [
       { k: "tab:S", put: { kind: "tab", name: "S", order: 0 } },
     ];

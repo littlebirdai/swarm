@@ -5,7 +5,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { Plus, X } from "lucide-react";
-import { dashboard, type Json } from "@codecast/shared/artifacts";
+import { dashboard, type Json } from "@codecast/artifacts";
 import { useCommittedDraft } from "../../hooks/useCommittedDraft";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 

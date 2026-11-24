@@ -8,8 +8,8 @@ import {
   opsProblem,
   type ArtifactOp,
   type ElementState,
-} from "./core";
-import { askAgentBrief } from "./ask";
+} from "../src/core";
+import { askAgentBrief } from "../src/ask";
 
 const fold = (ops: ArtifactOp[], start?: Map<string, ElementState>) =>
   foldOps(new Map(start ?? []), ops);

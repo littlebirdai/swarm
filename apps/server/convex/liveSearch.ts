@@ -15,7 +15,7 @@ import {
   isArtifactDocType,
   searchSnippet,
   type ArtifactElement,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 /** How long after a write the text is redrawn: edits inside it share one reindex. */
 export const SEARCH_REINDEX_MS = 20_000;

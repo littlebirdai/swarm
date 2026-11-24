@@ -4,14 +4,14 @@
 // follows the selection and still takes a typed range.
 import { useMemo, useRef, useState } from "react";
 import { useEventListener } from "../../hooks/useEventListener";
-import { sheet } from "@codecast/shared/artifacts";
+import { sheet } from "@codecast/artifacts";
 import {
   colLetters,
   parseQualifiedRange,
   quoteTabName,
   rectA1,
   type Rect,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import { useSyncLiveArtifact } from "../../hooks/useSyncLiveArtifact";
 import { useLiveElements } from "../live/useLiveArtifact";
 import { useCommittedDraft } from "../../hooks/useCommittedDraft";

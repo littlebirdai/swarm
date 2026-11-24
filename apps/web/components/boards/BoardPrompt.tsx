@@ -5,7 +5,7 @@
 // running session.
 import { useLayoutEffect, useRef, useState } from "react";
 import { Bot } from "lucide-react";
-import type { ArtifactElement } from "@codecast/shared/artifacts";
+import type { ArtifactElement } from "@codecast/artifacts";
 import {
   pickAskTarget,
   sendAsk,

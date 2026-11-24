@@ -13,7 +13,7 @@ import {
   esc,
   type ChartTheme,
 } from "../ops/chart/chartTheme";
-import { dashboard } from "@codecast/shared/artifacts";
+import { dashboard } from "@codecast/artifacts";
 
 type ChartOk = Extract<dashboard.ChartEval, { state: "ok" }>;
 

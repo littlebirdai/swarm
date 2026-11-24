@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { X } from "lucide-react";
-import type { ArtifactType } from "@codecast/shared/artifacts";
+import type { ArtifactType } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { AppLoader } from "../AppLoader";
 import { ErrorBoundary } from "../ErrorBoundary";

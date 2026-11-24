@@ -8,7 +8,7 @@ import {
   elementBounds,
   elementBox,
   type Box,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import type { BoardEl } from "./boardTypes";
 
 const GAP = 24;

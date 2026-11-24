@@ -25,7 +25,7 @@ import { BoardArtPicker } from "./BoardArtPicker";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { SHAPE_CHOICES } from "./boardShapeChoices";
 import { BOARD_ART_URLS } from "./boardArtUrls";
-import { boardArtFor } from "@codecast/shared/artifacts/board";
+import { boardArtFor } from "@codecast/artifacts/board";
 import type { BoardTool } from "./boardTypes";
 
 const SHAPES = SHAPE_CHOICES;

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { LiveSheet, buildModel, workbookFor } from "./model";
-import type { ArtifactElement } from "../core";
+import { LiveSheet, buildModel, workbookFor } from "../../src/sheets/model";
+import type { ArtifactElement } from "../../src/core";
 
 const el = (
   key: string,
@@ -69,7 +69,7 @@ describe("LiveSheet", () => {
 
 describe("format inheritance", () => {
   test("a formula over a formatted cell reads in that format", async () => {
-    const { inheritedFormat } = await import("./model");
+    const { inheritedFormat } = await import("../../src/sheets/model");
     const m = buildModel([
       el("c:Sheet1!A1", "cell", { input: "1200", nf: "currency" }),
       el("c:Sheet1!A2", "cell", { input: "=A1*2" }),
@@ -96,7 +96,7 @@ describe("format inheritance", () => {
 
 describe("round 3 fixes", () => {
   test("COUNT over percents is a count, SUM keeps the unit", async () => {
-    const { inheritedFormat } = await import("./model");
+    const { inheritedFormat } = await import("../../src/sheets/model");
     const m = buildModel([
       el("c:Sheet1!A1", "cell", { input: "10%" }),
       el("c:Sheet1!A2", "cell", { input: "20%" }),

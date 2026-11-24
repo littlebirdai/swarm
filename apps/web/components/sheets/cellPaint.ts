@@ -19,7 +19,7 @@ import {
   codeColor,
   valueMeetsRule,
   PALETTE,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 
 export function solVar(c: PaletteColor): string {
   return c === "gray" ? "var(--sol-text-muted)" : `var(--sol-${c})`;

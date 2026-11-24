@@ -4,10 +4,7 @@
 import { memo, useRef, useState } from "react";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { useEventListener } from "../../../hooks/useEventListener";
-import {
-  newElementKey,
-  type ArtifactElement,
-} from "@codecast/shared/artifacts";
+import { newElementKey, type ArtifactElement } from "@codecast/artifacts";
 import { useLiveElements } from "../useLiveArtifact";
 import type { LiveViewProps } from "../registry";
 

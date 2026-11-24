@@ -25,7 +25,7 @@ import {
   queryTabOps,
   tabByName,
   type TabQuery,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import {
   DEFAULT_TASK_STATUS_NAMES,
   TASK_STATUS_CATEGORIES,

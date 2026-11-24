@@ -1,4 +1,4 @@
-import { isArtifactDocType } from "@codecast/shared/artifacts";
+import { isArtifactDocType } from "@codecast/artifacts";
 import type { ComponentType } from "react";
 import {
   DEFAULT_IDENTITY_PREFS,

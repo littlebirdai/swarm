@@ -4,7 +4,7 @@
 import { useRef, useState } from "react";
 import { useCommittedDraft } from "../../hooks/useCommittedDraft";
 import { Braces } from "lucide-react";
-import { dashboard, type Json } from "@codecast/shared/artifacts";
+import { dashboard, type Json } from "@codecast/artifacts";
 import { useDataSources } from "../../hooks/useDashboardData";
 import { SheetRangePicker } from "./SheetRangePicker";
 

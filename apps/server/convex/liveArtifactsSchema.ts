@@ -1,5 +1,5 @@
 // Live artifacts (boards, sheets, dashboards): structured doc content synced
-// as elements. See liveArtifacts.ts and @codecast/shared/artifacts.
+// as elements. See liveArtifacts.ts and @codecast/artifacts.
 
 import { defineTable } from "convex/server";
 import { v } from "convex/values";

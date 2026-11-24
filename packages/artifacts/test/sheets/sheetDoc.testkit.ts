@@ -5,9 +5,9 @@ import {
   type ArtifactElement,
   type ArtifactOp,
   type ElementState,
-} from "../core";
-import { artifactView } from "../spec";
-import { sheetSpec } from "../sheet";
+} from "../../src/core";
+import { artifactView } from "../../src/spec";
+import { sheetSpec } from "../../src/sheet";
 
 /** A tiny in-memory doc: apply ops, read elements. */
 export function doc(initial: ArtifactOp[] = []) {

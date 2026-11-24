@@ -2,7 +2,7 @@
 // product (ct-91886) replaces this view in components/live/registry.ts.
 import { useMemo, useRef } from "react";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
-import { newElementKey } from "@codecast/shared/artifacts";
+import { newElementKey } from "@codecast/artifacts";
 import { useLiveElements } from "../useLiveArtifact";
 import type { LiveViewProps } from "../registry";
 

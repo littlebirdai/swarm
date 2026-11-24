@@ -52,7 +52,7 @@ import { DocRow } from "../../components/docs/DocRow";
 import { NewDocMenu } from "../../components/docs/NewDocMenu";
 import { useArtifactContentSearch } from "../../hooks/useArtifactContentSearch";
 import { DocTypeMark } from "../../components/docs/DocTypeMark";
-import { isArtifactDocType } from "@codecast/shared/artifacts";
+import { isArtifactDocType } from "@codecast/artifacts";
 import {
   createLiveArtifact,
   type WorkspaceStamp,

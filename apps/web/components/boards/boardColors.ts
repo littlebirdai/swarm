@@ -1,6 +1,6 @@
 // Board color names -> theme tokens. Elements store a name ("yellow"), never
 // a hex, so the same board reads right in light and dark themes.
-import type { BoardColor } from "@codecast/shared/artifacts/board";
+import type { BoardColor } from "@codecast/artifacts/board";
 
 const TOKEN: Record<BoardColor, string> = {
   yellow: "var(--sol-yellow)",

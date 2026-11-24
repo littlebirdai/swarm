@@ -10,7 +10,7 @@ import { useMemo, useRef, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useEventListener } from "../../hooks/useEventListener";
 import { ArrowDown, Pause, Play, RotateCcw } from "lucide-react";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import {
   ChartBody,
   CheckMark,

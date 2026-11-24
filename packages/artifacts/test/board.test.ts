@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { artifactView } from "./spec";
+import { artifactView } from "../src/spec";
 import {
   foldOps,
   toElement,
   type ArtifactElement,
   type ArtifactOp,
   type ElementState,
-} from "./core";
+} from "../src/core";
 import {
   alignBoxes,
   anchorPoint,
@@ -27,8 +27,8 @@ import {
   stickyLayout,
   textHeight,
   BOARD_VERBS,
-} from "./board";
-import { elbowRoute } from "./boardGeometry";
+} from "../src/board";
+import { elbowRoute } from "../src/boardGeometry";
 
 function el(
   key: string,
@@ -486,7 +486,7 @@ describe("describe", () => {
 
 describe("clone", () => {
   test("copies get fresh keys and groups, connectors follow both ends or stay on existing ones", async () => {
-    const { cloneOps } = await import("./board");
+    const { cloneOps } = await import("../src/board");
     const els = [
       el("a", "sticky", { x: 0, y: 0, group: "g1", z: 1 }),
       el("b", "sticky", { x: 300, y: 0, group: "g1", z: 2 }),
@@ -521,7 +521,7 @@ describe("review fixes", () => {
     expect(it.h).toBeGreaterThan(26);
   });
   test("rotated bounds cover the turned box", async () => {
-    const { elementBounds } = await import("./board");
+    const { elementBounds } = await import("../src/board");
     const b = elementBounds(
       el("r", "shape", { x: 0, y: 0, w: 200, h: 40, rot: 90 }),
     );
@@ -540,7 +540,7 @@ describe("review fixes", () => {
 
 describe("clearOffset", () => {
   test("no move when clear, nearest clear spot when not", async () => {
-    const { clearOffset } = await import("./board");
+    const { clearOffset } = await import("../src/board");
     expect(
       clearOffset({ x: 0, y: 0, w: 100, h: 100 }, [
         { x: 500, y: 500, w: 10, h: 10 },
@@ -899,7 +899,7 @@ describe("elbow leaving its box", () => {
 
 describe("connector labels", () => {
   test("a label sits on a long leg, and beside a leg too short to show the line past it", async () => {
-    const { labelSpot } = await import("./boardGeometry");
+    const { labelSpot } = await import("../src/boardGeometry");
     expect(
       labelSpot(
         {
@@ -929,7 +929,7 @@ describe("connector labels", () => {
 
 describe("tidy up", () => {
   test("a pile becomes a near-square grid from its top-left, in reading order", async () => {
-    const { tidyBoxes } = await import("./boardLayout");
+    const { tidyBoxes } = await import("../src/boardLayout");
     const pile = new Map([
       ["a", { x: 10, y: 10, w: 200, h: 160 }],
       ["b", { x: 30, y: 25, w: 200, h: 160 }],
@@ -942,7 +942,7 @@ describe("tidy up", () => {
     ).toEqual(["a:10,10", "b:234,10", "c:10,194", "d:234,194"]);
   });
   test("ragged rows keep their length and line up", async () => {
-    const { tidyBoxes } = await import("./boardLayout");
+    const { tidyBoxes } = await import("../src/boardLayout");
     const rows = new Map([
       ["a", { x: 0, y: 0, w: 100, h: 80 }],
       ["b", { x: 130, y: 12, w: 100, h: 80 }],

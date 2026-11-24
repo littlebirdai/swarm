@@ -4,7 +4,7 @@ import {
   elementBounds,
   unionBox,
   type Box,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import type { BoardEl } from "./boardTypes";
 
 /** Draw order: frames under everything, then by z, ties by key. */

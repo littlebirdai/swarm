@@ -5,7 +5,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { makeFunctionReference } from "convex/server";
-import type { TabMeta } from "@codecast/shared/artifacts/sheets";
+import type { TabMeta } from "@codecast/artifacts/sheets";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 

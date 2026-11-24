@@ -6,7 +6,7 @@ import {
   dashboard,
   type ArtifactElement,
   type ArtifactOp,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 /** The refusal in a glance: what is typed, never the whole rule. */
 /** A token that names no KPI here, or a part the page can't draw, would print raw to readers. */

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FUNCTIONS } from "./functions";
+import { FUNCTIONS } from "../../src/sheets/functions";
 import {
   FUNCTION_DOCS,
   argIndexFor,
@@ -8,8 +8,8 @@ import {
   fnSignature,
   nearestFunction,
   ERROR_DOCS,
-} from "./catalog";
-import { ERROR_CODES } from "./formula";
+} from "../../src/sheets/catalog";
+import { ERROR_CODES } from "../../src/sheets/formula";
 
 describe("function catalog", () => {
   test("documents every engine function with the engine's argument counts", () => {
@@ -91,8 +91,8 @@ describe("errorFix", () => {
   });
 });
 
-import { functionMatches } from "./catalog";
-import { FUNCTION_NAMES } from "./functions";
+import { functionMatches } from "../../src/sheets/catalog";
+import { FUNCTION_NAMES } from "../../src/sheets/functions";
 describe("functionMatches", () => {
   test("common functions come first", () => {
     expect(functionMatches("SU", FUNCTION_NAMES)[0]).toBe("SUM");
@@ -105,7 +105,7 @@ describe("functionMatches", () => {
   });
 });
 
-import { ARG_HELP, argHelp } from "./catalog";
+import { ARG_HELP, argHelp } from "../../src/sheets/catalog";
 describe("argument help", () => {
   test("every help entry names a real argument, and lookups strip the optional mark", () => {
     for (const [fn, args] of Object.entries(ARG_HELP))
@@ -123,7 +123,7 @@ describe("argument help", () => {
 
 describe("dates typed without a year", () => {
   test("take the current year; other text is left alone", async () => {
-    const { completeDateInput } = await import("./values");
+    const { completeDateInput } = await import("../../src/sheets/values");
     const now = new Date(2026, 10, 11);
     expect(
       ["Nov 5", "5 November", "11/5", "Feb 30", "Novel 5", "5"].map((t) =>
@@ -142,7 +142,7 @@ describe("dates typed without a year", () => {
 
 describe("elapsed time codes", () => {
   test("[h]:mm keeps counting past a day; [mm] counts minutes", async () => {
-    const { formatValue } = await import("./format");
+    const { formatValue } = await import("../../src/sheets/format");
     expect(formatValue(29.75 / 24, { nf: "custom", code: "[h]:mm" })).toBe(
       "29:45",
     );
@@ -154,9 +154,10 @@ describe("elapsed time codes", () => {
 
 describe("lookup results read like their column", () => {
   test("VLOOKUP and INDEX into a currency column show currency, as XLOOKUP does", async () => {
-    const { sheetSpec } = await import("../sheet");
+    const { sheetSpec } = await import("../../src/sheet");
     const { doc } = await import("./sheetDoc.testkit");
-    const { buildModel, inheritedFormat } = await import("./model");
+    const { buildModel, inheritedFormat } =
+      await import("../../src/sheets/model");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Name\tAmount\nAna\t$800\nBo\t$3,400.50");
     const m = buildModel(d.elements());
@@ -171,7 +172,7 @@ describe("lookup results read like their column", () => {
 
 describe("agent range reads", () => {
   test("cast sheet range gives dates as they show", async () => {
-    const { sheetSpec } = await import("../sheet");
+    const { sheetSpec } = await import("../../src/sheet");
     const { doc } = await import("./sheetDoc.testkit");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Due\tQty\n2026-11-28\t5\n=A2+1\t");
@@ -183,9 +184,10 @@ describe("agent range reads", () => {
 
 describe("array results read like their source", () => {
   test("FILTER and SORT blocks show each source column's format", async () => {
-    const { sheetSpec } = await import("../sheet");
+    const { sheetSpec } = await import("../../src/sheet");
     const { doc } = await import("./sheetDoc.testkit");
-    const { buildModel, workbookFor, displayFormat } = await import("./model");
+    const { buildModel, workbookFor, displayFormat } =
+      await import("../../src/sheets/model");
     const d = doc(sheetSpec.seed!());
     d.verb(
       "write",
@@ -219,7 +221,7 @@ describe("array results read like their source", () => {
 
 describe("reading a spill past the typed cells", () => {
   test("cast sheet range includes the whole spilled block", async () => {
-    const { sheetSpec } = await import("../sheet");
+    const { sheetSpec } = await import("../../src/sheet");
     const { doc } = await import("./sheetDoc.testkit");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "b\nc\na");

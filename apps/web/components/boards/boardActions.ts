@@ -2,7 +2,7 @@
 // plan, image upload, and the clipboard format. Canvas writes still go
 // through the live handle so they sync, undo and show to everyone.
 import { toast } from "sonner";
-import { newElementKey, type ArtifactOp } from "@codecast/shared/artifacts";
+import { newElementKey, type ArtifactOp } from "@codecast/artifacts";
 import { parsePublishedPageUrl } from "@codecast/shared/entities";
 import {
   BOARD_DEFAULT_SIZE,
@@ -17,7 +17,7 @@ import {
   cloneOps,
   unionBox,
   type Pt,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import { useInboxStore } from "../../store/inboxStore";
 import { createTaskAndAdopt } from "../../lib/taskActions";
 import { uploadBlobToStorage } from "../../lib/uploadBlob";

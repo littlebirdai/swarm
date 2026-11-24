@@ -1,8 +1,8 @@
 // Board comment threads: grouping comments into threads, where a pin sits,
 // and an author's initials.
 import { useMemo } from "react";
-import { elementBox } from "@codecast/shared/artifacts/board";
-import type { ArtifactElement } from "@codecast/shared/artifacts";
+import { elementBox } from "@codecast/artifacts/board";
+import type { ArtifactElement } from "@codecast/artifacts";
 import type { BoardEl } from "./boardTypes";
 import { groupThreads, type LiveThread } from "../live/liveThreads";
 

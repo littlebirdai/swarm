@@ -9,7 +9,7 @@ import {
   textOnColor,
   type ArtifactPosition,
   type ArtifactPresence,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { CursorArrow } from "../presence/CursorArrow";
 import type { ScreenPoint } from "./registry";
 

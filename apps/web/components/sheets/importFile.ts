@@ -12,7 +12,7 @@ import {
   type ImportTable,
   type PaletteColor,
   type Rect,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import { PALETTE_HEX } from "./exportFile";
 
 export type ImportedTable = ImportTable;

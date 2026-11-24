@@ -2,7 +2,7 @@
 // the right-click menu run too: one switch over the selected elements that
 // writes through the live handle.
 import type { MutableRefObject } from "react";
-import { newElementKey } from "@codecast/shared/artifacts";
+import { newElementKey } from "@codecast/artifacts";
 import {
   alignBoxes,
   bottomZ,
@@ -15,7 +15,7 @@ import {
   tidyBoxes,
   unionBox,
   type Box,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import type { LiveViewProps } from "../live/registry";
 import type { BarAction } from "./BoardSelectionBar";
 import type { PromptMode } from "./BoardPrompt";

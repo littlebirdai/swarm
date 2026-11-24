@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Workbook } from "./engine";
+import { Workbook } from "../../src/sheets/engine";
 
 function wb(cells: Record<string, string>) {
   const w = new Workbook();
@@ -154,7 +154,7 @@ describe("ranges with empty cells", () => {
   });
 });
 
-import { shiftFormula, adjustFormula } from "./rewrite";
+import { shiftFormula, adjustFormula } from "../../src/sheets/rewrite";
 describe("open-ended column ranges", () => {
   test("A2:A reads to the bottom of the used rows, shifts and survives row edits", () => {
     const w = wb({
@@ -196,9 +196,9 @@ describe("open-ended column ranges", () => {
   });
 });
 
-import { sheetSpec } from "../sheet";
+import { sheetSpec } from "../../src/sheet";
 import { doc } from "./sheetDoc.testkit";
-import { buildModel } from "./model";
+import { buildModel } from "../../src/sheets/model";
 describe("fit with spills", () => {
   test("a column holding only a spilled block fits its widest value", () => {
     const d = doc(sheetSpec.seed!());
@@ -210,7 +210,7 @@ describe("fit with spills", () => {
   });
 });
 
-import { inheritedFormat } from "./model";
+import { inheritedFormat } from "../../src/sheets/model";
 describe("round 2 critic: spills and arrays", () => {
   test("SORT FALSE sorts descending; arrays; E1# reads a block and follows it", () => {
     const w = wb({
@@ -250,8 +250,8 @@ describe("round 2 critic: spills and arrays", () => {
   });
 });
 
-import { formatValue } from "./format";
-import { parseLiteral } from "./values";
+import { formatValue } from "../../src/sheets/format";
+import { parseLiteral } from "../../src/sheets/values";
 describe("times of day", () => {
   test("typed times are values; sums run past a day; TIME and TIMEVALUE", () => {
     expect(parseLiteral("9:15 PM")).toEqual({

@@ -4,7 +4,7 @@
 // overlays), so a pan stays at 60fps with hundreds of elements.
 import { visibleAnimationLoop } from "../../lib/windowVisibleWork";
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { Box, Pt } from "@codecast/shared/artifacts/board";
+import type { Box, Pt } from "@codecast/artifacts/board";
 import { useMountEffect } from "../../hooks/useMountEffect";
 
 /** screen = world * z + (x, y) */

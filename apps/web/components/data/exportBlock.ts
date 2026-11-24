@@ -1,7 +1,7 @@
 // Taking a block's data out of the dashboard: its rows as CSV (exactly the
 // rows it shows, under the dashboard's filter) and a chart as a PNG drawn at
 // twice the screen's density on the page's own background.
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { echarts, type ECharts } from "../ops/chart/echarts";
 import type { DataResult } from "../../hooks/useDashboardData";
 

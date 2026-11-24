@@ -22,7 +22,7 @@ import {
   type ArtifactLayer,
   type ArtifactOp,
   type ElementState,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 export type Layer = ArtifactLayer | "comments";
 

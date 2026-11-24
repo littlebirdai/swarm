@@ -115,8 +115,8 @@ describe("keepAsText", () => {
 describe("Excel round trip", () => {
   test("styles, merges, dropdowns and array formulas come back", async () => {
     const { LiveSheet, importTablesOps, buildModel } =
-      await import("@codecast/shared/artifacts/sheets");
-    const { foldOps, toElement } = await import("@codecast/shared/artifacts");
+      await import("@codecast/artifacts/sheets");
+    const { foldOps, toElement } = await import("@codecast/artifacts");
     const { sheetXlsx } = await import("./exportFile");
     const ops = [
       {

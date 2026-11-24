@@ -14,7 +14,7 @@ import {
   stickyLayout,
   unflatten,
   type Box,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import { BOARD_ART_URLS } from "./boardArtUrls";
 import { formatKey } from "./boardMarks";
 import { RichText } from "./BoardRichText";

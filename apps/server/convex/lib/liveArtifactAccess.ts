@@ -12,7 +12,7 @@ import {
   type ArtifactType,
   presenceColor,
   PRESENCE_TTL_MS,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 export type Caller = {
   userId: Id<"users">;

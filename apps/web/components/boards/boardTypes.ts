@@ -5,7 +5,7 @@ import type {
   ArtifactElement,
   ArtifactOp,
   ArtifactPosition,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 export type BoardEl = ArtifactElement;
 

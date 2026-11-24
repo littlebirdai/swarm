@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
-import { artifactView, specForCli } from "@codecast/shared/artifacts";
+import { artifactView, specForCli } from "@codecast/artifacts";
 import {
   lifecycleGuide,
   parseDocRef,

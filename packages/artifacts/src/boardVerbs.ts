@@ -5,7 +5,7 @@
 import type { ArtifactElement, ArtifactOp, Json } from "./core";
 import type { ArtifactVerb, ArtifactView, VerbResult } from "./spec";
 import { newElementKey } from "./spec";
-import { parsePublishedPageUrl } from "../entities";
+import { parsePublishedPageUrl } from "@codecast/shared/entities";
 import {
   BOARD_COLORS,
   BOARD_DEFAULT_SIZE,

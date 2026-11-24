@@ -11,7 +11,7 @@ import {
   smoothPath,
   unionBox,
   type Box,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import type { GestureOverlay, Handle } from "./useBoardGestures";
 import type { BoardEl } from "./boardTypes";
 

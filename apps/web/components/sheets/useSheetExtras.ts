@@ -38,7 +38,7 @@ import {
   type LiveHandle,
 } from "../live/useLiveArtifact";
 import { groupThreads, type LiveThread } from "../live/liveThreads";
-import type { ArtifactOp } from "@codecast/shared/artifacts";
+import type { ArtifactOp } from "@codecast/artifacts";
 import { SORT_TOAST, type Sel, type SheetState } from "./sheetActions";
 
 export type SheetExtrasDeps = {

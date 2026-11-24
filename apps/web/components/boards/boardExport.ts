@@ -18,7 +18,7 @@ import {
   unflatten,
   unionBox,
   type Box,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import { BOARD_ART_URLS } from "./boardArtUrls";
 import { wrapRuns, type Run } from "./boardMarks";
 import { colorToken, shapeFill, stickyFill, tint } from "./boardColors";

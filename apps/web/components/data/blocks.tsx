@@ -16,7 +16,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { OpsChart } from "../ops/chart/OpsChart";
 import type { ECharts } from "../ops/chart/echarts";
 import { registerChart } from "./exportBlock";

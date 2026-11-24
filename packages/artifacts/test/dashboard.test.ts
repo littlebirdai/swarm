@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { artifactView, type ArtifactElement } from "./index";
+import { artifactView, type ArtifactElement } from "../src/index";
 import {
   chartPointRows,
   DASHBOARD_TEMPLATES,
@@ -37,7 +37,7 @@ import {
   storySteps,
   typedNumbers,
   type DataResult,
-} from "./dashboard";
+} from "../src/dashboard";
 
 const NOW = Date.UTC(2026, 10, 10, 12);
 
@@ -582,7 +582,7 @@ describe("verbs", () => {
 
 describe("visual short", () => {
   test("beats run end to end, charts hold longest, the beat at a time", async () => {
-    const { shortTimeline, beatAt } = await import("./dashboard");
+    const { shortTimeline, beatAt } = await import("../src/dashboard");
     const steps = storySteps("T", { format: "short" }, [
       el("b_1", "kpi", { order: 1 }),
       el("b_2", "kpi", { order: 2 }),
@@ -604,7 +604,7 @@ describe("visual short", () => {
 
 describe("suggested fields", () => {
   test("time series: sum with a comparison, stacked by the text column", async () => {
-    const { suggestFields } = await import("./dashboard");
+    const { suggestFields } = await import("../src/dashboard");
     const cols = ["day", "person", "tokens", "spend"];
     const row = ["2026-11-01", "ada", 10, 1.2];
     expect(suggestFields("kpi", cols, row)).toEqual({
@@ -740,7 +740,7 @@ describe("review regressions", () => {
     ).toMatchObject({ state: "problem", problem: "no numbers in b" });
   });
   test("sheet headers stay unique even when a generated name is already taken", async () => {
-    const { sheetTable } = await import("./dashboard");
+    const { sheetTable } = await import("../src/dashboard");
     expect(
       sheetTable(
         [

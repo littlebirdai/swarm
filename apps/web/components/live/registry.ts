@@ -5,7 +5,7 @@ import type {
   ArtifactElement,
   ArtifactPosition,
   ArtifactType,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import type { LiveHandle } from "./useLiveArtifact";
 
 export type ScreenPoint = { x: number; y: number; w?: number; h?: number };

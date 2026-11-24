@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { Workbook } from "./engine";
-import { parseFormula, tokenize } from "./formula";
-import { parseLiteral, dateToSerial } from "./values";
-import { formatValue, formatWithCode } from "./format";
-import { parseA1 } from "./refs";
+import { Workbook } from "../../src/sheets/engine";
+import { parseFormula, tokenize } from "../../src/sheets/formula";
+import { parseLiteral, dateToSerial } from "../../src/sheets/values";
+import { formatValue, formatWithCode } from "../../src/sheets/format";
+import { parseA1 } from "../../src/sheets/refs";
 
 function book(
   cells: Record<string, string>,

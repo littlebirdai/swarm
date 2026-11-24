@@ -1,11 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { doc } from "./sheetDoc.testkit";
-import { sheetSpec, readSheetRange, describeSheet } from "../sheet";
-import { adjustFormula, renameTabInFormula, shiftFormula } from "./rewrite";
-import { buildModel, workbookFor } from "./model";
-import { dateToSerial } from "./values";
-import { fillOps, structuralOps, sortOps, clipOf, pasteClipOps } from "./ops";
-import { parseTsv, toTsv } from "./delimited";
+import { sheetSpec, readSheetRange, describeSheet } from "../../src/sheet";
+import {
+  adjustFormula,
+  renameTabInFormula,
+  shiftFormula,
+} from "../../src/sheets/rewrite";
+import { buildModel, workbookFor } from "../../src/sheets/model";
+import { dateToSerial } from "../../src/sheets/values";
+import {
+  fillOps,
+  structuralOps,
+  sortOps,
+  clipOf,
+  pasteClipOps,
+} from "../../src/sheets/ops";
+import { parseTsv, toTsv } from "../../src/sheets/delimited";
 
 describe("rewrite", () => {
   test("relative shift keeps anchors", () => {
@@ -277,7 +287,7 @@ describe("verbs and ops", () => {
 
 describe("query tabs", () => {
   test("fill, diff, size columns, clear leftovers", async () => {
-    const { queryTabOps } = await import("./ops");
+    const { queryTabOps } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("query", ["Open tasks", "tasks"]);
     const tabId = buildModel(d.elements()).tabs.find(
@@ -324,7 +334,7 @@ describe("query tabs", () => {
 
 describe("review fixes: ops", () => {
   test("cut and paste moves cells and the references that point at them", async () => {
-    const { moveOps } = await import("./ops");
+    const { moveOps } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "5\t=A1*2\n\t\nx\t=SUM(A1:A1)");
     d.verb("write", ["Other!A1"], "=Sheet1!A1+1");
@@ -347,7 +357,7 @@ describe("review fixes: ops", () => {
     });
   });
   test("a moved block keeps its internal references pointing inside it", async () => {
-    const { moveOps } = await import("./ops");
+    const { moveOps } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "2\t=A1*3");
     d.apply(
@@ -425,7 +435,7 @@ describe("review fixes: ops", () => {
 
 describe("round 3 fixes: ops", () => {
   test("cut to another tab is a move: dependents follow, moved formulas keep their sources", async () => {
-    const { moveOps } = await import("./ops");
+    const { moveOps } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "5\t=A1*2\n7");
     d.verb("write", ["Other!C1"], "x");
@@ -458,7 +468,7 @@ describe("round 3 fixes: ops", () => {
     });
   });
   test("pasting a filtered copy shifts each formula from its own source row", async () => {
-    const { clipOf, pasteClipOps } = await import("./ops");
+    const { clipOf, pasteClipOps } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "1\t=A1\n2\t=A2\n3\t=A3");
     const m = buildModel(d.elements());
@@ -516,7 +526,8 @@ describe("lead review fixes", () => {
 
 describe("tab order and copies", () => {
   test("duplicate copies cells, widths, rules and merges right after the original; move swaps neighbors", async () => {
-    const { duplicateTabOps, moveTabOps } = await import("./ops");
+    const { duplicateTabOps, moveTabOps } =
+      await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Name\tAmount\nBo\t=1+1");
     d.verb("tab", ["add", "Other"]);
@@ -545,8 +556,8 @@ describe("tab order and copies", () => {
 
 describe("custom-formula rules on insert", () => {
   test("the rule's formula moves with the rows it reads", async () => {
-    const { structuralOps } = await import("./ops");
-    const { rectA1 } = await import("./refs");
+    const { structuralOps } = await import("../../src/sheets/ops");
+    const { rectA1 } = await import("../../src/sheets/refs");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Task\tStatus\nA\tDone\nB\tOpen");
     d.verb("cond", ["Sheet1!A2:B3", "formula", '=$B2="Done"', "green"]);
@@ -558,7 +569,7 @@ describe("custom-formula rules on insert", () => {
 
 describe("find options", () => {
   test("match case and whole cell narrow what is replaced", async () => {
-    const { replaceOps, findMatcher } = await import("./ops");
+    const { replaceOps, findMatcher } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Open\nopen\nReopen\nOPEN");
     const m = () => buildModel(d.elements());

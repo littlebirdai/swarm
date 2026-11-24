@@ -14,7 +14,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import type { ArtifactPresence } from "@codecast/shared/artifacts";
+import type { ArtifactPresence } from "@codecast/artifacts";
 import {
   cellNum,
   colLetters,
@@ -22,7 +22,7 @@ import {
   type Rect,
   type TabData,
   type Workbook,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import { CursorTag } from "../live/LiveCursors";
 import { CursorArrow } from "../presence/CursorArrow";
 import {

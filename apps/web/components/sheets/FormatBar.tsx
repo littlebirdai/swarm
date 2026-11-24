@@ -39,7 +39,7 @@ import {
   formatValue,
   type CellStyle,
   type PaletteColor,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import {
   DropdownMenu,
   DropdownMenuContent,

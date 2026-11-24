@@ -1,7 +1,7 @@
 // `cast board`, `cast sheet`, `cast data`: read and edit live artifacts (docs
 // of type board, sheet, dashboard) from a session. One module registers all
 // three groups from the shared spec registry; a product adds its own verbs in
-// its spec (@codecast/shared/artifacts), never here.
+// its spec (@codecast/artifacts), never here.
 //
 // Every call names the session it runs in (session_id), so the server writes
 // as that session: its name and cursor show on the open page while it works.
@@ -21,7 +21,7 @@ import {
   type ArtifactOp,
   type ArtifactPosition,
   type ArtifactSpec,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import {
   renameDoc,

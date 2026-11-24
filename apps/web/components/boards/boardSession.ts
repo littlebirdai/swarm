@@ -2,7 +2,7 @@
 // It lives in one element of kind "session" (key SESSION_KEY) that the canvas
 // never draws; votes live on the stickies themselves (`votes`: the voters'
 // ids, one entry per vote). Everything here is pure; BoardView writes the ops.
-import type { ArtifactOp } from "@codecast/shared/artifacts";
+import type { ArtifactOp } from "@codecast/artifacts";
 import type { BoardEl } from "./boardTypes";
 
 export const SESSION_KEY = "el_session";

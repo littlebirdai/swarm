@@ -21,7 +21,7 @@ import {
   type Tone,
 } from "../../SharedObjectPage";
 import { docTypeStyle } from "../../../../lib/docTypeStyle";
-import { isArtifactDocType } from "@codecast/shared/artifacts";
+import { isArtifactDocType } from "@codecast/artifacts";
 import { SharedLiveArtifact } from "../../../../components/live/SharedLiveArtifact";
 import { hasLiveSharedView } from "../../../../components/live/registry";
 

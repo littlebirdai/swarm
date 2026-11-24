@@ -8,7 +8,7 @@ import {
   type ArtifactElement,
   type ArtifactOp,
   type ArtifactType,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { docRows, sendLiveOps } from "../components/live/useLiveArtifact";
 import { toast } from "sonner";
 import { useInboxStore } from "../store/inboxStore";

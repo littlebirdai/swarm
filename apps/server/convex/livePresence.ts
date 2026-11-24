@@ -3,7 +3,7 @@
 // stream at ~12 sends a second is no edit to undo or replay.
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./functions";
-import { PRESENCE_TTL_MS } from "@codecast/shared/artifacts";
+import { PRESENCE_TTL_MS } from "@codecast/artifacts";
 import { liveArtifactValidators } from "./liveArtifactsSchema";
 import {
   requireLiveDoc,

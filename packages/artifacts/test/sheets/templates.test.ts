@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { foldOps, toElement } from "../core";
-import { SHEET_TEMPLATES } from "./templates";
-import { buildModel, workbookFor } from "./model";
-import { isError } from "./values";
-import { formatValue } from "./format";
-import { styleOf } from "./model";
+import { foldOps, toElement } from "../../src/core";
+import { SHEET_TEMPLATES } from "../../src/sheets/templates";
+import { buildModel, workbookFor } from "../../src/sheets/model";
+import { isError } from "../../src/sheets/values";
+import { formatValue } from "../../src/sheets/format";
+import { styleOf } from "../../src/sheets/model";
 
 describe("sheet templates", () => {
   for (const t of SHEET_TEMPLATES) {
@@ -50,14 +50,14 @@ describe("sheet templates", () => {
 
 describe("adding a line to a template", () => {
   test("a row inserted above Budget's Total takes the row above's formats and counts in the total", async () => {
-    const { structuralOps, inputOps } = await import("./ops");
-    let els: import("../core").ArtifactElement[] = [];
-    const all: import("../core").ArtifactOp[] = [
+    const { structuralOps, inputOps } = await import("../../src/sheets/ops");
+    let els: import("../../src/core").ArtifactElement[] = [];
+    const all: import("../../src/core").ArtifactOp[] = [
       ...SHEET_TEMPLATES.find((t) => t.id === "budget")!.ops(
         new Date(2026, 10, 11, 12),
       ),
     ];
-    const apply = (ops: import("../core").ArtifactOp[]) => {
+    const apply = (ops: import("../../src/core").ArtifactOp[]) => {
       all.push(...ops);
       els = [...foldOps(new Map(), all)]
         .filter(([, st]) => !(st as { deleted?: boolean }).deleted)
@@ -91,7 +91,7 @@ describe("adding a line to a template", () => {
 
 describe("importing a workbook beside same-named tabs", () => {
   test("formulas naming a sibling sheet follow it to its new name", async () => {
-    const { importTablesOps } = await import("./importOps");
+    const { importTablesOps } = await import("../../src/sheets/importOps");
     const base = [
       ...foldOps(new Map(), [
         { k: "tab:o", put: { kind: "tab", name: "Orders", order: 0 } },

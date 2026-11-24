@@ -22,7 +22,7 @@ import {
   artifactSpec,
   artifactView,
   type ArtifactElement,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import {
   useLiveComments,
   useLiveElement,

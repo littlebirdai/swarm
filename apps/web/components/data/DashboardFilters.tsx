@@ -4,7 +4,7 @@
 // to send; every block whose source has the column narrows to it.
 import { useState } from "react";
 import { Calendar, Check, ChevronDown } from "lucide-react";
-import { dashboard } from "@codecast/shared/artifacts";
+import { dashboard } from "@codecast/artifacts";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   DATE_PRESETS as PRESETS,

@@ -16,7 +16,7 @@ import {
   type ReactNode,
 } from "react";
 import { Bot, Send } from "lucide-react";
-import type { ArtifactElement } from "@codecast/shared/artifacts";
+import type { ArtifactElement } from "@codecast/artifacts";
 import { KeyCap } from "../KeyCap";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { isMac } from "../../shortcuts/registry";

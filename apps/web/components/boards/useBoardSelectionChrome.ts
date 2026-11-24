@@ -6,7 +6,7 @@ import {
   textWidth,
   unionBox,
   type elbowObstacles,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import type { BoardEl } from "./boardTypes";
 import { plainText } from "./boardMarks";
 import type { useBoardCamera } from "./useBoardCamera";

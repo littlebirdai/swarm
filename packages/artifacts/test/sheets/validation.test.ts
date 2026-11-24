@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { sheetSpec } from "../sheet";
-import { buildModel, LiveSheet, validationAt } from "./model";
+import { sheetSpec } from "../../src/sheet";
+import { buildModel, LiveSheet, validationAt } from "../../src/sheets/model";
 import { doc } from "./sheetDoc.testkit";
-import { structuralOps } from "./ops";
+import { structuralOps } from "../../src/sheets/ops";
 
 describe("validation", () => {
   test("list with chip colors, describe line, restyle in place, clear", () => {
@@ -63,7 +63,7 @@ describe("validation", () => {
   });
 });
 
-import { parseTable } from "./delimited";
+import { parseTable } from "../../src/sheets/delimited";
 describe("parseTable", () => {
   test("sniffs CSV, TSV and semicolons; quoted fields keep commas and line breaks", () => {
     expect(
@@ -86,7 +86,7 @@ describe("parseTable", () => {
   });
 });
 
-import { importTablesOps } from "./importOps";
+import { importTablesOps } from "../../src/sheets/importOps";
 describe("importTablesOps", () => {
   test("each table becomes a new tab with a unique name and fitted columns", () => {
     const d = doc(sheetSpec.seed!());
@@ -129,7 +129,7 @@ describe("import verb", () => {
   });
 });
 
-import { validateInput } from "./ruleOps";
+import { validateInput } from "../../src/sheets/ruleOps";
 describe("validateInput", () => {
   const list = {
     rule: "list" as const,
@@ -152,7 +152,7 @@ describe("validateInput", () => {
   });
 });
 
-import { enforceValidation } from "./ruleOps";
+import { enforceValidation } from "../../src/sheets/ruleOps";
 describe("enforceValidation", () => {
   test("strict cells drop refused writes from any batch; listed values take their case", () => {
     const d = doc(sheetSpec.seed!());
@@ -202,7 +202,7 @@ describe("hide and unhide", () => {
   });
 });
 
-import { formatValue } from "./format";
+import { formatValue } from "../../src/sheets/format";
 describe("number formats", () => {
   test("accounting, scientific, other currencies and custom codes", () => {
     expect(formatValue(-1234.5, { nf: "accounting" })).toBe("($1,234.50)");
@@ -243,7 +243,7 @@ describe("conditional rules", () => {
   });
 });
 
-import { expandToMerges } from "./ruleOps";
+import { expandToMerges } from "../../src/sheets/ruleOps";
 describe("merged cells", () => {
   test("merge, describe, selection expands, unmerge; inserting a row moves the merge", () => {
     const d = doc(sheetSpec.seed!());
@@ -279,7 +279,7 @@ describe("agents and strict cells", () => {
   });
 });
 
-import { mergeOps } from "./ruleOps";
+import { mergeOps } from "../../src/sheets/ruleOps";
 describe("merge keeps the top-left value only", () => {
   test("other values in the range are cleared and counted", () => {
     const d = doc(sheetSpec.seed!());
@@ -294,7 +294,7 @@ describe("merge keeps the top-left value only", () => {
   });
 });
 
-import { codeColor, formatWithCode } from "./format";
+import { codeColor, formatWithCode } from "../../src/sheets/format";
 describe("custom format codes", () => {
   test("color sections, thousands scaling, and text-only codes", () => {
     expect(formatWithCode(-98765.4322, "#,##0;[Red](#,##0)")).toBe("(98,765)");
@@ -305,7 +305,7 @@ describe("custom format codes", () => {
   });
 });
 
-import { replaceOps } from "./ops";
+import { replaceOps } from "../../src/sheets/ops";
 describe("replace", () => {
   test("replaces text in typed cells, any case, leaving formulas alone; one cell or all", () => {
     const d = doc(sheetSpec.seed!());
@@ -330,9 +330,10 @@ describe("replace", () => {
 
 describe("comment threads follow their cell", () => {
   test("threads ride their cell through insert and sort, two on one cell both ride it, an empty cell's too; a deleted cell leaves them nowhere", async () => {
-    const { pinCommentOps, threadCell } = await import("./comments");
-    const { structuralOps, sortOps } = await import("./ops");
-    const { workbookFor } = await import("./model");
+    const { pinCommentOps, threadCell } =
+      await import("../../src/sheets/comments");
+    const { structuralOps, sortOps } = await import("../../src/sheets/ops");
+    const { workbookFor } = await import("../../src/sheets/model");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Name\tAmount\nBo\t5\nAna\t9");
     const threads = [
@@ -385,8 +386,9 @@ describe("comment anchors from a reference", () => {
 
 describe("clearing a commented cell", () => {
   test("keeps the cell, so its thread stays put", async () => {
-    const { pinCommentOps, threadCell } = await import("./comments");
-    const { inputOps, clearOps } = await import("./ops");
+    const { pinCommentOps, threadCell } =
+      await import("../../src/sheets/comments");
+    const { inputOps, clearOps } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["B2"], "42");
     const th = { key: "cm_c", anchor: "c:Sheet1!B2" };
@@ -424,7 +426,7 @@ describe("clearing a commented cell", () => {
 
 describe("copying a dropdown", () => {
   test("paste brings the dropdown with its chips", async () => {
-    const { clipOf, pasteClipOps } = await import("./ops");
+    const { clipOf, pasteClipOps } = await import("../../src/sheets/ops");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Open\nDone");
     d.verb("validate", ["Sheet1!A1:A9", "list", "Open:green,Done:blue"]);
@@ -451,7 +453,8 @@ describe("copying a dropdown", () => {
 
 describe("rule values as typed", () => {
   test("50%, $100 and 1,200 compare as numbers; a broken custom formula is refused", async () => {
-    const { valueMeetsRule, betweenOf, condOps } = await import("./ruleOps");
+    const { valueMeetsRule, betweenOf, condOps } =
+      await import("../../src/sheets/ruleOps");
     expect([
       valueMeetsRule("gt", "50%", 0.6),
       valueMeetsRule("gt", "50%", 0.4),

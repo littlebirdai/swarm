@@ -28528,6 +28528,156 @@
   "packages/analytics/test/events.test.ts": {
     "swarm/no-comments": 3
   },
+  "packages/artifacts/src/ask.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/artifacts/src/board.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/artifacts/src/boardArt.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/artifacts/src/boardGeometry.ts": {
+    "swarm/no-comments": 58
+  },
+  "packages/artifacts/src/boardLayout.ts": {
+    "swarm/no-comments": 36
+  },
+  "packages/artifacts/src/boardTemplates.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/artifacts/src/boardVerbs.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/artifacts/src/core.ts": {
+    "swarm/no-comments": 61
+  },
+  "packages/artifacts/src/dashboard.ts": {
+    "swarm/no-comments": 45
+  },
+  "packages/artifacts/src/dashboardData.ts": {
+    "swarm/no-comments": 78
+  },
+  "packages/artifacts/src/dashboardGroup.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/artifacts/src/dashboardShape.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/artifacts/src/dashboardStory.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/artifacts/src/dashboardTemplates.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/artifacts/src/dashboardWatch.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/artifacts/src/dashboardWhere.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/artifacts/src/dashboardWords.ts": {
+    "swarm/no-comments": 24
+  },
+  "packages/artifacts/src/registry.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/artifacts/src/search.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/artifacts/src/sheet.ts": {
+    "swarm/no-comments": 27
+  },
+  "packages/artifacts/src/sheets/arrayFunctions.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/artifacts/src/sheets/catalog.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/artifacts/src/sheets/comments.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/artifacts/src/sheets/delimited.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/artifacts/src/sheets/engine.ts": {
+    "swarm/no-comments": 55
+  },
+  "packages/artifacts/src/sheets/engineOps.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/artifacts/src/sheets/fitWidth.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/artifacts/src/sheets/format.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/artifacts/src/sheets/formula.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/artifacts/src/sheets/functionArgs.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/artifacts/src/sheets/functions.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/artifacts/src/sheets/importOps.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/artifacts/src/sheets/index.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/artifacts/src/sheets/model.ts": {
+    "swarm/no-comments": 57
+  },
+  "packages/artifacts/src/sheets/moreFunctions.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/artifacts/src/sheets/ops.ts": {
+    "swarm/no-comments": 59
+  },
+  "packages/artifacts/src/sheets/refs.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/artifacts/src/sheets/rewrite.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/artifacts/src/sheets/ruleOps.ts": {
+    "swarm/no-comments": 23
+  },
+  "packages/artifacts/src/sheets/templates.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/artifacts/src/sheets/values.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/artifacts/src/spec.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/artifacts/test/board.test.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/artifacts/test/core.test.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/artifacts/test/dashboard.test.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/artifacts/test/sheets/catalog.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/artifacts/test/sheets/ops.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/artifacts/test/sheets/sheetDoc.testkit.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/artifacts/test/sheets/spill.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/artifacts/test/sheets/validation.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/async/src/index.ts": {
     "swarm/no-comments": 2
   },
@@ -28713,156 +28863,6 @@
   },
   "packages/policy/test/vendorCoverage.test.ts": {
     "swarm/no-comments": 1
-  },
-  "packages/shared/artifacts/ask.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/artifacts/board.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/artifacts/board.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/artifacts/boardArt.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/artifacts/boardGeometry.ts": {
-    "swarm/no-comments": 58
-  },
-  "packages/shared/artifacts/boardLayout.ts": {
-    "swarm/no-comments": 36
-  },
-  "packages/shared/artifacts/boardTemplates.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/artifacts/boardVerbs.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/artifacts/core.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/artifacts/core.ts": {
-    "swarm/no-comments": 61
-  },
-  "packages/shared/artifacts/dashboard.test.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/artifacts/dashboard.ts": {
-    "swarm/no-comments": 45
-  },
-  "packages/shared/artifacts/dashboardData.ts": {
-    "swarm/no-comments": 78
-  },
-  "packages/shared/artifacts/dashboardGroup.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/artifacts/dashboardShape.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/artifacts/dashboardStory.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/artifacts/dashboardTemplates.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/artifacts/dashboardWatch.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/artifacts/dashboardWhere.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/artifacts/dashboardWords.ts": {
-    "swarm/no-comments": 24
-  },
-  "packages/shared/artifacts/registry.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/artifacts/search.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/artifacts/sheet.ts": {
-    "swarm/no-comments": 27
-  },
-  "packages/shared/artifacts/sheets/arrayFunctions.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/artifacts/sheets/catalog.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/artifacts/sheets/catalog.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/artifacts/sheets/comments.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/artifacts/sheets/delimited.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/artifacts/sheets/engine.ts": {
-    "swarm/no-comments": 55
-  },
-  "packages/shared/artifacts/sheets/engineOps.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/artifacts/sheets/fitWidth.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/artifacts/sheets/format.ts": {
-    "swarm/no-comments": 21
-  },
-  "packages/shared/artifacts/sheets/formula.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/artifacts/sheets/functionArgs.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/artifacts/sheets/functions.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/artifacts/sheets/importOps.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/artifacts/sheets/index.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/artifacts/sheets/model.ts": {
-    "swarm/no-comments": 57
-  },
-  "packages/shared/artifacts/sheets/moreFunctions.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/artifacts/sheets/ops.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/artifacts/sheets/ops.ts": {
-    "swarm/no-comments": 59
-  },
-  "packages/shared/artifacts/sheets/refs.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/artifacts/sheets/rewrite.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/artifacts/sheets/ruleOps.ts": {
-    "swarm/no-comments": 23
-  },
-  "packages/shared/artifacts/sheets/sheetDoc.testkit.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/artifacts/sheets/spill.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/artifacts/sheets/templates.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/artifacts/sheets/validation.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/artifacts/sheets/values.ts": {
-    "swarm/no-comments": 17
-  },
-  "packages/shared/artifacts/spec.ts": {
-    "swarm/no-comments": 26
   },
   "packages/shared/changes/__fixtures__/commit.ts": {
     "swarm/no-comments": 2
