@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CheckoutRow } from "@codecast/shared/contracts/checkouts";
+import type { CheckoutRow } from "@codecast/machines/checkouts";
 import {
   checkoutsPage,
   checkoutsSummary,

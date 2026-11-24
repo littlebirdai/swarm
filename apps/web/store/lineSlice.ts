@@ -25,7 +25,7 @@ import {
   toldOf,
   type CheckoutRow,
   type CheckoutTold,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 
 export type LineSliceActions = {
   /** "Tell <writer>" / "File a finding" on a stuck checkout: `who` is a session that wrote some of its conflicting files,

@@ -5,7 +5,7 @@ import {
   formatMachineSwitchNotice,
   isMachineSwitchNotice,
   parseMachineSwitchNotice,
-} from "./machineSwitch";
+} from "../src/machineSwitch";
 
 describe("machine switch notice", () => {
   test("formats a box switch with a was-clause", () => {

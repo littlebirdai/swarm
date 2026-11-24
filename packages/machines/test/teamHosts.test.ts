@@ -3,7 +3,7 @@ import {
   formatTeamHostMarker,
   parseTeamHostMarker,
   pickLinuxUser,
-} from "./teamHosts";
+} from "../src/teamHosts";
 
 describe("pickLinuxUser", () => {
   test("GitHub login first, then the email's name, lowercased into a valid login", () => {

@@ -10,7 +10,7 @@ import { defaultConfigDir } from "../config/configDir.js";
 import { readAuthConfig } from "../config/readAuthConfig.js";
 import { deviceId } from "../remote/device.js";
 import { commandGroup } from "../commandGroups.js";
-import { dataFolderFromManifest } from "@codecast/shared/contracts/dataSync";
+import { dataFolderFromManifest } from "@codecast/machines/dataSync";
 import { convexDataSyncApi } from "./convexApi.js";
 import { declarationsFor, paneProjectPaths } from "./declarations.js";
 import { syncOnce, type DataSyncApi, type SyncReport } from "./engine.js";

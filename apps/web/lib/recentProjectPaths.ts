@@ -1,4 +1,4 @@
-import { worktreeOfPath } from "@codecast/shared/contracts";
+import { worktreeOfPath } from "@codecast/machines/worktrees";
 
 export type RecentProjectPath = {
   path: string;

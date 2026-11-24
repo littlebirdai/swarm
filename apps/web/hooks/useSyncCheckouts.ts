@@ -1,12 +1,12 @@
 // Every device's checkouts of a team's repositories into the store
-// (contracts/checkouts.ts, ct-98780): one feed, convex checkouts.forTeam, one
+// (packages/machines/src/checkouts.ts, ct-98780): one feed, convex checkouts.forTeam, one
 // row per device and path under its Convex id. The surface mounts the feeder
 // once; the readers only read the store. Session titles are not on the row
 // (a private session's title must not ride a team row): read them from the
 // sessions the viewer holds, by conversation_id.
 import { useCallback, useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { toldOf, type CheckoutRow } from "@codecast/shared/contracts/checkouts";
+import { toldOf, type CheckoutRow } from "@codecast/machines/checkouts";
 import { useSyncCollection } from "./useSyncCollection";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 

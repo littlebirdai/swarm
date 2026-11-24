@@ -40,6 +40,7 @@
     "@codecast/hash": "workspace:*",
     "@codecast/hosted-assistant": "workspace:*",
     "@codecast/keyboard": "workspace:*",
+    "@codecast/machines": "workspace:*",
     "@codecast/memory": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",

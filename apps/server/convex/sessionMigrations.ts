@@ -1,4 +1,4 @@
-import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
+import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
 /**
  * Bulk session migration: move MANY sessions between a local machine and a
  * cloud host in one gesture, in either direction, while they may be mid-turn.
@@ -65,7 +65,7 @@ import {
 } from "./lib/liveSessions";
 import { isClosedSession } from "@codecast/shared/contracts";
 import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
-import { invalidBringPaths } from "@codecast/shared/contracts/moveRehearsal";
+import { invalidBringPaths } from "@codecast/machines/moveRehearsal";
 import {
   type MigrationDirection,
   type MigrationStatus,

@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
+import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
 import { useInboxStore } from "../store/inboxStore";
 import type { MigrationBatch } from "../lib/migrationPlan";
 import type {

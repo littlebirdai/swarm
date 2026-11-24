@@ -15,7 +15,7 @@ import {
 } from "../lib/daemonHealthCopy";
 import { useAppOffline } from "../hooks/useAppOffline";
 import { useInboxStore } from "../store/inboxStore";
-import { deviceDisplayName, isRemoteHost } from "@codecast/shared/contracts";
+import { deviceDisplayName, isRemoteHost } from "@codecast/machines/deviceName";
 import { HoverCard } from "./ui/HoverCard";
 import { StatusPanelHeader, StatusPanelSection } from "./StatusPanel";
 import { useHooksReminderHidden } from "../lib/hooksReminder";

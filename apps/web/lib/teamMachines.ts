@@ -6,7 +6,7 @@ import {
   TEAM_HOST_JOIN_STEP_LABELS,
   type TeamHostJoinStep,
   type TeamHostMemberStatus,
-} from "@codecast/shared/contracts/teamHosts";
+} from "@codecast/machines/teamHosts";
 
 export type TeamMachineMember = {
   _id: string;

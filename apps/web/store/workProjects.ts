@@ -17,7 +17,7 @@ import {
 import {
   deviceDisplayName,
   type DeviceNameSource,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/deviceName";
 import { makeCollectionSig } from "./wakeSig";
 
 export const WORK_PROJECT_CHIP_PREFIX = "pj:";

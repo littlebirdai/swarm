@@ -406,7 +406,7 @@ function withoutDeliveryIds<T extends { delivery_ids?: unknown }>(
 export class SyncService {
   /** Stores the snapshot; the answer names the sessions a person put at background priority on this machine. */
   async reportMachineResources(
-    snapshot: import("@codecast/shared/contracts").MachineResourceSnapshot,
+    snapshot: import("@codecast/machines/systemResources").MachineResourceSnapshot,
   ): Promise<
     | { background_sessions?: string[]; unattended_sessions?: string[] }
     | undefined

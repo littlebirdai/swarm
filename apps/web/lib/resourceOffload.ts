@@ -1,8 +1,8 @@
 import {
   sustainedResourcePressure,
-  evaluateOffloadRequirements,
   type ResourcePoint,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
+import { evaluateOffloadRequirements } from "@codecast/machines/resourceOffloadPolicy";
 import {
   type HostReadiness,
   type CloudHostReport,
@@ -15,7 +15,7 @@ import type {
   ResourceMachine,
   ResourceSession,
 } from "../components/resources/types";
-import type { MoveRehearsal } from "@codecast/shared/contracts/moveRehearsal";
+import type { MoveRehearsal } from "@codecast/machines/moveRehearsal";
 import {
   eligibilityFor,
   type MigrationCandidate,

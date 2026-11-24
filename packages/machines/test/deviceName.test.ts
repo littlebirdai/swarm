@@ -6,7 +6,7 @@ import {
   distinctDeviceNames,
   isCloudAssignedHostname,
   isRemoteHost,
-} from "./deviceName";
+} from "../src/deviceName";
 
 describe("deviceDisplayName", () => {
   it("shows a laptop by its hostname without the OS prefix and .local", () => {

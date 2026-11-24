@@ -11,6 +11,7 @@ import * as path from "node:path";
 const ROOT = path.resolve(import.meta.dir, "../../..");
 const SCANNED = [
   "apps/cli/src",
+  "packages/machines/src",
   "packages/shared/contracts",
   "apps/server/convex",
 ];

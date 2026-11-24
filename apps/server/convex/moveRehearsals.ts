@@ -13,7 +13,7 @@ import type { Id } from "./_generated/dataModel";
 import {
   REHEARSAL_TTL_MS,
   type MoveRehearsal,
-} from "@codecast/shared/contracts/moveRehearsal";
+} from "@codecast/machines/moveRehearsal";
 import { getAuthenticatedUserId } from "./sessionMigrations";
 
 /** How far back the review's feed reads. */

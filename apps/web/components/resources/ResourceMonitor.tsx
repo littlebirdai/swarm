@@ -12,7 +12,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { sustainedResourcePressure } from "@codecast/shared/contracts";
+import { sustainedResourcePressure } from "@codecast/machines/systemResources";
 import { cn } from "../../lib/utils";
 import { isRowTerminal } from "../../lib/migrationPlan";
 import { HealthStrip, MiniTrace } from "./HealthStrip";

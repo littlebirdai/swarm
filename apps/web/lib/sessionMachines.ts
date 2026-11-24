@@ -1,5 +1,5 @@
 import type { Device } from "../components/DeviceBadge";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import {
   cloudHostManaged,
   cloudHostRetired,

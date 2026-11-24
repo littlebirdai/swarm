@@ -20,7 +20,7 @@ import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
 import { parseStagePinRef, stagePinRowId } from "@codecast/calls/stagePins";
 import type { InitiativeMetric } from "@codecast/shared/contracts/initiative";
 import { captureError } from "../lib/analytics";
-import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
+import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
 import type { CloudPlacementProgress } from "@codecast/cloud-hosts/cloudPlacementProgress";
 import type {
   RewindFilesOp,
@@ -458,7 +458,7 @@ import {
   wakesOnUse,
   type MachineCandidate,
 } from "../lib/machinePicker";
-import type { DeviceNameSource } from "@codecast/shared/contracts";
+import type { DeviceNameSource } from "@codecast/machines/deviceName";
 import {
   machineChipKey,
   projectAxisLabel,

@@ -1,7 +1,10 @@
 // A worktree, found and described. Pure, so the repository page, the pill in
 // prose and the conversation header agree on which worktree a reference means
 // and on how its condition reads.
-import { worktreeOfPath, type WorktreeEntry } from "@codecast/shared/contracts";
+import {
+  worktreeOfPath,
+  type WorktreeEntry,
+} from "@codecast/machines/worktrees";
 import type { RepoCheckout } from "../../hooks/useRepoBrowse";
 
 export type WorktreeRef = {

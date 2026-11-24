@@ -22,7 +22,7 @@ import { execFileSync, spawnSync } from "../proc.js";
 import type {
   MoveRehearsal,
   MoveRehearsalPath,
-} from "@codecast/shared/contracts/moveRehearsal";
+} from "@codecast/machines/moveRehearsal";
 import type { CloudHost } from "../browser/cloudHost.js";
 import { HOST_TOOLS_PATH, hostInstalls } from "../cloud/hostTools.js";
 import {

@@ -29,12 +29,14 @@ import {
   parseSessionEscalation,
   isAgentSwitchNotice,
   parseAgentSwitchNotice,
-  isMachineSwitchNotice,
-  parseMachineSwitchNotice,
   isModelSwitchCommandName,
   isModelSwitchStdout,
   modelSwitchStdoutLabel,
 } from "@codecast/shared/contracts";
+import {
+  isMachineSwitchNotice,
+  parseMachineSwitchNotice,
+} from "@codecast/machines/machineSwitch";
 import { isAskTool, isShellTool } from "@codecast/render/toolKinds";
 import { isPlanWriteToolCall } from "@codecast/render/toolCall";
 import {

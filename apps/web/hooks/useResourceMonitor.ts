@@ -7,7 +7,7 @@ import { api as _api } from "@codecast/convex/convex/_generated/api";
 import {
   type MachineResourceSnapshot,
   type ResourcePoint,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 import { useSyncCollection } from "./useSyncCollection";
 import { useIsSyncHost } from "./useSyncRole";
 import { useInboxStore } from "../store/inboxStore";
@@ -19,7 +19,7 @@ import {
   useMigrationCandidates,
   useMoveRehearsals,
 } from "./useSyncMigrations";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import type { Device } from "../lib/deviceRow";
 import { useSyncDevices } from "./useSyncDevices";
 import { buildOffloadPlan } from "../lib/resourceOffload";

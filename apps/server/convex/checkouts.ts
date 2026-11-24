@@ -1,4 +1,4 @@
-// Every device's checkouts of a repository (contracts/checkouts.ts, ct-98780):
+// Every device's checkouts of a repository (packages/machines/src/checkouts.ts, ct-98780):
 // a daemon reports the checkouts its level sweep visits when one changes, and
 // the pipeline page reads a team's. A row is keyed by device and path and
 // lives in the repository's team's workspace (else the reporter's own), read
@@ -18,7 +18,7 @@ import {
   withPageAsks,
   type CheckoutPageAsk,
   type CheckoutReport,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 
 /** The most a single checkout's report may weigh (its lists are capped by the daemon). */
 export const CHECKOUT_REPORT_MAX_BYTES = 64 * 1024;
@@ -137,7 +137,7 @@ export const report = mutation({
   },
 });
 
-// The page's asks this episode read as told, beside the daemon's (contracts/checkouts withPageAsks).
+// The page's asks this episode read as told, beside the daemon's (packages/machines/src/checkouts withPageAsks).
 const rowOut = (r: Doc<"checkouts">) => ({
   ...(r.report ?? {}),
   ...(r.report?.level
@@ -157,7 +157,7 @@ const rowOut = (r: Doc<"checkouts">) => ({
   device_label: r.device_label ?? null,
 });
 
-/** A team's checkouts, every device's, of one repository or all of them: contracts/checkouts CheckoutRow. */
+/** A team's checkouts, every device's, of one repository or all of them: packages/machines/src/checkouts CheckoutRow. */
 export const forTeam = query({
   args: {
     api_token: v.optional(v.string()),

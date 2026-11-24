@@ -4,7 +4,7 @@ import {
   invalidBringPaths,
   rehearsalPending,
   type MoveRehearsal,
-} from "./moveRehearsal";
+} from "../src/moveRehearsal";
 
 const r: MoveRehearsal = {
   session_id: "s",

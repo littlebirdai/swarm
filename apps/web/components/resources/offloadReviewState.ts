@@ -22,7 +22,7 @@ import {
   bringsByDefault,
   rehearsalPending,
   type MoveRehearsal,
-} from "@codecast/shared/contracts/moveRehearsal";
+} from "@codecast/machines/moveRehearsal";
 import {
   assignDestinations,
   holdPlan,

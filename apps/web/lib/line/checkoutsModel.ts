@@ -1,5 +1,5 @@
 // Every device's checkouts of one repository, as the pipeline page reads them
-// (contracts/checkouts.ts, ct-98780): which machines hold work main does not
+// (packages/machines/src/checkouts.ts, ct-98780): which machines hold work main does not
 // have, whose it is, and what is stuck. A checkout holds work when it is ahead
 // of main or has uncommitted edits; its level state says whether the daemon
 // keeps it current, and when it cannot, on which file, since when, and who
@@ -14,7 +14,7 @@ import {
   type CheckoutSession,
   type CheckoutSessionState,
   type CheckoutTold,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 import { spanWords } from "./pipelineModel";
 
 export type CheckoutSessionView = {

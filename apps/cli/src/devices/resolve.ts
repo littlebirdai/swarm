@@ -3,7 +3,7 @@
  * its label or hostname. Shared by `cast devices` and `cast migrate`, so every
  * verb that takes a machine reads a name the same way.
  */
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 
 export interface NamedDevice {
   device_id: string;

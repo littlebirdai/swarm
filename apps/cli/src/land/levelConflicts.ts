@@ -31,7 +31,7 @@ import {
   levelAskWords,
   shellWord,
   type LevelMerge,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 import { execFileAsync } from "../proc.js";
 import { gitTry } from "../wipSnapshot.js";
 import { attributeEdits, type Attribution } from "./attribute.js";

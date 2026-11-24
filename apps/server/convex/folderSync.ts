@@ -14,7 +14,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { getAuthenticatedUserId } from "./permissions";
-import { normalizePeerTailnet } from "@codecast/shared/contracts/peerTransport";
+import { normalizePeerTailnet } from "@codecast/machines/peerTransport";
 
 export const FOLDER_EXPORT_PEER_CAP = 6;
 

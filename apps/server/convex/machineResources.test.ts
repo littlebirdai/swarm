@@ -12,7 +12,7 @@ import {
   overloadMessage,
   storeResourceSnapshot,
 } from "./machineResources";
-import type { MachineResourceSnapshot } from "@codecast/shared/contracts";
+import type { MachineResourceSnapshot } from "@codecast/machines/systemResources";
 
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),

@@ -1,4 +1,4 @@
-import type { ResourceProcess } from "@codecast/shared/contracts";
+import type { ResourceProcess } from "@codecast/machines/systemResources";
 // The resource monitor's view contract. The page renders only these shapes:
 // machines come from the machineResources feed joined to the device roster,
 // sessions from the managed fleet joined to canonical inbox rows, and the
@@ -9,9 +9,9 @@ import type {
   MachineResourceSnapshot,
   ResourceIncident,
   ResourcePoint,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 import type { MigrationRowStatus } from "../../lib/migrationPlan";
-import type { MoveRehearsal } from "@codecast/shared/contracts/moveRehearsal";
+import type { MoveRehearsal } from "@codecast/machines/moveRehearsal";
 
 export type MachineRole = "local" | "cloud_linux" | "cloud_mac";
 

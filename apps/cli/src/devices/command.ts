@@ -9,11 +9,11 @@ import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentSetupSentence,
 } from "@codecast/agent-clients/cloudAgents";
+import { snippetBySlug } from "@codecast/shared/contracts";
 import {
   deviceDisplayName,
   distinctDeviceNames,
-  snippetBySlug,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/deviceName";
 import { isMachineSetting } from "@codecast/agent-clients/harnessHooks";
 import {
   STALE_MACHINE_MS,

@@ -2,7 +2,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Copy, FolderGit2, Laptop, Play } from "lucide-react";
-import type { WorktreeEntry } from "@codecast/shared/contracts";
+import type { WorktreeEntry } from "@codecast/machines/worktrees";
 import { LoadingSkeleton } from "../LoadingSkeleton";
 import { AuthorAvatar } from "../entityDisplay";
 import {

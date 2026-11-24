@@ -14,7 +14,7 @@ import {
   DATA_SYNC_PAGE,
   dataFolderProblem,
   dataRelProblem,
-} from "@codecast/shared/contracts/dataSync";
+} from "@codecast/machines/dataSync";
 
 async function requireUser(
   ctx: { db: any },

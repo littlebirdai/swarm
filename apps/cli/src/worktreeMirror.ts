@@ -28,7 +28,7 @@ import {
   type WorktreeEntry,
   type WorktreeManager,
   type WorktreesPayload,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/worktrees";
 import {
   listStates,
   type PersistedWorkspaceState,

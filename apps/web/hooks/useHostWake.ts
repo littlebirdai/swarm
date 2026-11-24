@@ -3,7 +3,7 @@
 // Subscribes to a short signature of the fields the stage reads, so a host
 // beating every 30s re-renders nothing while its wake has not changed.
 import { useMemo } from "react";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import {
   RUN_LIMIT_WARN_MINUTES,
   runMinutesLeft,

@@ -7,7 +7,7 @@ import { describe, expect, test } from "bun:test";
 import type {
   CheckoutRow,
   CheckoutSession,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 import type { QueueCommit } from "@codecast/deploys/deployTargets";
 import type { DeployReach } from "@codecast/deploys/deployReach";
 import {
