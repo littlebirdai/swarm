@@ -34,7 +34,7 @@ import {
   setActionChords,
   type KeyBindingOverride,
   type KeyConflict,
-} from "@codecast/shared/contracts/keyBindings";
+} from "@codecast/keyboard/keyBindings";
 import { cn } from "../../../lib/utils";
 import { modernButton, modernChip } from "../../../components/ui/modernLook";
 

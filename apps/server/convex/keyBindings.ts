@@ -8,8 +8,8 @@ import { verifyApiToken } from "./apiTokens";
 import {
   parseChord,
   type KeyBindingOverride,
-} from "@codecast/shared/contracts/keyBindings";
-import { SHORTCUTS } from "@codecast/shared/contracts/shortcutCatalog";
+} from "@codecast/keyboard/keyBindings";
+import { SHORTCUTS } from "@codecast/keyboard/shortcutCatalog";
 
 async function clientStateRow(ctx: any, userId: any) {
   return await ctx.db

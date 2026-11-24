@@ -3,11 +3,11 @@
 // usePaneShortcutAction, registerAction) or matched by a page's own handler
 // with matchesAction. A handler that tests `e.key === "m"` keeps answering
 // the default after a rebind, so an action read that way is `fixed: true`
-// in packages/shared/contracts/shortcutCatalog.ts instead.
+// in packages/keyboard/src/shortcutCatalog.ts instead.
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { SHORTCUTS } from "@codecast/shared/contracts/shortcutCatalog";
+import { SHORTCUTS } from "@codecast/keyboard/shortcutCatalog";
 
 const WEB = join(import.meta.dir, "..");
 const ROOTS = ["app", "components", "hooks", "lib", "shortcuts", "src", "tips"];

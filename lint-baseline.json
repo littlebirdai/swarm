@@ -28828,6 +28828,12 @@
   "packages/files/test/index.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/keyboard/src/keyBindings.ts": {
+    "swarm/no-comments": 44
+  },
+  "packages/keyboard/src/shortcutCatalog.ts": {
+    "swarm/no-comments": 196
+  },
   "packages/memory/src/index.ts": {
     "swarm/no-comments": 36
   },
@@ -29401,9 +29407,6 @@
   "packages/shared/contracts/judges.ts": {
     "swarm/no-comments": 59
   },
-  "packages/shared/contracts/keyBindings.ts": {
-    "swarm/no-comments": 44
-  },
   "packages/shared/contracts/levenshtein.ts": {
     "swarm/no-comments": 4
   },
@@ -29844,9 +29847,6 @@
   },
   "packages/shared/contracts/shipPlan.ts": {
     "swarm/no-comments": 30
-  },
-  "packages/shared/contracts/shortcutCatalog.ts": {
-    "swarm/no-comments": 196
   },
   "packages/shared/contracts/signalFingerprint.test.ts": {
     "swarm/no-comments": 5

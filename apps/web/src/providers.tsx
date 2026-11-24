@@ -14,7 +14,7 @@ import { DesktopBadge } from "@/components/DesktopBadge";
 import { OpenInDesktopHandoff } from "@/components/OpenInDesktopHandoff";
 import { ShortcutProvider, setKeyBindings, isMac } from "@/shortcuts";
 import { shortcutCatalog } from "@/shortcuts/registry";
-import { desktopMenuKeys } from "@codecast/shared/contracts/keyBindings";
+import { desktopMenuKeys } from "@codecast/keyboard/keyBindings";
 import { dispatchRefusalReason } from "@/lib/dispatchBinding";
 import { bridge } from "@/lib/desktop";
 import { TipProvider } from "@/tips/TipProvider";

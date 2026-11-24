@@ -4,7 +4,7 @@
 // New Session, Back, Forward, Undo, Redo), and on a Mac the menu takes its key
 // before the page. So when the person rebinds one of those actions in the web
 // app, the page sends what changed (desktopMenuKeys in
-// shared/contracts/keyBindings.ts) and the menu rebuilds from it: a rebound
+// packages/keyboard/src/keyBindings.ts) and the menu rebuilds from it: a rebound
 // item shows and answers to its new chord, and an item whose chord the person
 // gave to another action lets it go. With no rebinding the menu keeps its own
 // defaults.

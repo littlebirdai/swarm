@@ -36,6 +36,7 @@
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
+        "@codecast/keyboard": "workspace:*",
         "@codecast/memory": "workspace:*",
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
@@ -224,6 +225,7 @@
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/hash": "workspace:*",
+        "@codecast/keyboard": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -282,6 +284,7 @@
         "@codecast/docs": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/hash": "workspace:*",
+        "@codecast/keyboard": "workspace:*",
         "@codecast/memory": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/policy": "workspace:*",
@@ -537,6 +540,13 @@
     },
     "packages/hash": {
       "name": "@codecast/hash",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/keyboard": {
+      "name": "@codecast/keyboard",
       "version": "0.0.1",
       "devDependencies": {
         "@types/bun": "^1.3.3",
@@ -1020,6 +1030,8 @@
     "@codecast/files": ["@codecast/files@workspace:packages/files"],
 
     "@codecast/hash": ["@codecast/hash@workspace:packages/hash"],
+
+    "@codecast/keyboard": ["@codecast/keyboard@workspace:packages/keyboard"],
 
     "@codecast/memory": ["@codecast/memory@workspace:packages/memory"],
 

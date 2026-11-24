@@ -9,7 +9,7 @@ import { useSyncExternalStore } from "react";
 import { naturalTier, type FaceTier, type FacesMode } from "./calls/faceCrop";
 import { BrowserBannerGate, bannerEntity } from "./notificationGate";
 import { PANE_EMBED } from "./browserPane";
-import type { DesktopMenuKeys } from "@codecast/shared/contracts/keyBindings";
+import type { DesktopMenuKeys } from "@codecast/keyboard/keyBindings";
 import {
   extractDeepLinkIntent,
   parseDesktopDeepLinkPath,
