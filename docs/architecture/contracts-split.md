@@ -1,67 +1,113 @@
-# Splitting `contracts` and the shared core into packages
+# Split `contracts` and the shared core into packages
 
-Status: adopted, not started. Computed on `main` at `0a2b5eb53` with the docs and chat, comments, blame and artifacts, and agents, memory and vault extractions applied, so `chat`, `docs`, `comments`, `blame`, `artifacts`, `agents`, `memory` and `vault` count as packages already. Several small packages from one wave may land in one PR, one commit per package.
+Status: adopted, and in progress. The section "Progress" gives the state of each package.
 
-The short version:
+This document is the plan to move the code in `packages/shared` into small domain packages. At the end of the plan, `packages/shared` does not exist.
 
-- **No module cycle crosses a folder.** Every cycle between `contracts`, `tasks`, `entities`, `render`, `replay` and `changes` is a folder-level cycle made of one-way module chains. Placing modules correctly is enough to untangle them. Only one symbol split is needed: the FNV hash helpers in `inboxProjection`.
-- Inside `contracts` there are exactly 5 module cycles, each with 2 or 3 modules. Each moves as one unit.
-- The `contracts` barrel is not a side issue. **1,113 files import `@codecast/shared/contracts` bare**, and 95 of the 105 modules it re-exports have no subpath export at all. Every move PR therefore rewrites barrel importers too. The counts below include them.
-- The target is 48 domain packages: 44 new ones, plus 4 existing packages (`mods`, `network`, `vault`, `agents`) that take in modules. There are 8 waves of PRs after one prep wave (W0), 61 PRs in all. Every PR rewrites 150 or fewer importers. The `agentClients` cycle alone would be 211, so it is staged across two PRs (see W2).
+## Summary
 
-The scripts and inputs are in `docs/architecture/contracts-split/`:
+- The code in `packages/shared` is in 8 folders: `contracts`, `entities`, `tasks`, `render`, `replay`, `search`, `changes` and `ratchet`. The plan calls these folders the core folders.
+- **No module cycle crosses a folder.** A module cycle is a set of modules that import each other, directly or through other modules. Some folders import each other, but each of these folder cycles is made of one-way module chains. Thus, correct placement of each module removes all folder cycles.
+- The plan divides only one module: the FNV hash functions in `inboxProjection` go to a new `@codecast/hash` package.
+- Inside `contracts`, there are 5 module cycles. Each cycle has 2 or 3 modules. Each cycle moves as one unit.
+- The `contracts` barrel is a large part of the work. A barrel is a module that only re-exports the names of other modules. A caller can then import names from many modules through one path. **1,113 files import `@codecast/shared/contracts`**, and 95 of the 105 modules that it re-exports have no other import path. Thus, each move also rewrites the barrel imports of the moved names.
+- The target is 48 domain packages: 44 new packages, and 4 older packages (`mods`, `network`, `vault`, `agents`) that get more modules.
+- The plan has 9 stages and 61 parts. Stage 1 prepares the code and has 3 parts. Stages 2 to 9 have 58 moves. Each move rewrites 150 importers or fewer.
+- The `agentClients` module cycle has 211 importers. Thus, its move has two parts (refer to "Stage 3").
 
-| File         | What it does                                                                                                                                                                                                                                          |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `graph.ts`   | Parses every import specifier with the TypeScript parser. That includes static imports, `export … from`, `import()`, `require`, `mock.module` and `import("…").T` type queries. It resolves `@codecast/shared/*` through the package's `exports` map. |
-| `analyze.ts` | Builds the module graph, the strongly connected components (SCCs), the fan-in, and the barrel-symbol origins.                                                                                                                                         |
-| `table.ts`   | Writes the per-module table.                                                                                                                                                                                                                          |
-| `check.ts`   | Builds the package graph from `assign.txt` and runs SCC detection on it.                                                                                                                                                                              |
-| `plan.ts`    | Validates `waves.txt`: deps land in an earlier wave, nothing is planned twice, and it counts the importers of each PR.                                                                                                                                |
+## Measured numbers
 
-To re-run all of it: `bun graph.ts <tree> edges.json && bun analyze.ts <tree> edges.json report.json && bun table.ts <tree> && bun check.ts && bun plan.ts`.
+The numbers in this document (importer counts, file counts, line counts and barrel counts) come from one tree: commit `0a2b5eb53`, with the merges of PRs #46, #52 and #50 applied. These three PRs moved `docs`, `chat`, `agents`, `memory`, `vault`, `comments`, `blame` and `artifacts` into packages.
+
+The numbers show the size of each move. They do not show the current state of `main`. After a module moves, the files that import it change, and some modules grow or become smaller.
+
+## Progress
+
+This table shows the state on 2026-11-24, at `main` commit `6c623c51f`.
+
+| Stage | Package or part                                                            | State          |
+| ----- | -------------------------------------------------------------------------- | -------------- |
+| 1     | `hash`, the test split, the deletion of the root barrel                    | Merged, PR #55 |
+| 2     | `pull-requests`, `convex-errors`, `keyboard`, `network`, `ratchet`, `ship` | Merged, PR #56 |
+| 2     | `capabilities`, `policy`                                                   | Merged, PR #57 |
+| 2     | `browser`, `pages`, `provider-keys`, `daemon`, `evals-api`                 | Merged, PR #58 |
+| 2     | `cloud-hosts`, `flows`                                                     | Open, PR #59   |
+| 2     | the first part of `calls`                                                  | Open, PR #60   |
+| 2     | `render`, the first part of `triggers`, the first part of `decisions`      | Open, PR #61   |
+| 2     | the first part of `agent-clients`, `changes`, `signals`                    | Open, PR #63   |
+| 2     | `fence`, the first part of `sessions`, the first part of `org`             | Not started    |
+| 3 - 9 | all parts                                                                  | Not started    |
+
+Several small parts of one stage can merge in one PR, with one commit for each package.
+
+## Scripts
+
+The scripts and their input files are in `docs/architecture/contracts-split/`:
+
+| File           | What it does                                                                                                                                                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `graph.ts`     | Parses each import specifier with the TypeScript parser: static imports, `export … from`, `import()`, `require`, `mock.module` and `import("…").T` type queries. It resolves `@codecast/shared/*` through the `exports` map of `packages/shared`. |
+| `analyze.ts`   | Makes the module graph, the module cycles, the fan-in of each module, and the module that defines each name in the barrel.                                                                                                                        |
+| `table.ts`     | Writes the table of modules.                                                                                                                                                                                                                      |
+| `check.ts`     | Makes the package graph from `assign.txt`, and finds the cycles in it.                                                                                                                                                                            |
+| `plan.ts`      | Examines `stages.txt`. It makes sure that each dependency moves in an earlier stage or in the same part, and that no module is in two parts. It counts the importers of each part.                                                                |
+| `assign.txt`   | The target package of each module.                                                                                                                                                                                                                |
+| `stages.txt`   | One line for each part: the stage number, the part name, the package and the modules.                                                                                                                                                             |
+| `reasons.json` | The reason for each package, as in the column "Why it is one thing" in section 2.                                                                                                                                                                 |
+
+To run the scripts again, go to that folder and run:
+
+```bash
+bun graph.ts <tree> edges.json && bun analyze.ts <tree> edges.json report.json && bun table.ts <tree> && bun check.ts && bun plan.ts
+```
+
+`<tree>` is the path of a checkout. The scripts write JSON files into the folder, and `.gitignore` excludes them. `bun check.ts assign.txt notests` does the cycle check without test edges. `plan.ts` writes `problems: 0` on its last line when the plan has no problems.
+
+To get the measured numbers again, use a checkout of `a929b1c0a` (that is, `0a2b5eb53` with #46 and #52) and apply the four commits of #50: `ede387022`, `0a7e7c277`, `811887707` and `35be1a5c9`.
+
+These commits cause conflicts in some `package.json` files, in `bun.lock`, in `apps/cli/src/daemonBuildId.ts` and in `apps/cli/src/repoMirror.ts`. In `repoMirror.ts`, keep the import from `@codecast/shared/contracts`. On that tree, the scripts give the counts in this document, with one difference: the third part of `org` has 102 importers, not 101. On a later tree, a module that moved has no importers in `packages/shared`, so its counts are 0.
 
 ## 1. The graph
 
 ### 1.1 Size
 
-| Folder      | Source modules                             | Test files | Notes                                                                |
-| ----------- | ------------------------------------------ | ---------- | -------------------------------------------------------------------- |
-| `contracts` | 246, plus `index.ts` and 3 fixture modules | 186        | 241 top-level modules and 5 under `evalsApi/`                        |
-| `entities`  | 1 (`index.ts`, 1,646 lines)                | 4          |                                                                      |
-| `tasks`     | 13                                         | 11         | `tasks/index.ts` is a barrel **and** holds 418 lines of its own code |
-| `render`    | 17, plus `css-tree.d.ts`                   | 9          |                                                                      |
-| `replay`    | 11, plus `mobile.fixture.ts`               | 9          |                                                                      |
-| `search`    | 4                                          | 3          |                                                                      |
-| `changes`   | 11, plus 3 fixtures                        | 9          |                                                                      |
-| `ratchet`   | 1                                          | 3          | Also holds 2 baseline files                                          |
+| Folder      | Source modules                             | Test files | Notes                                                              |
+| ----------- | ------------------------------------------ | ---------- | ------------------------------------------------------------------ |
+| `contracts` | 246, plus `index.ts` and 3 fixture modules | 186        | 241 top-level modules and 5 under `evalsApi/`                      |
+| `entities`  | 1 (`index.ts`, 1,646 lines)                | 4          |                                                                    |
+| `tasks`     | 13                                         | 11         | `tasks/index.ts` is a barrel **and** has 418 lines of its own code |
+| `render`    | 17, plus `css-tree.d.ts`                   | 9          |                                                                    |
+| `replay`    | 11, plus `mobile.fixture.ts`               | 9          |                                                                    |
+| `search`    | 4                                          | 3          |                                                                    |
+| `changes`   | 11, plus 3 fixtures                        | 9          |                                                                    |
+| `ratchet`   | 1                                          | 3          | Also has 2 baseline files                                          |
 
-2,203 files outside `packages/shared` import something from `contracts`. 1,255 of them use a subpath, 1,113 use the barrel, and 164 use both.
+2,203 files outside `packages/shared` import a module from `contracts`. 1,255 of these files use a subpath, 1,113 use the barrel, and 164 use the two.
 
-### 1.2 Folder cycles and the exact edges behind them
+### 1.2 Folder cycles and the edges that make them
 
-These are all the non-test edges that cross folders.
+An edge is one import from one module to another module. This table gives all the edges that cross folders, without test files.
 
-| From                                                                         | To                                                                                                                |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `contracts/linePriority`                                                     | `tasks/index` (the `TaskPriority` type, defined in `tasks/statuses`)                                              |
-| `contracts/superseded`                                                       | `tasks/statuses` (`isTerminalTaskStatus`)                                                                         |
-| `contracts/initiative`                                                       | `entities/index` (`parseEntityUrl`), and `@codecast/chat/handles`                                                 |
-| `contracts/orgProposalReply`                                                 | `entities/index` (`proposalChangeRefId`)                                                                          |
-| `contracts/callRoomKeys`                                                     | `@codecast/chat/dm` and `@codecast/team/memberKind`. These are packages already, so they make no cycle.           |
-| `entities/index`                                                             | `contracts/browserPaneOffer`, `callLinks`, `callRecordings`, `replayPlayer`, and `replay/events`                  |
-| `tasks/index`                                                                | `contracts/agentClients` (`isHostedAgentType`)                                                                    |
-| `tasks/foreignText`, `planForeignText`, `resume`                             | `contracts/fence`                                                                                                 |
-| `tasks/graph`                                                                | `contracts/prRefs`                                                                                                |
-| `tasks/planState`                                                            | `contracts/workState`                                                                                             |
-| `render/changeCardHtml`                                                      | `contracts/changeCard` (the only render module that imports `contracts`)                                          |
-| `search/sessionQuery`                                                        | `contracts/prRefs`                                                                                                |
-| `replay/{capture,dom,events,issues,list,mobile,moment,repro,rrweb,timeline}` | `contracts/replay`                                                                                                |
-| `replay/dom`                                                                 | `contracts/replayPlayer`                                                                                          |
-| `replay/issues`                                                              | `contracts/signalFingerprint`                                                                                     |
-| `replay/moment`, `replay/timeline`                                           | `changes/headline` (`clip`)                                                                                       |
-| `changes/keys`                                                               | `contracts/inboxProjection` (`fnv1a32Update`, `FNV1A32_OFFSET`)                                                   |
-| `contracts/signalFingerprint`                                                | `contracts/inboxProjection` (`fnv1a32`). This is internal to `contracts`, but it decides where `signals` can sit. |
+| From                                                                         | To                                                                                                                     |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `contracts/linePriority`                                                     | `tasks/index` (the `TaskPriority` type, defined in `tasks/statuses`)                                                   |
+| `contracts/superseded`                                                       | `tasks/statuses` (`isTerminalTaskStatus`)                                                                              |
+| `contracts/initiative`                                                       | `entities/index` (`parseEntityUrl`), and `@codecast/chat/handles`                                                      |
+| `contracts/orgProposalReply`                                                 | `entities/index` (`proposalChangeRefId`)                                                                               |
+| `contracts/callRoomKeys`                                                     | `@codecast/chat/dm` and `@codecast/team/memberKind`. These are packages already, so they make no cycle.                |
+| `entities/index`                                                             | `contracts/browserPaneOffer`, `callLinks`, `callRecordings`, `replayPlayer`, and `replay/events`                       |
+| `tasks/index`                                                                | `contracts/agentClients` (`isHostedAgentType`)                                                                         |
+| `tasks/foreignText`, `planForeignText`, `resume`                             | `contracts/fence`                                                                                                      |
+| `tasks/graph`                                                                | `contracts/prRefs`                                                                                                     |
+| `tasks/planState`                                                            | `contracts/workState`                                                                                                  |
+| `render/changeCardHtml`                                                      | `contracts/changeCard` (the only render module that imports `contracts`)                                               |
+| `search/sessionQuery`                                                        | `contracts/prRefs`                                                                                                     |
+| `replay/{capture,dom,events,issues,list,mobile,moment,repro,rrweb,timeline}` | `contracts/replay`                                                                                                     |
+| `replay/dom`                                                                 | `contracts/replayPlayer`                                                                                               |
+| `replay/issues`                                                              | `contracts/signalFingerprint`                                                                                          |
+| `replay/moment`, `replay/timeline`                                           | `changes/headline` (`clip`)                                                                                            |
+| `changes/keys`                                                               | `contracts/inboxProjection` (`fnv1a32Update`, `FNV1A32_OFFSET`)                                                        |
+| `contracts/signalFingerprint`                                                | `contracts/inboxProjection` (`fnv1a32`). This edge is inside `contracts`, but it sets the possible place of `signals`. |
 
 These test edges cross folders:
 
@@ -74,29 +120,29 @@ These test edges cross folders:
 | `replay/mobile.test`                           | `contracts/replayPlayer`              |                                  |
 | `tasks/{foreignText,planForeignText}.test`     | `contracts/fence`                     |                                  |
 
-### 1.3 Strongly connected components (module level)
+### 1.3 Module cycles
 
-The non-test graph has 306 nodes. **Every SCC is inside `contracts`.** There is none across folders.
+A strongly connected component (SCC) is a largest module cycle: no other module can join it and keep it a cycle. The graph without test files has 306 modules. **Each SCC is inside `contracts`.** No SCC crosses a folder.
 
-| SCC | Members                                            | What closes the cycle                                                                                                      |
-| --- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `agentClients`, `antigravityClient`, `cloudAgents` | Type-only `AgentClientId` imports one way, and value imports (`ANTIGRAVITY_CLIENT`, `CLOUD_AGENT_PROVIDERS`) the other way |
-| 2   | `callGuests`, `callRecordings`                     | `recordingKeptWords` one way, `isGuestIdentity`/`markedName` the other                                                     |
-| 3   | `agentJudges`, `judges`                            |                                                                                                                            |
-| 4   | `envs`, `envCases`                                 |                                                                                                                            |
-| 5   | `flowMap`, `lineFunnel`, `lineVolume`              |                                                                                                                            |
+| SCC | Members                                            | The imports that close the cycle                                                                                                             |
+| --- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `agentClients`, `antigravityClient`, `cloudAgents` | Type-only `AgentClientId` imports in one direction, and value imports (`ANTIGRAVITY_CLIENT`, `CLOUD_AGENT_PROVIDERS`) in the other direction |
+| 2   | `callGuests`, `callRecordings`                     | `recordingKeptWords` in one direction, `isGuestIdentity` and `markedName` in the other direction                                             |
+| 3   | `agentJudges`, `judges`                            |                                                                                                                                              |
+| 4   | `envs`, `envCases`                                 |                                                                                                                                              |
+| 5   | `flowMap`, `lineFunnel`, `lineVolume`              |                                                                                                                                              |
 
-Each SCC moves as one unit in one PR. None of them needs a split.
+Each SCC moves as one unit in one part. The plan divides no SCC.
 
-Test files add **package-level** cycles once modules sit in different packages. A test that imports a module in a higher package would make the lower package depend on the higher one. Handling this takes test-only edits to 7 test files in W0. Ten more test files are assigned to a higher package than their name suggests. Section 3 lists both.
+Test files add **package** cycles when their modules go to different packages. If a test imports a module in a higher package, the lower package then depends on the higher package. Stage 1 changes 7 test files to prevent these cycles. The plan also gives 10 more test files to a higher package than their names show. Section 3 lists the two groups.
 
 ### 1.4 Fan-in
 
-Fan-in counts files, after attributing each barrel import to the module that defines the imported name. Columns:
+The fan-in of a module is the number of files that import it. Each barrel import counts for the module that defines the imported name. Columns:
 
 - **out**: importers outside `packages/shared`.
-- **in**: non-test importers inside the core folders.
-- **tests**: test importers inside the core folders.
+- **in**: importers in the core folders, without tests.
+- **tests**: test files in the core folders that import the module.
 
 The 35 highest:
 
@@ -138,19 +184,21 @@ The 35 highest:
 | contracts/managedPolicy   | 558   | 32  | 1   | 1     | cli 6, mobile 2, server 6, web 18                                                                     |
 | contracts/vaultProtocol   | 409   | 32  | 0   | 1     | packages/vault 2, cli 10, web 20                                                                      |
 
-Nine modules have no importer outside shared: `lineRunEnd`, `antigravityClient`, `approvalAnswers`, `orgProposalReply`, and the 5 `evalsApi/*` internals. Appendix A gives the fan-in of every module, grouped by target package.
+Nine modules have no importer outside `packages/shared`: `lineRunEnd`, `antigravityClient`, `approvalAnswers`, `orgProposalReply`, and the 5 internal modules of `evalsApi/`. Appendix A gives the fan-in of each module, in groups by target package.
 
 ### 1.5 Barrel usage
 
-- **Root `@codecast/shared`** (`packages/shared/index.ts`, which is `export * from "./contracts"`): **0 importing files.** Only `package.json` dependency lines name it.
-- **`@codecast/shared/contracts`** (`contracts/index.ts`): 98 `export *` lines plus named re-exports from `sessionSnooze` and `sessionAsk`. Following nested `export *` chains, they resolve to 105 defining modules.
-  - 95 of those 105 modules have **no subpath entry** in `packages/shared/package.json` `exports`. For them, the barrel is the only way in.
-  - The other 10 have both: `modelOptions`, `cloudAgents`, `orgTemplateBind`, `castPlayer`, `managedPolicy`, `vendorCoverage`, `vaultProtocol`, `convexErrors`, `decisionAnswers`, `agentToolSetup`.
-  - 145 contracts modules are reachable only by subpath. Nine are reachable by neither: `antigravityClient`, `approvalAnswers`, `lineRunEnd`, `orgProposalReply` and the 5 `evalsApi/*` modules.
-  - **Importers:** 1,113 files, made up of web 508, cli 289, server 269, mobile 43, evals 3, `packages/agents` 1, and shared 2 (`capabilityScopes.test`, `capabilitySlug.test`, which import `./index`). 949 of these files use only the barrel.
-  - **Symbols:** 1,180 distinct names. 162 of the import declarations are type-only.
-  - **Files per defining module** (top 25): agentClients 156, machineMessages 94, callRoomKeys 63, agentStatus 59, inboxProjection 57, apiErrorBanner 51, cloudAgents 51, snippets 47, callGuests 44, callRecordings 43, teamFeatures 40, usageLimits 38, prRefs 36, threadState 34, decisionAnswers 32, vaultProtocol 30, closedSession 29, convexErrors 29, managedPolicy 28, capabilityScopes 27, deviceName 27, cloudHostReport 25, systemResources 24, cloudPlacement 23, agentToolSetup 22.
-  - **Dynamic and type-query uses:** 32 sites in 17 files. They name these modules:
+A folder barrel is the `index.ts` of a folder that re-exports the modules of that folder, for example `tasks/index.ts`. A subpath export is an entry in the `exports` map of a `package.json`, for example `"./prRefs"`. It gives one module its own import path.
+
+- **The root barrel of `@codecast/shared`** was the root `index.ts` of the package, with only `export * from "./contracts"`. **0 files imported it.** Only `package.json` dependency lines named it. Stage 1 deleted it.
+- **`@codecast/shared/contracts`** (`contracts/index.ts`) has 98 `export *` lines, and named re-exports from `sessionSnooze` and `sessionAsk`. Through nested `export *` chains, these lines re-export 105 modules.
+  - 95 of these 105 modules have **no subpath export** in `packages/shared/package.json`. For these modules, the barrel is the only import path.
+  - The other 10 modules have a subpath export and a barrel line: `modelOptions`, `cloudAgents`, `orgTemplateBind`, `castPlayer`, `managedPolicy`, `vendorCoverage`, `vaultProtocol`, `convexErrors`, `decisionAnswers`, `agentToolSetup`.
+  - 145 modules of `contracts` have only a subpath export. Nine modules have no import path: `antigravityClient`, `approvalAnswers`, `lineRunEnd`, `orgProposalReply` and the 5 `evalsApi/*` modules.
+  - **Importers:** 1,113 files. These are web 508, cli 289, server 269, mobile 43, evals 3, `packages/agents` 1, and shared 2 (`capabilityScopes.test` and `capabilitySlug.test`, which import `./index`). 949 of these files use only the barrel.
+  - **Names:** 1,180 different names. 162 of the import declarations are type-only.
+  - **Files for each module that defines barrel names**. These are the 25 highest: agentClients 156, machineMessages 94, callRoomKeys 63, agentStatus 59, inboxProjection 57, apiErrorBanner 51, cloudAgents 51, snippets 47, callGuests 44, callRecordings 43, teamFeatures 40, usageLimits 38, prRefs 36, threadState 34, decisionAnswers 32, vaultProtocol 30, closedSession 29, convexErrors 29, managedPolicy 28, capabilityScopes 27, deviceName 27, cloudHostReport 25, systemResources 24, cloudPlacement 23, agentToolSetup 22.
+  - **Dynamic imports and type queries:** 32 sites in 17 files. They name these modules:
 
     | File                                       | Names                                                           | Defining modules                                                              |
     | ------------------------------------------ | --------------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -165,30 +213,31 @@ Nine modules have no importer outside shared: `lineRunEnd`, `antigravityClient`,
     | `apps/web/test-helpers/missingBackend.tsx` |                                                                 | teamFeatures                                                                  |
     | 8 test files                               |                                                                 | snippets, managedPolicy, callGuests, idleDigest, machineMessages, orgProposal |
 
-    The `import()` calls in `daemon.ts` (lines 8799 and 14841) and `index.ts` (8201 and 12015) load the **whole** barrel at runtime.
-- **Other folder barrels**, which move with their package as its root export:
+    The `import()` calls in `apps/cli/src/daemon.ts` and `apps/cli/src/index.ts` load the **full** barrel when they run.
 
-  | Barrel          | Importing files |
-  | --------------- | --------------- |
-  | `tasks/index`   | 117             |
-  | `replay/index`  | 44              |
-  | `search/index`  | 35              |
-  | `render/index`  | 33              |
-  | `changes/index` | 20              |
+- **Other folder barrels** move with their package and become its root export:
 
-- `mock.module` aimed at shared: 0 sites.
+  | Barrel          | Files that import it |
+  | --------------- | -------------------- |
+  | `tasks/index`   | 117                  |
+  | `replay/index`  | 44                   |
+  | `search/index`  | 35                   |
+  | `render/index`  | 33                   |
+  | `changes/index` | 20                   |
+
+- No `mock.module` call names a module in `packages/shared`.
 
 ## 2. Target packages
 
-Every package depends only on other packages from this list or on packages that are already out (`@codecast/chat`, `@codecast/team`, `@platform/*`). **None depends on `@codecast/shared`.**
+Each package depends only on other packages in this list, or on packages that existed before the plan (`@codecast/chat`, `@codecast/team`, `@platform/*`). **No package in the list depends on `@codecast/shared`.** On `main` today, the apps depend on it. The packages `agents`, `artifacts`, `blame`, `comments`, `mods` and `vault` also depend on it.
 
 How to read the table:
 
-- **Layer** is the longest dependency path down to a leaf, test edges included.
-- **Importers** counts the distinct files outside the package that import any of its members after the rewrite. Barrel users are attributed to the module that defines each name.
-- Module names drop the `contracts/` prefix.
-- A `tests:` dependency comes only from a test file or fixture that moves with the package.
-- The importer count is for the whole package. Packages built over several PRs (agent-clients, sessions, calls, org, line, decisions, triggers) have per-PR counts in section 3.
+- **Layer** is the length of the longest dependency path from the package to a package with no dependencies. Test edges count.
+- **Importers** is the number of different files outside the package that import one of its modules after the move. Each barrel import counts for the module that defines the name.
+- Module names do not show the `contracts/` prefix.
+- A dependency after `tests:` comes only from a test file or a fixture that moves with the package.
+- The importer count is for the full package. Section 3 gives the count for each part of a package that moves in more than one part.
 
 | Layer | Package                        | Members                                                                                                                                                                                                                                                                                                                                                            | Depends on                                                                                                         | Importers | Why it is one thing                                                                                                                            |
 | ----- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -200,7 +249,7 @@ How to read the table:
 | 0     | `@codecast/evals-api`          | evalsApi, evalsApi/bisect, evalsApi/core, evalsApi/endpoints, evalsApi/routes, evalsApi/sim                                                                                                                                                                                                                                                                        | —                                                                                                                  | 74        | The evals UI wire contract. The name avoids a clash with the existing `@codecast/evals` app.                                                   |
 | 0     | `@codecast/fence`              | fence                                                                                                                                                                                                                                                                                                                                                              | —                                                                                                                  | 26        | Fencing foreign text before an agent reads it: the codecast wrapper over `@platform/fence`.                                                    |
 | 0     | `@codecast/flows`              | flowPool, flowEdit, repoFlows, runStart, lineSlug, linePhases                                                                                                                                                                                                                                                                                                      | —                                                                                                                  | 73        | A flow as stations: pool, edits, repo flows, run start, line slug, phases.                                                                     |
-| 0     | `@codecast/hash`               | fnv1a32 (new module; see W0)                                                                                                                                                                                                                                                                                                                                       | —                                                                                                                  | 12        | Stable non-crypto hashes (FNV-1a 32) that the inbox digest, change keys and signal fingerprints share. This is the one symbol split.           |
+| 0     | `@codecast/hash`               | fnv1a32 (new module, stage 1)                                                                                                                                                                                                                                                                                                                                      | —                                                                                                                  | 12        | Stable non-crypto hashes (FNV-1a 32) that the inbox digest, change keys and signal fingerprints share. This is the only module division.       |
 | 0     | `@codecast/keyboard`           | shortcutCatalog, keyBindings                                                                                                                                                                                                                                                                                                                                       | —                                                                                                                  | 9         | The keyboard shortcut catalog and personal bindings.                                                                                           |
 | 0     | `@codecast/network` (existing) | internalHost                                                                                                                                                                                                                                                                                                                                                       | —                                                                                                                  | 2         | Existing package (WebSocket recovery). `internalHost` is the private-address rule, which belongs to the same network domain.                   |
 | 0     | `@codecast/pages`              | castPlayer, castMotion, pageAgent, pageAnchor, pageData, pageEdge                                                                                                                                                                                                                                                                                                  | —                                                                                                                  | 26        | Published pages: the player, motion pages, page agent, anchors, live data, the edge.                                                           |
@@ -241,18 +290,18 @@ How to read the table:
 | 13    | `@codecast/hosted-assistant`   | assistant                                                                                                                                                                                                                                                                                                                                                          | `agent-clients`, `decisions`                                                                                       | 62        | The hosted assistant's shared vocabulary. The name avoids a clash with `@platform/assistant`.                                                  |
 | 14    | `@codecast/inbox`              | inboxProjection, fixture:teamWorldGen, inboxFields, inboxMembership, inboxSplit, closedSession, idleDigest, fixture:inboxProjectionGen                                                                                                                                                                                                                             | `agent-clients`, `messages`, `sessions`; tests: `policy`, `hosted-assistant`                                       | 106       | The inbox projection, its fields, membership, split wire form, closed sessions and the idle digest.                                            |
 
-Packages that already exist and take in modules:
+These packages existed before the plan and get modules:
 
-- `@codecast/mods` takes `mods` and `theme`, and drops its `@codecast/shared` dependency.
-- `@codecast/network` takes `internalHost`.
-- `@codecast/vault` takes `vaultProtocol` and `vaultMirror`, and drops `@codecast/shared` once `entities` and `search` are out.
-- `@codecast/agents` takes `agentDefinitions`. It drops `@codecast/shared` after its barrel import and its stale `@codecast/shared/docs` import are rewritten to `@codecast/agent-clients/*`, `@codecast/agents` and `@codecast/docs`.
+- `@codecast/mods` gets `mods` and `theme`, and then does not depend on `@codecast/shared`.
+- `@codecast/network` gets `internalHost`. This move is complete.
+- `@codecast/vault` gets `vaultProtocol` and `vaultMirror`. It stops its dependency on `@codecast/shared` after `entities` and `search` move.
+- `@codecast/agents` gets `agentDefinitions`. `packages/agents/src/index.ts` imports `AgentClientId`, `parseExecutionAgentClientId` and 4 more types from the `contracts` barrel. After the moves of `agent-clients` and `agentDefinitions` rewrite this import, `agents` does not depend on `@codecast/shared`.
 
-`packages/comments`, `blame` and `artifacts` keep their `@codecast/shared` dependency until `fence` (W1) and `entities` (W3) are out. After that, they switch to `@codecast/fence` and `@codecast/entities`.
+`packages/comments`, `blame` and `artifacts` keep their dependency on `@codecast/shared` until `fence` (stage 2) and `entities` (stage 4) move. Then they use `@codecast/fence` and `@codecast/entities`.
 
 ### 2.1 Package dependency graph
 
-Edges point from a package to the packages it imports. These are the non-test edges.
+Each arrow goes from a package to a package that it imports. These are the edges without test files.
 
 ```mermaid
 graph BT
@@ -326,21 +375,21 @@ graph BT
   memory --> vault
 ```
 
-These edges come only from tests and fixtures. They are included in every cycle check.
+These edges come only from tests and fixtures. Each cycle check includes them.
 
-- `org-templates` → `org` (contracts/orgTemplateLearning.test->contracts/rolePlaybook)
-- `ingest` → `triggers` (contracts/ingest.test->contracts/triggerEvents)
-- `connectors` → `ingest` (contracts/appConnector.test->contracts/ingest)
-- `line` → `org` (contracts/metricSeries.test->contracts/rolePlaybook)
-- `inbox` → `policy` (contracts/**fixtures**/teamWorldGen->contracts/teamFeatures)
-- `inbox` → `hosted-assistant` (contracts/inboxProjection.test->contracts/assistant)
+- `org-templates` → `org` (`contracts/orgTemplateLearning.test` → `contracts/rolePlaybook`)
+- `ingest` → `triggers` (`contracts/ingest.test` → `contracts/triggerEvents`)
+- `connectors` → `ingest` (`contracts/appConnector.test` → `contracts/ingest`)
+- `line` → `org` (`contracts/metricSeries.test` → `contracts/rolePlaybook`)
+- `inbox` → `policy` (`contracts/__fixtures__/teamWorldGen` → `contracts/teamFeatures`)
+- `inbox` → `hosted-assistant` (`contracts/inboxProjection.test` → `contracts/assistant`)
 
-### 2.2 Proof that the graph is acyclic
+### 2.2 Proof that the package graph has no cycle
 
 Three independent checks:
 
-1. **Tarjan SCC.** `check.ts` runs Tarjan's SCC algorithm over the 48 packages, plus `comments`, `blame`, `artifacts` and `memory` as dependents. It finds **no component larger than one**, both with and without test edges. That requires the test relocations from W0 and the owners listed in `plan.ts` `TEST_OWNER`.
-2. **Layering.** Every package below has a finite layer: one more than the highest layer among its dependencies. A layer function like this exists only on a DAG, and the table is a topological order. Read top to bottom, every package comes after all of its dependencies.
+1. **Tarjan SCC.** `check.ts` uses the Tarjan SCC algorithm on the 48 packages, and on `comments`, `blame`, `artifacts` and `memory` as dependents. It finds **no SCC with more than one package**, with test edges and without them. This result needs the test changes of stage 1, and the test owners in `TEST_OWNER` in `plan.ts`.
+2. **Layers.** Each package in this table has a finite layer: 1 more than the highest layer of its dependencies. Such a layer function exists only on a graph with no cycle. Thus, the table is a topological order: each package comes after all of its dependencies.
 
    | Layer | Packages                                                                                                                                                                                                                        |
    | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -360,62 +409,64 @@ Three independent checks:
    | 13    | `hosted-assistant`                                                                                                                                                                                                              |
    | 14    | `inbox`                                                                                                                                                                                                                         |
 
-3. **Wave order.** `plan.ts` checks every module edge, test edges included, against `waves.txt`. A module's dependency must move in an earlier wave or in the same PR. **0 violations.** Each PR therefore leaves the tree acyclic. When a module moves, its dependencies are already out, so the new package never imports `@codecast/shared`. Its remaining importers in shared import the new package, which is the allowed direction.
+3. **Stage order.** `plan.ts` compares each module edge, test edges included, with `stages.txt`. Each dependency of a module must move in an earlier stage or in the same part. **The result is 0 problems.** Thus, each part keeps the graph free of cycles. When a module moves, its dependencies moved before it, so the new package never imports `@codecast/shared`. The modules that stay in `packages/shared` import the new package, and that direction is permitted.
 
-Two choices keep the module graph a DAG at package level. Both avoid splitting files:
+Two placements keep the package graph free of cycles. Neither placement divides a file:
 
-- `render/changeCardHtml` moves into `line`, next to `changeCard`. Moving it with `render` would make `render` depend on `line`, and would leave `changeCard.test` pointing at `render`.
-- `messages` sits above `org`. The only edge from `messages` to `org` is `machineMessages` → `orgAreas` (type-only `AreaChange`), plus `roleCard`. `org` never imports `messages`, so `orgWhere` and `triggerLifecycle` (which import both) go to `messages` and `triggers`.
+- `render/changeCardHtml` goes into `line`, with `changeCard`. If it moves with `render`, then `render` depends on `line`, and `changeCard.test` imports `render`.
+- `messages` is above `org`. The only edges from `messages` to `org` are `machineMessages` → `orgAreas` (the type-only `AreaChange`) and `roleCard`. `org` never imports `messages`. Thus, `orgWhere` goes to `messages` and `triggerLifecycle` goes to `triggers`, because each of these modules imports from the two packages.
 
-## 3. Ordered waves
+## 3. Stages
 
-Rules for the waves:
+Rules for the stages:
 
-- A wave is a set of PRs that can merge in any order.
-- Every module a PR moves depends only on modules from earlier waves, or on modules in the same PR. Tests count.
-- No two PRs in one wave move into the same package.
+- The parts of one stage can merge in any sequence.
+- Each module in a part depends only on modules from earlier stages, or on modules in the same part. Tests count.
+- Two parts of one stage do not move modules into the same package.
 
-PRs in the same wave touch disjoint modules. They do share some importer files, so expect textual conflicts in import blocks and in the baseline files (see section 5).
+The parts of one stage move different modules. But they change some of the same importer files. Thus, expect text conflicts in import blocks and in the baseline files (refer to section 5).
 
-### What every move PR does
+### The steps of each move
 
-The same steps, every time:
+Do these steps for each part that moves modules:
 
-1. Create `packages/<name>/` (or extend it).
-   - `package.json`: name `@codecast/<name>`, `"type": "module"`, and an `exports` entry **per module** (`"./agentClients": "./src/agentClients.ts"`). Add a `"."` entry only for a package that replaces a folder barrel: `tasks`, `render`, `replay`, `search`, `changes`.
-   - `tsconfig.json`: same as `packages/time`.
-   - `src/` and `test/`.
-2. `git mv` the modules into `src/` and their tests into `test/`. Fixtures that apps import (`inboxProjectionGen`, `teamWorldGen`, `codecastSignature.vectors.json`) go in `src/__fixtures__/` with an export entry.
-3. Rewrite every importer to `@codecast/<name>/<module>`:
-   - relative imports inside shared;
-   - `@codecast/shared/contracts/<module>` subpaths;
-   - **barrel imports**: split the import declaration, so the names that moved point at their module subpath and the rest stay;
+1. Make `packages/<name>/`, or add to it if it exists.
+   - `package.json`: the name `@codecast/<name>`, `"type": "module"`, and one `exports` entry **for each module** (`"./agentClients": "./src/agentClients.ts"`). Add a `"."` entry only when the package replaces a folder barrel: `tasks`, `render`, `replay`, `search`, `changes` and `ratchet`.
+   - `tsconfig.json`: the same as `packages/time/tsconfig.json`.
+   - `src/` and `test/`. `cast check packages` examines only the `src/` and `test/` folders of each package.
+2. Use `git mv` to move the modules into `src/` and their tests into `test/`. Put the fixtures that apps import (`inboxProjectionGen`, `teamWorldGen`, `codecastSignature.vectors.json`) in `src/__fixtures__/`, each with an `exports` entry.
+3. Rewrite each importer to `@codecast/<name>/<module>`:
+   - relative imports inside `packages/shared`
+   - `@codecast/shared/contracts/<module>` subpaths
+   - **barrel imports**: divide the import declaration. The moved names come from their module subpath, and the other names stay.
    - dynamic `import()` calls and `import("…").T` type queries.
-4. Delete the moved modules' lines from `contracts/index.ts` and their entries from `packages/shared/package.json` `exports`.
-5. Add `"@codecast/<name>": "workspace:*"` to each importing workspace: `packages/shared` while anything left there imports it, plus `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and the affected `packages/*`. Then run `bun install`.
-6. Move the max-lines and doc-refs ratchet baseline entries and `lint-baseline.json` entries with the files (`bun run lint:prune`).
-7. Checks: `cast check`, the package's own `bun test`, the moved tests, and `bootGraph.guard.test.ts`. On mobile, also `bundleGraph.guard.test.ts` and `metro.config.test.cjs`.
+4. Delete the lines of the moved modules from `contracts/index.ts`, and their entries from the `exports` map of `packages/shared/package.json`.
+5. Add `"@codecast/<name>": "workspace:*"` to each workspace that imports the package. This includes `packages/shared` while a module there imports it, `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and the `packages/*` that import it. Then run `bun install`.
+6. Move the baseline entries of the moved files: the ratchet baselines in `packages/ratchet/` and `lint-baseline.json`. Run `RATCHET_WRITE=prune bun test` in `packages/ratchet`, and `bun run lint:prune`.
+7. Do these checks: `cast check`, `bun test` in the package, the moved tests, and `apps/cli/src/bench/bootGraph.guard.test.ts`. If mobile imports the package, also do `apps/mobile/lib/bundleGraph.guard.test.ts` and `apps/mobile/metro.config.test.cjs`.
 
-### W0: prep, with no package moves except `hash`
+### Stage 1: preparation
 
-| PR          | What                                                                                                                                                                                                                                                                                                   | Importers                                                                                                                                                                                                                                                                                                                              | Cycles broken                                                                                                                                                                                                                                             |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| hash        | **The one symbol split.** Move `FNV1A32_OFFSET`, `fnv1a32Update` and `fnv1a32` (`inboxProjection.ts` lines 753–768) out of `contracts/inboxProjection.ts` into a new `fnv1a32.ts` module in `@codecast/hash`, unchanged. `inboxProjection` imports them back for its own use and stops exporting them. | 12 files: `changes/keys`, `contracts/signalFingerprint`, `contracts/inboxProjection` and 3 of its tests (`.test`, `.golden.test`, `.rows.test`), `apps/server/convex/lib/r2.ts`, `apps/server/convex/lineLearn.ts`, `apps/web/hooks/useTemplateHire.ts`, `apps/web/store/inboxStore.ts`, `apps/web/store/__tests__/sim/{dsl,realm}.ts` | `changes` → `contracts` (the only edge left from `changes` into contracts). It also removes the `signals` → `inbox` edge. Without that, `entities` → `replay` → `signals` → `inbox` → `messages` → `org` → `goals` → `entities` would be a package cycle. |
-| test-prep   | Test-only edits inside shared. No product code changes. See the list below.                                                                                                                                                                                                                            | 7 test files edited, 5 created                                                                                                                                                                                                                                                                                                         | The test-only package cycles sessions ↔ inbox and goals ↔ messages. It also takes the barrel out of two tests, and lets `apiErrorBanner` leave agent-clients-2a.                                                                                          |
-| root-barrel | Delete `packages/shared/index.ts` and the `"."`, `main` and `types` entries in `packages/shared/package.json`.                                                                                                                                                                                         | 0                                                                                                                                                                                                                                                                                                                                      | Stops new root-barrel use                                                                                                                                                                                                                                 |
+This stage moves no package, except the new `hash` package.
 
-The test-prep edits:
+| Part                            | What it does                                                                                                                                                                                                                                                         | Importers                                                                                                                                                                                                                                                                                                                              | Cycles that it removes                                                                                                                                                                                                                           |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hash`                          | **The only module division.** Move `FNV1A32_OFFSET`, `fnv1a32Update` and `fnv1a32` out of `contracts/inboxProjection.ts`, with no change, into a new module `fnv1a32.ts` in `@codecast/hash`. `inboxProjection` imports them for its own use and stops their export. | 12 files: `changes/keys`, `contracts/signalFingerprint`, `contracts/inboxProjection` and 3 of its tests (`.test`, `.golden.test`, `.rows.test`), `apps/server/convex/lib/r2.ts`, `apps/server/convex/lineLearn.ts`, `apps/web/hooks/useTemplateHire.ts`, `apps/web/store/inboxStore.ts`, `apps/web/store/__tests__/sim/{dsl,realm}.ts` | `changes` → `contracts` (the last edge from `changes` into `contracts`). It also removes the edge `signals` → `inbox`. Without this, `entities` → `replay` → `signals` → `inbox` → `messages` → `org` → `goals` → `entities` is a package cycle. |
+| The test split                  | Changes only test files in `packages/shared`. No product code changes. Refer to the list below.                                                                                                                                                                      | 7 test files changed, 5 test files added                                                                                                                                                                                                                                                                                               | The test-only package cycles `sessions` ↔ `inbox` and `goals` ↔ `messages`. It also removes the barrel from two tests, and lets `apiErrorBanner` stay out of the second part of `agent-clients`.                                                 |
+| The deletion of the root barrel | Delete the root `index.ts` of `packages/shared`, and the `"."`, `main` and `types` entries in its `package.json`.                                                                                                                                                    | 0                                                                                                                                                                                                                                                                                                                                      | Prevents new imports of the root barrel                                                                                                                                                                                                          |
 
-- `contracts/capabilityScopes.test.ts`: change `from "./index"` to `./capabilityScopes` and `./capabilities`. `SCOPE_KINDS` and `compareScopeNarrowness` are defined in `capabilities`.
+The changes of the test split:
+
+- `contracts/capabilityScopes.test.ts`: change `from "./index"` to `./capabilityScopes` and `./capabilities`. `SCOPE_KINDS` and `compareScopeNarrowness` are in `capabilities`.
 - `contracts/capabilitySlug.test.ts`: change `from "./index"` to `./capabilities` and `./snippets`. This test then moves with `snippets`, because it uses `SNIPPET_CATALOG`.
-- `contracts/cloudAgents.test.ts`: move the `apiErrorBanner` cases into a new `contracts/apiErrorBanner.cloudAgents.test.ts`.
-- `contracts/agentStatus.test.ts`: move the `describe("heartbeat liveness window")` block, which calls `deriveLiveAt`, into a new `contracts/inboxProjection.liveness.test.ts`.
+- `contracts/cloudAgents.test.ts`: move the `apiErrorBanner` cases into a new file, `contracts/apiErrorBanner.cloudAgents.test.ts`.
+- `contracts/agentStatus.test.ts`: move the `describe("heartbeat liveness window")` block, which calls `deriveLiveAt`, into a new file, `contracts/inboxProjection.liveness.test.ts`.
 - `contracts/hibernation.test.ts` and `contracts/sessionSnooze.test.ts`: move the cases that import `inboxProjection` into `contracts/inboxProjection.hibernation.test.ts` and `contracts/inboxProjection.snooze.test.ts`.
-- `contracts/initiative.test.ts`: move the cases that use `formatScheduledTask`, `parseScheduledTask` and `roleCardInitiativeLine` into a new `contracts/machineMessages.initiative.test.ts`.
+- `contracts/initiative.test.ts`: move the cases that use `formatScheduledTask`, `parseScheduledTask` and `roleCardInitiativeLine` into a new file, `contracts/machineMessages.initiative.test.ts`.
 
-Some tests are assigned to the package that sits above everything they import:
+Some tests go with the package that is above all the modules that they import:
 
-| Test                                  | Goes with   |
+| Test                                  | Package     |
 | ------------------------------------- | ----------- |
 | `machineMessages.decisionAnswer.test` | `decisions` |
 | `machineMessages.vaultReady.test`     | `secrets`   |
@@ -428,204 +479,229 @@ Some tests are assigned to the package that sits above everything they import:
 | `runEnd.test`                         | `line`      |
 | `momentWho.test`                      | `ingest`    |
 
-### W1 to W8
+### Stages 2 to 9
 
-Columns: modules moved, module count, importers rewritten. Module names drop `contracts/`.
+| Stage | Name                                                        |
+| ----- | ----------------------------------------------------------- |
+| 2     | Packages that depend only on existing packages              |
+| 3     | Agent clients, session state, replay and search             |
+| 4     | Entities, tasks, ingest and the web side of agent clients   |
+| 5     | Goals, connectors, judges, vault and the first part of line |
+| 6     | Org proposals and the org log                               |
+| 7     | Messages and org templates                                  |
+| 8     | Inbox, secrets, snippets and the rest of line and triggers  |
+| 9     | The last decision modules and the end of the barrel         |
 
-| Wave | PR               | Package            | Modules                                                                                                                                                                                                                                                                                                                           | #   | Importers |
-| ---- | ---------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --------- |
-| W1   | agent-clients-1  | `agent-clients`    | cloudSessionSync, claudeBackend, harnessHooks, slashCommand, subagentFleet, testArtifacts                                                                                                                                                                                                                                         | 6   | 39        |
-| W1   | browser          | `browser`          | browserExtension, browserPaneOffer, browserStream                                                                                                                                                                                                                                                                                 | 3   | 17        |
-| W1   | calls-1          | `calls`            | callRoomKeys, callGuests, callRecordings, callPush, recordingAudio, transcribeLanguage, stagePins                                                                                                                                                                                                                                 | 7   | 134       |
-| W1   | capabilities     | `capabilities`     | capabilities, capabilityScopes, fleetDiff, agentToolSetup, mcpRegistry, agentAccess                                                                                                                                                                                                                                               | 6   | 85        |
-| W1   | changes          | `changes`          | changes/classify, changes/cluster, changes/dedupe, changes/headline, changes/index, changes/keys, changes/people, changes/risks, changes/surfaces, changes/types, changes/week, changes/**fixtures**/codecastDays.json, changes/**fixtures**/commit, changes/**fixtures**/(third fixture)                                         | 14  | 22        |
-| W1   | cloud-hosts      | `cloud-hosts`      | cloudHostReport, cloudPlacement, cloudPlacementProgress, cloudWorkspace, localMirror                                                                                                                                                                                                                                              | 5   | 58        |
-| W1   | convex-errors    | `convex-errors`    | convexErrors                                                                                                                                                                                                                                                                                                                      | 1   | 33        |
-| W1   | daemon           | `daemon`           | daemonCommands, rewindFiles, sshAttach, terminalStream, fileAttachment, shellWords                                                                                                                                                                                                                                                | 6   | 36        |
-| W1   | decisions-1      | `decisions`        | decisionAreas, decisionCategory, decisionEscalation, decisionImpact, approvalAnswers, personAsk                                                                                                                                                                                                                                   | 6   | 19        |
-| W1   | evals-api        | `evals-api`        | evalsApi, evalsApi/bisect, evalsApi/core, evalsApi/endpoints, evalsApi/routes, evalsApi/sim                                                                                                                                                                                                                                       | 6   | 74        |
-| W1   | fence            | `fence`            | fence                                                                                                                                                                                                                                                                                                                             | 1   | 26        |
-| W1   | flows            | `flows`            | flowPool, flowEdit, repoFlows, runStart, lineSlug, linePhases                                                                                                                                                                                                                                                                     | 6   | 73        |
-| W1   | keyboard         | `keyboard`         | shortcutCatalog, keyBindings                                                                                                                                                                                                                                                                                                      | 2   | 9         |
-| W1   | network          | `network`          | internalHost                                                                                                                                                                                                                                                                                                                      | 1   | 2         |
-| W1   | org-1            | `org`              | orgAvatars, roleIcon, roleIconExamples, sessionCharacter, orgAssignee, orgLead, orgIdentity, orgRoute, executiveAssistantPrompt                                                                                                                                                                                                   | 9   | 128       |
-| W1   | pages            | `pages`            | castPlayer, castMotion, pageAgent, pageAnchor, pageData, pageEdge                                                                                                                                                                                                                                                                 | 6   | 26        |
-| W1   | policy           | `policy`           | managedPolicy, vendorCoverage, teamFeatures, permissionRules                                                                                                                                                                                                                                                                      | 4   | 88        |
-| W1   | provider-keys    | `provider-keys`    | providerKeys, providerKeyCrypto, oauthCodePaste                                                                                                                                                                                                                                                                                   | 3   | 21        |
-| W1   | pull-requests    | `pull-requests`    | prRefs, commitDiffs                                                                                                                                                                                                                                                                                                               | 2   | 41        |
-| W1   | ratchet          | `ratchet`          | ratchet/index                                                                                                                                                                                                                                                                                                                     | 1   | 6         |
-| W1   | render           | `render`           | render/canvasCss, render/codeRuns, render/codecastMark, render/format, render/index, render/mobileSessionStyle, render/mobileTabsStyle, render/pageTheme, render/permissionCardStyle, render/structuredMessage, render/structuredResult, render/toolCall, render/toolKinds, render/toolNames, render/toolVisual, render/typeScale | 16  | 53        |
-| W1   | sessions-1       | `sessions`         | agentStatus, liveness, hibernation, workState, loopState, openTasks, pendingStatus, liveActivity, sessionRead, sessionSnooze                                                                                                                                                                                                      | 10  | 122       |
-| W1   | ship             | `ship`             | shipPlan, changeGuide                                                                                                                                                                                                                                                                                                             | 2   | 19        |
-| W1   | signals          | `signals`          | signalFingerprint, problemReach                                                                                                                                                                                                                                                                                                   | 2   | 25        |
-| W1   | triggers-1       | `triggers`         | triggerEvents, triggerPrecheck                                                                                                                                                                                                                                                                                                    | 2   | 17        |
-| W2   | agent-clients-2a | `agent-clients`    | agentClients, antigravityClient, cloudAgents, modelOptions, agentPins. Rewrites cli, server, mobile, shared, packages and playground. Leaves 5 one-line shims at the old paths for web.                                                                                                                                           | 5   | 125       |
-| W2   | calls-2          | `calls`            | callLinks, huddleDigest, screenRecording                                                                                                                                                                                                                                                                                          | 3   | 38        |
-| W2   | machines         | `machines`         | deviceName, systemResources, resourceOffloadIntent, resourceOffloadPolicy, moveRehearsal, machineSwitch, peerTransport, teamHosts, dataSync, checkouts, worktrees                                                                                                                                                                 | 11  | 106       |
-| W2   | mods             | `mods`             | mods, theme                                                                                                                                                                                                                                                                                                                       | 2   | 40        |
-| W2   | org-2            | `org`              | orgCapacity, orgReview, roleAutonomy, roleCard, roleFailover, roleGoals, roleLevel, briefStanding                                                                                                                                                                                                                                 | 8   | 59        |
-| W2   | projects         | `projects`         | projectContext, projectOutputs, projectRef                                                                                                                                                                                                                                                                                        | 3   | 10        |
-| W2   | replay           | `replay`           | replay, replayPlayer, replay/capture, replay/dom, replay/events, replay/index, replay/issues, replay/list, replay/mobile, replay/mobile.fixture, replay/moment, replay/repro, replay/rrweb, replay/timeline                                                                                                                       | 14  | 70        |
-| W2   | search           | `search`           | search/index, search/sessionQuery, search/terms, search/tokenize, levenshtein                                                                                                                                                                                                                                                     | 5   | 39        |
-| W2   | sessions-2       | `sessions`         | sessionProject, newSessionDefaults, taskStats, conversationFields, threadState, unattended, forkSeed, sessionAsk, deliveryFailed, deliveryHold, follow                                                                                                                                                                            | 11  | 78        |
-| W3   | agent-clients-2b | `agent-clients`    | No moves. Rewrites `apps/web` (86 files) and deletes the 5 shims.                                                                                                                                                                                                                                                                 | 0   | 86        |
-| W3   | agents           | `agents`           | agentDefinitions                                                                                                                                                                                                                                                                                                                  | 1   | 17        |
-| W3   | calls-3          | `calls`            | transcriptChunk                                                                                                                                                                                                                                                                                                                   | 1   | 9         |
-| W3   | deploys          | `deploys`          | deployTargets, lineDeploy, deployReach, deployAuthority, pipeline                                                                                                                                                                                                                                                                 | 5   | 48        |
-| W3   | entities         | `entities`         | entities/index, appSurfaces                                                                                                                                                                                                                                                                                                       | 2   | 129       |
-| W3   | hosted-assistant | `hosted-assistant` | assistant                                                                                                                                                                                                                                                                                                                         | 1   | 62        |
-| W3   | ingest           | `ingest`           | ingest, volumeWatch, metricMonitor, sanitizeText, moments                                                                                                                                                                                                                                                                         | 5   | 94        |
-| W3   | tasks            | `tasks`            | tasks/foreignText, tasks/frontier, tasks/graph, tasks/graphHistory, tasks/index, tasks/planForeignText, tasks/planState, tasks/planSteps, tasks/planVerdicts, tasks/relatedDocs, tasks/resume, tasks/resumeSources, tasks/statuses                                                                                                | 13  | 115       |
-| W3   | usage            | `usage`            | usageLimits, weeklyCard                                                                                                                                                                                                                                                                                                           | 2   | 52        |
-| W4   | agent-clients-3  | `agent-clients`    | apiErrorBanner, agentSwitch, capabilityResolver, **fixtures**/capabilityResolverGolden, executionBinding                                                                                                                                                                                                                          | 5   | 77        |
-| W4   | connectors       | `connectors`       | appConnector, productView, connectorReasons, codecastConfig, codecastSignature, **fixtures**/codecastSignature.vectors.json, githubAppInstallState, appDescriptors                                                                                                                                                                | 8   | 56        |
-| W4   | goals            | `goals`            | initiative, metricStanding, goalsBrief, predictedEffect, envs, envCases, climb, openPlans                                                                                                                                                                                                                                         | 8   | 124       |
-| W4   | judges           | `judges`           | judges, agentJudges, judgeReview, judgeFix, modelCall                                                                                                                                                                                                                                                                             | 5   | 56        |
-| W4   | line-1           | `line`             | causeHistory, deploys, changeCard, render/changeCardHtml, lineRunEnd, evalResult, proposalCard, expectations, lineTimeline, problemScore, mainRed, ciFailures                                                                                                                                                                     | 12  | 116       |
-| W4   | vault            | `vault`            | vaultProtocol, vaultMirror                                                                                                                                                                                                                                                                                                        | 2   | 34        |
-| W5   | org-3            | `org`              | orgAreas, orgChange, orgChangeWords, orgLog, orgProposal, orgProposalReply, orgSessionFiling, rolePlaybook, headOfPeoplePrompt                                                                                                                                                                                                    | 9   | 101       |
-| W6   | messages         | `messages`         | machineMessages, messagingPolicy, handoffPrompt, sendArrival, jointMessage, sessionGoal, sessionEscalation, orgWhere, plainText, redirectWords                                                                                                                                                                                    | 10  | 140       |
-| W6   | org-templates    | `org-templates`    | orgTemplateBind, orgTemplateLearning, orgTemplateLearningOptIn, orgTemplateManifest, orgTemplateReadiness, orgTemplateRelease, orgTemplateState                                                                                                                                                                                   | 7   | 22        |
-| W7   | inbox            | `inbox`            | inboxProjection, inboxFields, inboxMembership, inboxSplit, closedSession, idleDigest, **fixtures**/inboxProjectionGen, **fixtures**/teamWorldGen                                                                                                                                                                                  | 8   | 105       |
-| W7   | line-2           | `line`             | flowMap, lineFunnel, lineVolume, linePriority, lineProfile, lineWords, lineChat, superseded, regretRates                                                                                                                                                                                                                          | 9   | 72        |
-| W7   | secrets          | `secrets`          | secrets, secretRules, secretShapes, vaultMessages                                                                                                                                                                                                                                                                                 | 4   | 87        |
-| W7   | snippets         | `snippets`         | snippets, snippetsWorkflow, stableContext, featureExplainers                                                                                                                                                                                                                                                                      | 4   | 50        |
-| W7   | triggers-2       | `triggers`         | triggerLifecycle                                                                                                                                                                                                                                                                                                                  | 1   | 15        |
-| W8   | decisions-2      | `decisions`        | decisionAnswers, commandRun                                                                                                                                                                                                                                                                                                       | 2   | 48        |
+The table gives each move. "Part" shows the part of a package that moves in more than one part. "Count" is the number of modules that move. "Importers" is the number of files that the move rewrites. Module names do not show the `contracts/` prefix.
 
-### Cycles broken, and per-PR notes
+| Stage | Package            | Part   | Modules                                                                                                                                                                                                                                                                                                                           | Count | Importers |
+| ----- | ------------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | --------- |
+| 2     | `agent-clients`    | 1 of 4 | cloudSessionSync, claudeBackend, harnessHooks, slashCommand, subagentFleet, testArtifacts                                                                                                                                                                                                                                         | 6     | 39        |
+| 2     | `browser`          | —      | browserExtension, browserPaneOffer, browserStream                                                                                                                                                                                                                                                                                 | 3     | 17        |
+| 2     | `calls`            | 1 of 3 | callRoomKeys, callGuests, callRecordings, callPush, recordingAudio, transcribeLanguage, stagePins                                                                                                                                                                                                                                 | 7     | 134       |
+| 2     | `capabilities`     | —      | capabilities, capabilityScopes, fleetDiff, agentToolSetup, mcpRegistry, agentAccess                                                                                                                                                                                                                                               | 6     | 85        |
+| 2     | `changes`          | —      | changes/classify, changes/cluster, changes/dedupe, changes/headline, changes/index, changes/keys, changes/people, changes/risks, changes/surfaces, changes/types, changes/week, changes/**fixtures**/codecastDays.json, changes/**fixtures**/commit, changes/**fixtures**/(third fixture)                                         | 14    | 22        |
+| 2     | `cloud-hosts`      | —      | cloudHostReport, cloudPlacement, cloudPlacementProgress, cloudWorkspace, localMirror                                                                                                                                                                                                                                              | 5     | 58        |
+| 2     | `convex-errors`    | —      | convexErrors                                                                                                                                                                                                                                                                                                                      | 1     | 33        |
+| 2     | `daemon`           | —      | daemonCommands, rewindFiles, sshAttach, terminalStream, fileAttachment, shellWords                                                                                                                                                                                                                                                | 6     | 36        |
+| 2     | `decisions`        | 1 of 2 | decisionAreas, decisionCategory, decisionEscalation, decisionImpact, approvalAnswers, personAsk                                                                                                                                                                                                                                   | 6     | 19        |
+| 2     | `evals-api`        | —      | evalsApi, evalsApi/bisect, evalsApi/core, evalsApi/endpoints, evalsApi/routes, evalsApi/sim                                                                                                                                                                                                                                       | 6     | 74        |
+| 2     | `fence`            | —      | fence                                                                                                                                                                                                                                                                                                                             | 1     | 26        |
+| 2     | `flows`            | —      | flowPool, flowEdit, repoFlows, runStart, lineSlug, linePhases                                                                                                                                                                                                                                                                     | 6     | 73        |
+| 2     | `keyboard`         | —      | shortcutCatalog, keyBindings                                                                                                                                                                                                                                                                                                      | 2     | 9         |
+| 2     | `network`          | —      | internalHost                                                                                                                                                                                                                                                                                                                      | 1     | 2         |
+| 2     | `org`              | 1 of 3 | orgAvatars, roleIcon, roleIconExamples, sessionCharacter, orgAssignee, orgLead, orgIdentity, orgRoute, executiveAssistantPrompt                                                                                                                                                                                                   | 9     | 128       |
+| 2     | `pages`            | —      | castPlayer, castMotion, pageAgent, pageAnchor, pageData, pageEdge                                                                                                                                                                                                                                                                 | 6     | 26        |
+| 2     | `policy`           | —      | managedPolicy, vendorCoverage, teamFeatures, permissionRules                                                                                                                                                                                                                                                                      | 4     | 88        |
+| 2     | `provider-keys`    | —      | providerKeys, providerKeyCrypto, oauthCodePaste                                                                                                                                                                                                                                                                                   | 3     | 21        |
+| 2     | `pull-requests`    | —      | prRefs, commitDiffs                                                                                                                                                                                                                                                                                                               | 2     | 41        |
+| 2     | `ratchet`          | —      | ratchet/index                                                                                                                                                                                                                                                                                                                     | 1     | 6         |
+| 2     | `render`           | —      | render/canvasCss, render/codeRuns, render/codecastMark, render/format, render/index, render/mobileSessionStyle, render/mobileTabsStyle, render/pageTheme, render/permissionCardStyle, render/structuredMessage, render/structuredResult, render/toolCall, render/toolKinds, render/toolNames, render/toolVisual, render/typeScale | 16    | 53        |
+| 2     | `sessions`         | 1 of 2 | agentStatus, liveness, hibernation, workState, loopState, openTasks, pendingStatus, liveActivity, sessionRead, sessionSnooze                                                                                                                                                                                                      | 10    | 122       |
+| 2     | `ship`             | —      | shipPlan, changeGuide                                                                                                                                                                                                                                                                                                             | 2     | 19        |
+| 2     | `signals`          | —      | signalFingerprint, problemReach                                                                                                                                                                                                                                                                                                   | 2     | 25        |
+| 2     | `triggers`         | 1 of 2 | triggerEvents, triggerPrecheck                                                                                                                                                                                                                                                                                                    | 2     | 17        |
+| 3     | `agent-clients`    | 2 of 4 | agentClients, antigravityClient, cloudAgents, modelOptions, agentPins. Rewrites every importer except the ones in `apps/web`. Leaves 5 one-line shims at the old paths for web.                                                                                                                                                   | 5     | 125       |
+| 3     | `calls`            | 2 of 3 | callLinks, huddleDigest, screenRecording                                                                                                                                                                                                                                                                                          | 3     | 38        |
+| 3     | `machines`         | —      | deviceName, systemResources, resourceOffloadIntent, resourceOffloadPolicy, moveRehearsal, machineSwitch, peerTransport, teamHosts, dataSync, checkouts, worktrees                                                                                                                                                                 | 11    | 106       |
+| 3     | `mods`             | —      | mods, theme                                                                                                                                                                                                                                                                                                                       | 2     | 40        |
+| 3     | `org`              | 2 of 3 | orgCapacity, orgReview, roleAutonomy, roleCard, roleFailover, roleGoals, roleLevel, briefStanding                                                                                                                                                                                                                                 | 8     | 59        |
+| 3     | `projects`         | —      | projectContext, projectOutputs, projectRef                                                                                                                                                                                                                                                                                        | 3     | 10        |
+| 3     | `replay`           | —      | replay, replayPlayer, replay/capture, replay/dom, replay/events, replay/index, replay/issues, replay/list, replay/mobile, replay/mobile.fixture, replay/moment, replay/repro, replay/rrweb, replay/timeline                                                                                                                       | 14    | 70        |
+| 3     | `search`           | —      | search/index, search/sessionQuery, search/terms, search/tokenize, levenshtein                                                                                                                                                                                                                                                     | 5     | 39        |
+| 3     | `sessions`         | 2 of 2 | sessionProject, newSessionDefaults, taskStats, conversationFields, threadState, unattended, forkSeed, sessionAsk, deliveryFailed, deliveryHold, follow                                                                                                                                                                            | 11    | 78        |
+| 4     | `agent-clients`    | 3 of 4 | No moves. Rewrites `apps/web` (86 files) and deletes the 5 shims.                                                                                                                                                                                                                                                                 | 0     | 86        |
+| 4     | `agents`           | —      | agentDefinitions                                                                                                                                                                                                                                                                                                                  | 1     | 17        |
+| 4     | `calls`            | 3 of 3 | transcriptChunk                                                                                                                                                                                                                                                                                                                   | 1     | 9         |
+| 4     | `deploys`          | —      | deployTargets, lineDeploy, deployReach, deployAuthority, pipeline                                                                                                                                                                                                                                                                 | 5     | 48        |
+| 4     | `entities`         | —      | entities/index, appSurfaces                                                                                                                                                                                                                                                                                                       | 2     | 129       |
+| 4     | `hosted-assistant` | —      | assistant                                                                                                                                                                                                                                                                                                                         | 1     | 62        |
+| 4     | `ingest`           | —      | ingest, volumeWatch, metricMonitor, sanitizeText, moments                                                                                                                                                                                                                                                                         | 5     | 94        |
+| 4     | `tasks`            | —      | tasks/foreignText, tasks/frontier, tasks/graph, tasks/graphHistory, tasks/index, tasks/planForeignText, tasks/planState, tasks/planSteps, tasks/planVerdicts, tasks/relatedDocs, tasks/resume, tasks/resumeSources, tasks/statuses                                                                                                | 13    | 115       |
+| 4     | `usage`            | —      | usageLimits, weeklyCard                                                                                                                                                                                                                                                                                                           | 2     | 52        |
+| 5     | `agent-clients`    | 4 of 4 | apiErrorBanner, agentSwitch, capabilityResolver, **fixtures**/capabilityResolverGolden, executionBinding                                                                                                                                                                                                                          | 5     | 77        |
+| 5     | `connectors`       | —      | appConnector, productView, connectorReasons, codecastConfig, codecastSignature, **fixtures**/codecastSignature.vectors.json, githubAppInstallState, appDescriptors                                                                                                                                                                | 8     | 56        |
+| 5     | `goals`            | —      | initiative, metricStanding, goalsBrief, predictedEffect, envs, envCases, climb, openPlans                                                                                                                                                                                                                                         | 8     | 124       |
+| 5     | `judges`           | —      | judges, agentJudges, judgeReview, judgeFix, modelCall                                                                                                                                                                                                                                                                             | 5     | 56        |
+| 5     | `line`             | 1 of 2 | causeHistory, deploys, changeCard, render/changeCardHtml, lineRunEnd, evalResult, proposalCard, expectations, lineTimeline, problemScore, mainRed, ciFailures                                                                                                                                                                     | 12    | 116       |
+| 5     | `vault`            | —      | vaultProtocol, vaultMirror                                                                                                                                                                                                                                                                                                        | 2     | 34        |
+| 6     | `org`              | 3 of 3 | orgAreas, orgChange, orgChangeWords, orgLog, orgProposal, orgProposalReply, orgSessionFiling, rolePlaybook, headOfPeoplePrompt                                                                                                                                                                                                    | 9     | 101       |
+| 7     | `messages`         | —      | machineMessages, messagingPolicy, handoffPrompt, sendArrival, jointMessage, sessionGoal, sessionEscalation, orgWhere, plainText, redirectWords                                                                                                                                                                                    | 10    | 140       |
+| 7     | `org-templates`    | —      | orgTemplateBind, orgTemplateLearning, orgTemplateLearningOptIn, orgTemplateManifest, orgTemplateReadiness, orgTemplateRelease, orgTemplateState                                                                                                                                                                                   | 7     | 22        |
+| 8     | `inbox`            | —      | inboxProjection, inboxFields, inboxMembership, inboxSplit, closedSession, idleDigest, **fixtures**/inboxProjectionGen, **fixtures**/teamWorldGen                                                                                                                                                                                  | 8     | 105       |
+| 8     | `line`             | 2 of 2 | flowMap, lineFunnel, lineVolume, linePriority, lineProfile, lineWords, lineChat, superseded, regretRates                                                                                                                                                                                                                          | 9     | 72        |
+| 8     | `secrets`          | —      | secrets, secretRules, secretShapes, vaultMessages                                                                                                                                                                                                                                                                                 | 4     | 87        |
+| 8     | `snippets`         | —      | snippets, snippetsWorkflow, stableContext, featureExplainers                                                                                                                                                                                                                                                                      | 4     | 50        |
+| 8     | `triggers`         | 2 of 2 | triggerLifecycle                                                                                                                                                                                                                                                                                                                  | 1     | 15        |
+| 9     | `decisions`        | 2 of 2 | decisionAnswers, commandRun                                                                                                                                                                                                                                                                                                       | 2     | 48        |
+
+### Cycles that each move removes
 
 **Folder cycles:**
 
-| PR (wave)     | Cycle broken         | How                                                                                                                                                                                                                                          |
-| ------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| render (W1)   | contracts ↔ render   | `render/*` leaves without `changeCardHtml`. The last edge from render into contracts goes with it. The one contracts test into render (`changeCard.test`) later moves with `changeCardHtml` in `line-1`.                                     |
-| changes (W1)  | contracts ↔ changes  | Uses `@codecast/hash` after W0.                                                                                                                                                                                                              |
-| tasks (W3)    | contracts ↔ tasks    | Its four dependencies are already out: `fence` (W1), `workState` (sessions-1, W1), `prRefs` (pull-requests, W1) and `agentClients` (agent-clients-2a, W2). The reverse edges (`linePriority`, `superseded`) then point at `@codecast/tasks`. |
-| replay (W2)   | contracts ↔ replay   | `contracts/replay` and `contracts/replayPlayer` leave with the replay folder. Its other dependencies are `calls-1`, `changes` and `signals`, all W1.                                                                                         |
-| entities (W3) | contracts ↔ entities | All its dependencies are out: `browserPaneOffer` (W1), `callLinks` (W2), `callRecordings` (W1), `replayPlayer` and `replay/events` (W2). `initiative` and `orgProposalReply` then import `@codecast/entities`.                               |
-| search (W2)   | none                 | `search` only imports `prRefs`, so it was never in a cycle.                                                                                                                                                                                  |
+| Move (stage)   | Cycle                | How the move removes it                                                                                                                                                                                                                                                                      |
+| -------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `render` (2)   | contracts ↔ render   | `render/*` moves without `changeCardHtml`, which has the last edge from `render` into `contracts`. The one `contracts` test that imports `render` (`changeCard.test`) moves later with `changeCardHtml`, in the first part of `line`.                                                        |
+| `changes` (2)  | contracts ↔ changes  | `changes` uses `@codecast/hash` from stage 1.                                                                                                                                                                                                                                                |
+| `tasks` (4)    | contracts ↔ tasks    | Its four dependencies moved before it: `fence` (stage 2), `workState` (first part of `sessions`, stage 2), `prRefs` (`pull-requests`, stage 2) and `agentClients` (second part of `agent-clients`, stage 3). The reverse edges (`linePriority`, `superseded`) then import `@codecast/tasks`. |
+| `replay` (3)   | contracts ↔ replay   | `contracts/replay` and `contracts/replayPlayer` move with the `replay` folder. Its other dependencies are the first part of `calls`, `changes` and `signals`, all in stage 2.                                                                                                                |
+| `entities` (4) | contracts ↔ entities | All its dependencies moved before it: `browserPaneOffer` (stage 2), `callLinks` (stage 3), `callRecordings` (stage 2), `replayPlayer` and `replay/events` (stage 3). `initiative` and `orgProposalReply` then import `@codecast/entities`.                                                   |
+| `search` (3)   | none                 | `search` imports only `prRefs`, so it was never in a cycle.                                                                                                                                                                                                                                  |
 
-**Module SCCs** each move whole, in one PR:
+**Module cycles.** Each SCC moves as one unit, in one part:
 
-| SCC                                                  | PR (wave)             |
-| ---------------------------------------------------- | --------------------- |
-| `callGuests` + `callRecordings`                      | calls-1 (W1)          |
-| `agentClients` + `antigravityClient` + `cloudAgents` | agent-clients-2a (W2) |
-| `envs` + `envCases`                                  | goals (W4)            |
-| `agentJudges` + `judges`                             | judges (W4)           |
-| `flowMap` + `lineFunnel` + `lineVolume`              | line-2 (W7)           |
+| SCC                                                  | Move (stage)                       |
+| ---------------------------------------------------- | ---------------------------------- |
+| `callGuests` + `callRecordings`                      | first part of `calls` (2)          |
+| `agentClients` + `antigravityClient` + `cloudAgents` | second part of `agent-clients` (3) |
+| `envs` + `envCases`                                  | `goals` (5)                        |
+| `agentJudges` + `judges`                             | `judges` (5)                       |
+| `flowMap` + `lineFunnel` + `lineVolume`              | second part of `line` (8)          |
 
-**The over-cap PR.**
+**The move that is too large for one part.**
 
-- agent-clients-2a and 2b exist because `agentClients` alone has 157 outside importers. The cycle it sits in can't be divided, and `agentPins` and `modelOptions` must come along because of `agentClients.test` and `modelOptions.test`. Together the PR would rewrite 211 files.
-- 2a moves the modules and rewrites cli (68), server (40), shared (8), mobile (7), `packages/agents` (1) and playground (1), 125 files in all.
-- 2a leaves `contracts/{agentClients,antigravityClient,cloudAgents,modelOptions,agentPins}.ts` as one-line `export * from "@codecast/agent-clients/<module>"` shims, so web keeps building.
-- 2b (W3) rewrites the 86 web files and deletes the shims.
-- The shims point from shared into the new package, which is the allowed direction. They are single modules, not barrels, so no startup graph grows.
-- This is the only shim in the plan.
+- `agentClients` has 157 importers outside `packages/shared`. Its module cycle cannot be divided. `agentPins` and `modelOptions` must move with it, because of `agentClients.test` and `modelOptions.test`. One part for all of these modules rewrites 211 files.
+- Thus, the second part of `agent-clients` (stage 3) moves the modules. It rewrites cli (68), server (40), shared (8), mobile (7), `packages/agents` (1) and playground (1): 125 files.
+- The second part leaves `contracts/{agentClients,antigravityClient,cloudAgents,modelOptions,agentPins}.ts` as one-line shims: `export * from "@codecast/agent-clients/<module>"`. Thus, web continues to build.
+- The third part (stage 4) rewrites the 86 web files and deletes the shims.
+- The shims import from `packages/shared` into the new package, and that direction is permitted. Each shim is one module, not a barrel, so no startup graph grows.
+- These are the only shims in the plan.
 
-**Per-PR notes:**
+**Notes on some moves:**
 
-| PR                       | Notes                                                                                                                                                                                                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| line-2                   | Rewrite `linePriority`'s `import type { TaskPriority } from "../tasks"` (the barrel) to `@codecast/tasks/statuses`.                                                                                                                                            |
-| vault, agents            | `vaultProtocol` and `agentDefinitions` are re-exported by the barrel. Deleting those barrel lines is **required** in these PRs, not just tidying. Both destination packages depend on `@codecast/shared` today, so a surviving barrel line would make a cycle. |
-| mods, network            | Neither module is in the barrel. `mods` drops its `@codecast/shared` dependency in this PR.                                                                                                                                                                    |
-| calls-3 (W3)             | Moves only `transcriptChunk`. That is the one calls module that needs `agentClients`.                                                                                                                                                                          |
-| ingest (W3)              | Takes `moments` (from the judges domain), because `ingest` validates moment events and `moments.test` imports `ingest`. `judges` then depends on `ingest`.                                                                                                     |
-| org-1, org-2, org-3      | Split by dependency: faces and leads (W1), autonomy and role cards (W2), then proposals, the org log and `orgAreas` (W5, after goals).                                                                                                                         |
-| triggers-1, triggers-2   | `triggers-1` exists because `ingest.test` imports `triggerEvents`. `triggerLifecycle` must wait for `messages`.                                                                                                                                                |
-| decisions-1, decisions-2 | `decisions-1` exists because `assistant` (W3) needs `approvalAnswers`. `decisionAnswers` and `commandRun` wait for `messages` and `secrets`.                                                                                                                   |
+| Move                            | Note                                                                                                                                                                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| second part of `line`           | Rewrite `import type { TaskPriority } from "../tasks"` in `linePriority` (an import of the barrel) to `@codecast/tasks/statuses`.                                                                                      |
+| `vault`, `agents`               | The barrel re-exports `vaultProtocol` and `agentDefinitions`. These moves **must** delete the two barrel lines. The two target packages depend on `@codecast/shared` today, so a barrel line that stays makes a cycle. |
+| `mods`, `network`               | The barrel does not re-export these modules. `mods` stops its dependency on `@codecast/shared` in this move.                                                                                                           |
+| third part of `calls` (stage 4) | Moves only `transcriptChunk`. This is the one `calls` module that needs `agentClients`.                                                                                                                                |
+| `ingest` (stage 4)              | Gets `moments` from the judges domain, because `ingest` validates moment events and `moments.test` imports `ingest`. Thus, `judges` depends on `ingest`.                                                               |
+| the three parts of `org`        | Divided by dependency: faces and leads (stage 2), autonomy and role cards (stage 3), then proposals, the org log and `orgAreas` (stage 6, after `goals`).                                                              |
+| the two parts of `triggers`     | The first part exists because `ingest.test` imports `triggerEvents`. `triggerLifecycle` must wait for `messages`.                                                                                                      |
+| the two parts of `decisions`    | The first part exists because `assistant` (stage 4) needs `approvalAnswers`. `decisionAnswers` and `commandRun` wait for `messages` and `secrets`.                                                                     |
 
-The critical path is 8 waves long: calls-1, changes and signals (W1) → replay (W2) → entities (W3) → goals (W4) → org-3 (W5) → messages (W6) → secrets (W7) → decisions-2 (W8). Run W1 fully in parallel, and the whole split takes 9 merge rounds, counting W0.
+The critical path has 8 stages after stage 1:
+
+1. the first part of `calls`, `changes` and `signals` (stage 2)
+2. `replay` (stage 3)
+3. `entities` (stage 4)
+4. `goals` (stage 5)
+5. the third part of `org` (stage 6)
+6. `messages` (stage 7)
+7. `secrets` (stage 8)
+8. the second part of `decisions` (stage 9)
+
+If all the parts of each stage merge in parallel, the split needs 9 merge rounds.
 
 ## 4. The barrel plan
 
-**`packages/shared/index.ts` (root):** no code importer. Delete it in W0 (root-barrel), along with `.`, `main` and `types`.
+**The root `index.ts` of `packages/shared`:** no code imported it. Stage 1 deleted it, with the `.`, `main` and `types` entries.
 
-**`packages/shared/contracts/index.ts`:** 1,113 static importers, 17 files with dynamic or type-query uses, and 105 defining modules. It shrinks one PR at a time.
+**`packages/shared/contracts/index.ts`:** 1,113 files with static imports, 17 files with dynamic imports or type queries, and 105 re-exported modules. It becomes smaller with each move.
 
-- **Each move PR deletes the barrel lines of the modules it moves**, and rewrites those names in every barrel importer to the module's new subpath. A file that took 6 names from 4 modules ends up with 4 subpath imports over time, one per PR. No new barrel is ever introduced. New packages have no `"."` export, except the 5 that replace folder barrels.
-- **The barrel shrinks wave by wave.** Counting the 105 defining modules it re-exports, here is how many are still left after each wave:
+- **Each move deletes the barrel lines of the modules that it moves.** It also rewrites these names in each barrel importer to the new subpath. Over time, a file that imported 6 names from 4 modules gets 4 subpath imports, one from each move. The plan adds no new barrel. A new package has no `"."` export, except the packages that replace a folder barrel.
+- **The barrel becomes smaller with each stage.** This table gives the number of the 105 re-exported modules that stay in the barrel after each stage:
 
-  | After        | W1  | W2  | W3  | W4  | W5  | W6  | W7                    | W8  |
+  | After stage  | 2   | 3   | 4   | 5   | 6   | 7   | 8                     | 9   |
   | ------------ | --- | --- | --- | --- | --- | --- | --------------------- | --- |
   | Modules left | 50  | 30  | 25  | 17  | 17  | 12  | 1 (`decisionAnswers`) | 0   |
 
-  In W8, decisions-2 empties the barrel. Delete `contracts/index.ts` and the `./contracts` export in that PR.
+  In stage 9, the second part of `decisions` removes the last module from the barrel. That part also deletes `contracts/index.ts` and the `./contracts` export.
 
-  Barrel modules per target package: sessions 17, agent-clients 14, calls 10, daemon 5, inbox 5, cloud-hosts 5, machines 5, pages 5, capabilities 5, snippets 4, messages 4, provider-keys 3, policy 3, triggers 3, browser 2, vault 2, connectors 2. Eleven more packages have 1 each.
+  The number of barrel modules in each target package is as follows. sessions 17, agent-clients 14, calls 10, daemon 5, inbox 5, cloud-hosts 5, machines 5, pages 5, capabilities 5, snippets 4, messages 4, provider-keys 3, policy 3, triggers 3, browser 2, vault 2, connectors 2. Eleven more packages have 1 each.
 
-- **No standalone barrel-rewrite wave.** Rewriting the 1,113 files to `@codecast/shared/contracts/<module>` first would mean adding 95 export entries and touching every file twice. The move PRs already touch the same lines, and their counts include the barrel users.
-- **The 17 dynamic and type-query files** are rewritten by the PR that moves the module they name (section 1.5).
-  - The runtime `import("@codecast/shared/contracts")` calls in `apps/cli/src/daemon.ts` go in two PRs: `REWIND_FILES_OPS` in daemon (W1) and `resolveAgentLaunch` in agents (W3). Its `HostReadiness` type query goes in cloud-hosts (W1).
-  - The two in `apps/cli/src/index.ts` go in agent-clients-1 (W1, `claudeBackend`) and sessions-2 (W2, `sessionAsk`).
-  - After W3, the daemon no longer loads the barrel at runtime.
-- **Folder barrels** (`tasks/index`, `render/index`, `replay/index`, `search/index`, `changes/index`) become the `"."` export of their package. The move PR still rewrites each importer to the module subpath that defines its names. The exception is names defined in `tasks/index.ts` itself (418 lines of code), which stay at `@codecast/tasks`. Rewriting this way is no extra churn, because every one of those lines changes anyway.
-- **The end state:** `packages/shared` contains only `devShutdown.test.ts` and `package.json`. Delete the package and the `"@codecast/shared"` lines from every manifest: `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and `packages/comments`, `blame`, `artifacts`, `mods`, `vault`, `agents`. Move `devShutdown.test.ts` first, to the package whose code it tests.
+- **No separate stage rewrites the barrel imports.** A first rewrite of the 1,113 files to `@codecast/shared/contracts/<module>` needs 95 new `exports` entries. It also changes each file two times. The moves change the same lines, and their counts include the barrel users.
+- **The 17 files with dynamic imports or type queries** change in the move of the module that they name (section 1.5).
+  - `apps/cli/src/daemon.ts` has two `import("@codecast/shared/contracts")` calls that run. The `daemon` move (stage 2) changed the call for `REWIND_FILES_OPS`. The `agents` move (stage 4) changes the call for `resolveAgentLaunch`. The `cloud-hosts` move (stage 2) changes its `HostReadiness` type query.
+  - The two calls in `apps/cli/src/index.ts` change in the first part of `agent-clients` (stage 2, `claudeBackend`) and in the second part of `sessions` (stage 3, `sessionAsk`).
+  - After stage 4, the daemon does not load the barrel when it runs.
+- **Folder barrels** (`tasks/index`, `render/index`, `replay/index`, `search/index`, `changes/index`) become the `"."` export of their package. The move still rewrites each importer to the subpath of the module that defines its names. The exception is the names that `tasks/index.ts` defines (418 lines of code). These names stay at `@codecast/tasks`. This rewrite adds no work, because the move changes each of these lines.
+- **At the end**, `packages/shared` has only `devShutdown.test.ts` and `package.json`. First, move `devShutdown.test.ts` next to the dev script that it tests. Then delete the package, and the `"@codecast/shared"` lines in each manifest: `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and `packages/comments`, `blame`, `artifacts`, `mods`, `vault`, `agents`.
 
 ## 5. Risks
 
-**Behaviour.** No PR needs a behaviour change.
+**Behavior.** No move changes behavior.
 
-- The one symbol split (W0 `hash`) moves three exports verbatim.
-- Every other step is a file move plus import rewrites.
-- The test-prep PR moves test cases between files without changing them.
-- Two placements would have forced a symbol split, and this plan avoids both. One is keeping `changeCardHtml` in `render`, which would make `render` depend on `line`. The other is folding `capabilityResolver` into `capabilities`. The resolver imports `AGENT_CLIENTS` and `capabilitySupport` from `agentClients`, while `agentClients` imports the `CapabilityKind` type from `capabilities`. Putting the resolver in `capabilities` would need a type moved against its meaning. So `capabilityResolver` and its golden fixture live in `agent-clients`.
+- The only module division (`hash`, stage 1) moves three exports with no change.
+- Each other step is a file move and import rewrites.
+- The test split moves test cases between files, with no change to the cases.
+- Two other placements make a module division necessary. The plan prevents the two placements:
+  - `changeCardHtml` in `render` makes `render` depend on `line`.
+  - `capabilityResolver` in `capabilities` makes a cycle. The resolver imports `AGENT_CLIENTS` and `capabilitySupport` from `agentClients`, and `agentClients` imports the `CapabilityKind` type from `capabilities`. To put the resolver in `capabilities`, a type must move to a package where it does not belong. Thus, `capabilityResolver` and its golden fixture go to `agent-clients`.
 
 **Fan-in.**
 
-- `agentClients`: 157 outside importers, 11 inside, 4 tests. It is the reason for the shim staging in W2–W3. Between 2a and 2b, web still compiles through the shims. Don't let a third PR add new web imports of the old path in that window.
-- `entities/index`: 1,646 lines and 124 outside importers, including `packages/{artifacts,blame,vault}`. Its move (W3) needs calls-2 and replay merged first. It is the hinge for `goals`, `org`, `vault` and everything above them.
-- `tasks/index`: 117 barrel importers, and it holds code as well as re-exports. Rewrite to subpaths only for names that come from submodules.
-- `machineMessages`: 94 outside importers plus 9 inside and 13 tests. Its PR (messages, W6) is 140 files.
-- `calls-1`: 134 files.
-- `org-1`: 128 files, because of `orgAvatars` and `orgLead` fan-in into playground and server.
-- `inboxProjection`: 1,888 lines, and it is in the daemon and web hot paths.
+- `agentClients`: 157 importers outside `packages/shared`, 11 inside, 4 tests. This is the reason for the shims in stages 3 and 4. Between the second and third parts of `agent-clients`, web compiles through the shims. During that time, do not add new web imports of the old path.
+- `entities/index`: 1,646 lines and 124 importers outside `packages/shared`, which include `packages/{artifacts,blame,vault}`. Its move (stage 4) needs the second part of `calls` and `replay` first. All of `goals`, `org`, `vault` and the packages above them depend on it.
+- `tasks/index`: 117 barrel importers. It has code and re-exports. Rewrite an import to a subpath only for the names that come from submodules.
+- `machineMessages`: 94 importers outside `packages/shared`, 9 inside, and 13 tests. Its move (`messages`, stage 7) rewrites 140 files.
+- The first part of `calls` rewrites 134 files.
+- The first part of `org` rewrites 128 files, because many files in playground and server import `orgAvatars` and `orgLead`.
+- `inboxProjection` has 1,888 lines, and the daemon and web use it on their frequent paths.
 
-**Size ratchets.** These files sit near `max-lines` and carry ratchet baseline entries that must move with them: `orgProposal` (3,709 lines), `snippets` (2,005), `inboxProjection` (1,888), `entities/index` (1,646), `agentClients` (1,631) and `shortcutCatalog` (1,515).
+**Ratchet baselines.** A ratchet baseline is a committed file that records the files that break a rule today. A guard test fails when a new file breaks the rule or when a count increases. These files are near the `max-lines` limit, and their baseline entries must move with them: `orgProposal` (3,709 lines), `snippets` (2,005), `inboxProjection` (1,888), `entities/index` (1,646), `agentClients` (1,631) and `shortcutCatalog` (1,515). The baselines are `packages/ratchet/max-lines-baseline.txt` and `packages/ratchet/doc-refs-baseline.txt`.
 
-**Startup graphs.**
+**Startup graphs.** The startup graph of an entry file is the set of source files that it loads through static imports at start.
 
-- `apps/cli/src/bench/bootGraph.guard.test.ts` caps daemon.ts's static graph at 625 files. The graph is already at 625 (the last bump was `contracts/closedSession.ts`).
-- A move keeps the file count the same, provided every import goes to a module subpath. It grows if any importer is pointed at a package root. Only the 5 folder-replacement packages have a root, so none of the new contracts packages can be imported that way.
-- The guard resolves workspace packages through `scripts/workspace-packages`, so new packages are seen automatically. Run it in every PR.
+- `apps/cli/src/bench/bootGraph.guard.test.ts` sets a limit of 625 files on the startup graph of `daemon.ts`. It also sets limits of 374 files and 5,048 KB on the startup graph of `index.ts`. At `0a2b5eb53`, the `daemon.ts` graph had 625 files. At `6c623c51f`, it has 609 files, and the `index.ts` graph has 358 files.
+- A move keeps the number of files the same if each import goes to a module subpath. The number increases if an importer imports a package root. Only the packages that replace a folder barrel have a root. Thus, no importer can import a new `contracts` package in that way.
+- The guard finds workspace packages through `scripts/workspace-packages.ts`, so it sees new packages automatically. Run it for each move.
 
-**Dependencies to carry over.** Each new package declares the third-party and `@platform/*` packages its modules import. Confirm by import, because some of these hits are only in comments.
+**Dependencies to copy.** Each new package declares the third-party packages and the `@platform/*` packages that its modules import. Examine the imports to make sure, because some of these names occur only in comments.
 
 | Package                                                                         | Dependencies                                       |
 | ------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `fence`                                                                         | `@platform/fence`                                  |
 | `evals-api`, `line` (`evalResult`), the `changes` fixtures, the `inbox` fixture | `@platform/evals`                                  |
-| `keyboard` (`shortcutCatalog`)                                                  | `@platform/evals` and `@platform/keys`             |
 | `hosted-assistant`                                                              | `@platform/assistant`                              |
 | `render`                                                                        | `css-tree`, `@types/css-tree`, and `css-tree.d.ts` |
 
-`devShutdown.test.ts` tests a dev script rather than shared code. Move it next to that script before deleting `packages/shared`.
+`shortcutCatalog` names `@platform/evals` and `@platform/keys` only in comments, so `keyboard` has no `@platform` dependency.
 
-**Mobile.** `apps/mobile/metro.config.js` resolves dependencies only from mobile's own `package.json`. Every new package that mobile imports must be added there in the same PR. Mobile imports appear in calls, sessions, render, entities, org and others.
+**Mobile.** `apps/mobile/metro.config.js` resolves dependencies only from the `package.json` of mobile. If mobile imports a new package, add the package there in the same move. Mobile imports modules from `calls`, `sessions`, `render`, `entities`, `org` and other packages.
 
-**Parallel conflicts.** Every PR in a wave edits the same files: `packages/shared/package.json`, `contracts/index.ts`, `ratchet/max-lines-baseline.txt`, `ratchet/doc-refs-baseline.txt`, `lint-baseline.json`, `bun.lock` and the app manifests. Merging the three open PRs together already conflicted in `max-lines-baseline.txt`, `lint-baseline.json`, `bun.lock` and `apps/*/package.json`.
+**Conflicts between parallel parts.** All the parts of a stage change the same files: `packages/shared/package.json`, `contracts/index.ts`, `packages/ratchet/max-lines-baseline.txt`, `packages/ratchet/doc-refs-baseline.txt`, `lint-baseline.json`, `bun.lock` and the manifests of the apps.
 
-- Resolve these files by regeneration (`bun install`, `bun run lint:prune`, the ratchet baseline regeneration), never by hand.
-- Rebase each PR onto the previous merge rather than stacking.
+- Make these files again with their tools (`bun install`, `bun run lint:prune`, `RATCHET_WRITE=prune bun test` in `packages/ratchet`). Do not merge them by hand.
+- Rebase each PR onto the last merge. Do not stack PRs.
 
-**Interactions with the open PRs.** These are already visible when the three branches are merged together:
+**Imports in older packages that wait for a move.**
 
-- `packages/agents/src/index.ts` imports `@codecast/shared/docs`. That path is gone once `refactor/docs-chat-packages` lands, so it must become `@codecast/docs`.
-- `packages/comments/src/reviewBatch.ts` imports `@codecast/shared/contracts/fence`. That needs the `./contracts/fence` export added in `refactor/blame-comments-artifacts-packages`, and `fence` (W1) will rewrite it.
-- `apps/server/convex/thread{s,Reads}.ts` conflict on `@codecast/chat` versus `@codecast/comments` import lines.
+- `packages/agents/src/index.ts` imports from the `contracts` barrel. The moves of `agent-clients` and `agents` rewrite it.
+- `packages/comments/src/reviewBatch.ts` imports `@codecast/shared/contracts/fence`. The `fence` move rewrites it.
+- `packages/artifacts`, `packages/blame` and `packages/vault` import `@codecast/shared/entities`. The `entities` move rewrites them.
+- `packages/vault` also imports `@codecast/shared/contracts/vaultProtocol` and `@codecast/shared/search/tokenize`. The `vault` and `search` moves rewrite them.
+- `packages/mods` imports `@codecast/shared/contracts/mods` in `src/inspect.ts`, `src/sdk.ts` and two tests. The `mods` move rewrites them.
 
-**Naming collisions.**
+**Names that the plan does not use.**
 
-| Avoided name                               | Clash                                      | Used instead                 |
-| ------------------------------------------ | ------------------------------------------ | ---------------------------- |
-| `@codecast/evals`                          | The existing `apps/evals` package name     | `@codecast/evals-api`        |
-| `@codecast/assistant`                      | `@platform/assistant`                      | `@codecast/hosted-assistant` |
-| `@codecast/agents` for the client registry | Already the agent-definition files package | `@codecast/agent-clients`    |
+| Name not used                              | Conflict                                        | Name used                    |
+| ------------------------------------------ | ----------------------------------------------- | ---------------------------- |
+| `@codecast/evals`                          | The name of the existing `apps/evals` package   | `@codecast/evals-api`        |
+| `@codecast/assistant`                      | `@platform/assistant`                           | `@codecast/hosted-assistant` |
+| `@codecast/agents` for the client registry | The existing package for agent-definition files | `@codecast/agent-clients`    |
 
-**Judgement calls a reviewer may want to revisit.** These are placements, not correctness issues:
+**Placements that a reviewer can examine again.** These are decisions about placement, not errors:
 
 - `follow` in `sessions`
 - `levenshtein` in `search`
@@ -635,17 +711,17 @@ The critical path is 8 waves long: calls-1, changes and signals (W1) → replay 
 - `checkouts` and `worktrees` in `machines`
 - `moments` in `ingest`
 
-**Type-only edges count.** `machineMessages` → `orgAreas` (`AreaChange`) and `orgAreas` → `initiative` are type-only. They still fix `messages` above `org` above `goals` above `entities`. If someone later wants `messages` lower, moving `AreaChange` and `RoleCard` is the only lever. That would be a type move, and this plan doesn't need it.
+**Type-only edges count.** `machineMessages` → `orgAreas` (`AreaChange`) and `orgAreas` → `initiative` are type-only. But they put `messages` above `org`, `org` above `goals`, and `goals` above `entities`. To put `messages` lower, the only method is to move `AreaChange` and `RoleCard`. That is a type move, and this plan does not need it.
 
-## Appendix A: fan-in per module, grouped by target package
+## Appendix A: fan-in for each module, in groups by target package
 
 Format: `module lines·outside/inside/inside-tests`.
 
 - **outside**: importer files outside `packages/shared`.
-- **inside**: non-test importers in the core folders.
-- **inside-tests**: test importers in the core folders.
+- **inside**: importers in the core folders, without tests.
+- **inside-tests**: test files in the core folders that import the module.
 
-Barrel imports are attributed to the defining module.
+Each barrel import counts for the module that defines the name.
 
 - **hash**: hash/fnv1a32 0·0/0/0
 - **fence**: fence 36·19/5/3
