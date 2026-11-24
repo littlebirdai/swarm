@@ -52,7 +52,7 @@ export const meta: SurfaceMeta = {
   // the frame prod built; fixtures render it from the tree.
   sources: surfaceSources(
     "role-wake",
-    "packages/shared/contracts/machineMessages.ts",
+    "packages/messages/src/machineMessages.ts",
     "apps/server/convex/lib/orgRoutine.ts",
     "packages/org/src/briefStanding.ts",
     "packages/org/src/rolePlaybook.ts",

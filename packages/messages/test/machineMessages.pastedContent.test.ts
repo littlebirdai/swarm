@@ -7,7 +7,7 @@ import {
   stripInjectionNoise,
   stripPastedContent,
   titleLine,
-} from "./machineMessages";
+} from "../src/machineMessages";
 
 const paste = (body: string) =>
   `<pasted_content id="a83d">\n${body}\n</pasted_content id="a83d">`;

@@ -14,8 +14,8 @@ import { join } from "node:path";
 import {
   formatSessionMessage,
   parseScheduledTask,
-  triggerRunFrame,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
+import { triggerRunFrame } from "@codecast/shared/contracts";
 import { stripAnsi } from "@platform/cli-kit/render";
 
 import { ROLE_CHECK_PROMPT } from "../../../../../apps/server/convex/lib/orgRoutine";

@@ -120,7 +120,7 @@ import { metricWindowNoiseError } from "@codecast/goals/metricStanding";
 import {
   ORG_CONTEXT_GUIDANCE,
   orgWhereLines,
-} from "@codecast/shared/contracts/orgWhere";
+} from "@codecast/messages/orgWhere";
 import {
   parseEntityUrl,
   buildEntityUrl,
@@ -262,7 +262,7 @@ import {
   renderUsageReport,
 } from "./usageCommand.js";
 import { recoveryModeOf, type RecoveryMode } from "@codecast/usage/usageLimits";
-import { titleLine } from "@codecast/shared/contracts";
+import { titleLine } from "@codecast/messages/machineMessages";
 import {
   TRIGGER_PRECHECK_MODES,
   triggerPrecheckMode,

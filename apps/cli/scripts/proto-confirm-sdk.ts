@@ -24,7 +24,7 @@ import {
   echoCandidatesOf,
   deliveryRecordUuid,
 } from "../src/deliveryEchoLedger.js";
-import { formatSessionMessage } from "@codecast/shared/contracts";
+import { formatSessionMessage } from "@codecast/messages/machineMessages";
 
 if (!process.env.CODECAST_DIR?.includes("proto-confirm")) {
   console.error("refusing: CODECAST_DIR must be a proto-confirm scratch path");

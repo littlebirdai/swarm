@@ -1,7 +1,7 @@
 import {
   jointAuthors,
   parseJointMessage,
-} from "@codecast/shared/contracts/jointMessage";
+} from "@codecast/messages/jointMessage";
 import { JointParts } from "../JointParts";
 import { captureException } from "@sentry/react";
 import Link from "next/link";
@@ -69,7 +69,7 @@ import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   stripMentionContext,
   stripPastedContent,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { AgentToolSetupCard } from "./AgentToolSetupCard";
 import { SentFileBlock, type SentFileData } from "../../tools/SentFileBlock";
 import { useImageGallery, useGalleryMessageId } from "../../ImageGallery";

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   isCompactionSummaryMessage,
   stripCompactionProvenance,
-} from "./machineMessages";
+} from "../src/machineMessages";
 
 // Claude Code 2026-11 opens the compaction summary with a provenance note
 // (Alexander Green's "Slack bot agent build", 2026-11-03): it rendered as his

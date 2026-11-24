@@ -14,7 +14,7 @@
 // it. Standing loops (recurring / event) and `once` follow-ups park with
 // different strength — see ArmedTriggerHomes — so the loader keeps them apart.
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
-import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 import { isLoopFresh } from "@codecast/sessions/loopState";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";

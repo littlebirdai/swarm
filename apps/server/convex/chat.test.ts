@@ -44,7 +44,7 @@ import {
 } from "./chat";
 import schema from "./schema";
 import { dmKeyFor, dmOtherIds } from "@codecast/chat";
-import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 import {
   listMine,
   markAllRead,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isMachineDeliveredMessage } from "./machineMessages";
+import { isMachineDeliveredMessage } from "../src/machineMessages";
 import {
   GOAL_MAX_ROUNDS,
   buildGoalJudgePrompt,
@@ -11,7 +11,7 @@ import {
   renderGoalEvidence,
   stepGoal,
   usedToolsSinceLastGoalMessage,
-} from "./sessionGoal";
+} from "../src/sessionGoal";
 
 const goal = {
   objective: "Make `bun test src/a.test.ts` pass",
@@ -231,7 +231,7 @@ describe("one round", () => {
 });
 
 describe("the /goal command", () => {
-  const { parseGoalCommand } = require("./sessionGoal");
+  const { parseGoalCommand } = require("../src/sessionGoal");
   test("reads verbs, objectives and nothing else", () => {
     expect(parseGoalCommand("/goal")).toEqual({ op: "show" });
     expect(parseGoalCommand(" /goal Pause ")).toEqual({ op: "pause" });

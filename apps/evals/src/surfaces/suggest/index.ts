@@ -6,7 +6,7 @@ import type {
 } from "@platform/evals";
 import { UsageError } from "@platform/evals/cli";
 
-import { stripInjectionNoise } from "@codecast/shared/contracts";
+import { stripInjectionNoise } from "@codecast/messages/machineMessages";
 
 import { cliFetchRead } from "../../../../../apps/cli/src/cliHttp";
 import { NO_TEAM_CONTENT_GATE } from "../../../../../apps/server/convex/lib/vendorGuard";

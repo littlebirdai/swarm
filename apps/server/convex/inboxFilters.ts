@@ -46,10 +46,10 @@ export {
 } from "@codecast/shared/contracts";
 import {
   shouldShowInInbox,
-  isCompactionSummaryMessage,
   isNestedIdentity,
   isRunLog,
 } from "@codecast/shared/contracts";
+import { isCompactionSummaryMessage } from "@codecast/messages/machineMessages";
 
 // The three DISTINCT ways a session leaves the active inbox. They were reported
 // as a single "dismissed" figure back when kill was an event rather than a

@@ -3,7 +3,7 @@ import { parseCodexSessionFile } from "./parser";
 import {
   isAgentContextMessage,
   isMachineDeliveredMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 const setup =
   "<recommended_plugins>\nAvailable plugins\n</recommended_plugins>\n# AGENTS.md instructions for /repo\n<INSTRUCTIONS>Rules</INSTRUCTIONS>\n<environment_context>cwd</environment_context>";

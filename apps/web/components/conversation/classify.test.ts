@@ -5,7 +5,7 @@ import {
   decideOutputId,
   isStickyWorthy,
 } from "./classify";
-import { formatTaskCommentMessage } from "@codecast/shared/contracts";
+import { formatTaskCommentMessage } from "@codecast/messages/machineMessages";
 
 describe("cleanStickyContent", () => {
   test("keeps an HTML comment the person typed, as the message body does", () => {

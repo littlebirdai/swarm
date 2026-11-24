@@ -30,7 +30,7 @@ import { resolveSpawnDefinition, resolveTaskSpawnDevice } from "./spawn";
 import { resolveDefinitionFor } from "./agentDefinitions";
 import { resolveCallRef } from "./transcripts";
 import { outcomeOfDeclaration, subagentEnded } from "./subagentFleet";
-import { formatTaskCommentMessage } from "@codecast/shared/contracts";
+import { formatTaskCommentMessage } from "@codecast/messages/machineMessages";
 import {
   fromConvexAgentType,
   toConvexAgentType,

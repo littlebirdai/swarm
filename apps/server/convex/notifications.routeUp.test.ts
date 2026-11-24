@@ -11,10 +11,8 @@ import {
   ensureRoleNeedsInputTrigger,
   settleRunConversation,
 } from "./agentTasks";
-import {
-  parseScheduledTask,
-  runResultThreadOf,
-} from "@codecast/shared/contracts";
+import { parseScheduledTask } from "@codecast/messages/machineMessages";
+import { runResultThreadOf } from "@codecast/shared/contracts";
 import { performSetIdleSummary } from "./idleSummary";
 import { performPushFlush } from "./pushRouter";
 

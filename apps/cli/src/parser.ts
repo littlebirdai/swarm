@@ -15,11 +15,11 @@ import type { CodexTurnError } from "@codecast/shared/contracts";
 import {
   CLIENT_ERROR_BANNER_PREFIX,
   claudeAutoContinueBanner,
-  isAgentContextMessage,
   isModelSwitchLimitBanner,
   isTransientRateLimit429,
   throttleBannerContent,
 } from "@codecast/shared/contracts";
+import { isAgentContextMessage } from "@codecast/messages/machineMessages";
 
 type ContentBlock =
   | { type: "text"; text: string }

@@ -10,7 +10,7 @@ import { hashToken } from "./apiTokens";
 import {
   formatTaskCommentMessage,
   parseTaskCommentMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 const TOKEN = "o".repeat(64);
 const HOUR = 3_600_000;

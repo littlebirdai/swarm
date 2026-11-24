@@ -16,7 +16,7 @@ import {
   ORG_STAFFING_FIXTURE_SESSION_PROPOSAL,
 } from "./orgStaffingFixture";
 import { ORG_FIXTURE } from "./orgFixture";
-import { parseProposalMessage } from "@codecast/shared/contracts";
+import { parseProposalMessage } from "@codecast/messages/machineMessages";
 import {
   aboutChangeHeader,
   parseAboutChange,

@@ -9,7 +9,7 @@ import schema from "./schema";
 import { hashToken } from "./apiTokens";
 import { allModules } from "./testModules.testkit";
 import { enqueuePendingMessage } from "./pendingMessages";
-import { formatDecisionDiscussion } from "@codecast/shared/contracts";
+import { formatDecisionDiscussion } from "@codecast/messages/machineMessages";
 import {
   walkOriginatorChain,
   type ChainConversation,

@@ -3,7 +3,7 @@ import {
   escapeTagAttr,
   stripInjectionNoise,
   unescapeTagAttr,
-} from "./machineMessages";
+} from "@codecast/messages/machineMessages";
 
 // A person filled a secret an agent asked for (`cast vault request`): the
 // line that wakes the asking session (convex secrets.fulfill). It names the

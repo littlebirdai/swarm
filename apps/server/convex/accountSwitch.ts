@@ -85,10 +85,8 @@ import { poolUsageOverlay } from "./accountPool";
 import { deliverSessionNotificationToParties } from "./lib/sessionNotify";
 import { canOwnerOrTeamAccess } from "./privacy";
 import { recoveryFleet } from "./lib/hostRecovery";
-import {
-  withSafetyBlock,
-  CONTEXT_RECOVERY_DELAY_MS,
-} from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/shared/contracts";
+import { CONTEXT_RECOVERY_DELAY_MS } from "@codecast/messages/handoffPrompt";
 import {
   describeDecision,
   peggedWindowLabel,

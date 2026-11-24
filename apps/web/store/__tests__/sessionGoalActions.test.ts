@@ -9,7 +9,7 @@ import {
   expect,
   it,
 } from "bun:test";
-import { sessionGoalOf } from "@codecast/shared/contracts/sessionGoal";
+import { sessionGoalOf } from "@codecast/messages/sessionGoal";
 import { useInboxStore } from "../inboxStore";
 
 const CONV = "c".repeat(32);

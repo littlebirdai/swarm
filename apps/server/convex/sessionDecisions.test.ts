@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseScheduledTask } from "@codecast/shared/contracts";
+import { parseScheduledTask } from "@codecast/messages/machineMessages";
 import {
   askCore,
   answerCore,
@@ -44,7 +44,7 @@ import {
   linesIn,
 } from "./testDecisions";
 import { hashToken } from "./apiTokens";
-import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 import * as fs from "fs";
 import * as path from "path";
 import {

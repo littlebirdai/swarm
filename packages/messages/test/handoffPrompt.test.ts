@@ -4,7 +4,7 @@ import {
   composeHandoffPrompt,
   describeAgentRun,
   isContextRecoveryPrompt,
-} from "./handoffPrompt";
+} from "../src/handoffPrompt";
 
 const source = {
   short_id: "jx7abcd",

@@ -16,7 +16,7 @@
 // subscribes to a SIGNATURE of the fields it renders (store/wakeSig.ts) and
 // reads the raw collection in the body.
 
-import { titleLine } from "@codecast/shared/contracts";
+import { titleLine } from "@codecast/messages/machineMessages";
 import {
   useCallback,
   useMemo,

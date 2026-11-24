@@ -292,7 +292,7 @@ describe("command groups stay off the boot graph", () => {
       // transcriptDirWatcher.ts, which carried recursiveWatcher.ts along; the pi
       // slug pair moved beside claudeProjectDirName in projectPathResolver.ts.
       // 328 on 2026-10-26: the barrel's contracts/decisionAnswers.ts, split out of
-      // contracts/machineMessages.ts for its max-lines pin. The same pass's other
+      // packages/messages/src/machineMessages.ts for its max-lines pin. The same pass's other
       // splits went into files already here: the resume flag readers into
       // resumeCommand.ts, live process discovery into sessionProcessMatcher.ts.
       // 329 on 2026-10-27: psTerminal.ts, the ps terminal tokens as a leaf. They
@@ -332,7 +332,7 @@ describe("command groups stay off the boot graph", () => {
       // 350 after keychainLock.ts (a 60-line leaf proc.ts's spawn wrappers ask
       // synchronously whether the login keychain is locked, so the daemon's
       // credential timers stop raising an unlock dialog every 30 seconds after
-      // securityd restarts) and contracts/sessionEscalation.ts (split out of
+      // securityd restarts) and packages/messages/src/sessionEscalation.ts (split out of
       // machineMessages.ts for its max-lines cap; no new code). 351 after
       // mtimeGatedCache.ts, split out of ccAccounts.ts for its max-lines cap
       // (no new code).
@@ -356,8 +356,8 @@ describe("command groups stay off the boot graph", () => {
       // loading the sync client; packages/projects/src/projectContext.ts, the project block
       // every session start renders (pl-1033); tasks/resumeSources.ts, the one
       // predicate the start hook needs, split out of the task graph. 365 the same
-      // day: museTranscript.ts (out of parser.ts) and contracts/sendArrival.ts
-      // (out of contracts/machineMessages.ts), both for max-lines, no new code.
+      // day: museTranscript.ts (out of parser.ts) and packages/messages/src/sendArrival.ts
+      // (out of packages/messages/src/machineMessages.ts), both for max-lines, no new code.
       // 366 on 2026-11-16: ccFleetState.ts, the fleet state record split out of
       // ccAccounts.ts for its max-lines pin, no new code. 367 the same day:
       // packages/calls/src/screenRecording.ts, which the daemon reads to expand a screen
@@ -366,8 +366,8 @@ describe("command groups stay off the boot graph", () => {
       // reads for every standing (and pure: no imports). 369 on 2026-11-18:
       // orgUnplacedLines.ts, the unplaced-work lines a role brief prints, which
       // briefLines.ts reads synchronously (planPlacement.ts loads on demand).
-      // 370 the same day: packages/org/src/roleCard.ts, out of contracts/machineMessages.ts
-      // for max-lines, no new code. 371 the same day: contracts/messagingPolicy.ts,
+      // 370 the same day: packages/org/src/roleCard.ts, out of packages/messages/src/machineMessages.ts
+      // for max-lines, no new code. 371 the same day: packages/messages/src/messagingPolicy.ts,
       // the messaging policy registry orgWhere.ts builds its guidance from (no imports).
       // 372 the same day: ccRateLimitHeaders.ts, the rate-limit header parsers
       // split out of ccAccounts.ts for its max-lines pin, no new code. 369 the
@@ -536,7 +536,7 @@ describe("command groups stay off the boot graph", () => {
       // 4292f45cc: orgUnplacedLines.ts +4 (the unplaced-work lines a role brief
       // prints), index.ts +6 and initiativeCommand.ts +3 beyond the notes above,
       // goalsBrief.ts +1.
-      // 4803 the same day: contracts/messagingPolicy.ts (the lead text, moved out
+      // 4803 the same day: packages/messages/src/messagingPolicy.ts (the lead text, moved out
       // of orgWhere.ts, and the shared-log text), `--policy` and `--type` in index.ts.
       // 4806 the same day: 1328df1d0's reading of the Fable probe (the scoped
       // window's headers and the empty-429 rule) +2 in ccAccounts.ts, and
@@ -755,7 +755,7 @@ describe("command groups stay off the boot graph", () => {
       // desktopUpdate.ts and electron/updatePolicy.js behind a dynamic import),
       // and codexSessionMeta.ts, split out of parser.ts for its max-lines cap,
       // traded for tmuxSuspendedAgent.ts, now loaded where an injection needs it.
-      // 583 after keychainLock.ts and contracts/sessionEscalation.ts, the same two
+      // 583 after keychainLock.ts and packages/messages/src/sessionEscalation.ts, the same two
       // files as on index.ts's graph above. 584 after mtimeGatedCache.ts, the
       // same split as on index.ts's graph.
       // 589 on 2026-11-11, five leaves: browser/watchRelay.ts (the stream_browser
@@ -780,14 +780,14 @@ describe("command groups stay off the boot graph", () => {
       // account (`cast cloud`); packages/projects/src/projectContext.ts and
       // tasks/resumeSources.ts, read by stable context (the leaf keeps the task
       // graph's 12 files off this graph). 603 the same day: museTranscript.ts and
-      // contracts/sendArrival.ts, max-lines splits, no new code. 604 on
+      // packages/messages/src/sendArrival.ts, max-lines splits, no new code. 604 on
       // 2026-11-16: ccFleetState.ts, out of ccAccounts.ts, the same split. 605
       // the same day: packages/calls/src/screenRecording.ts, for the screen recording brief.
       // 608 on 2026-11-17: hosts/providers/registry.ts, aws.ts and scalewayMac.ts, the HostProvider registry and the per-provider describe/inspect/stop modules (GitHub #93).
       // 609 the same day: hosts/providers/namespace.ts, the Namespace provider's describe/inspect/stop module (GitHub #93).
-      // 610 on 2026-11-18: packages/org/src/roleCard.ts, out of contracts/machineMessages.ts
+      // 610 on 2026-11-18: packages/org/src/roleCard.ts, out of packages/messages/src/machineMessages.ts
       // for max-lines, no new code.
-      // 611 the same day: contracts/messagingPolicy.ts, through orgWhere.ts (no imports).
+      // 611 the same day: packages/messages/src/messagingPolicy.ts, through orgWhere.ts (no imports).
       // 612 the same day: ccRateLimitHeaders.ts, out of ccAccounts.ts, the same split.
       // 613 the same day: remote/localSession.ts, out of remote/session-move.ts, the same split.
       // 615 the same day: contracts/fileAttachment.ts (no imports) and attachedFileDownload.ts,

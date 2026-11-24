@@ -3,10 +3,8 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
 import { hashToken } from "./apiTokens";
-import {
-  sendArrival,
-  sessionMessageIntentOf,
-} from "@codecast/shared/contracts";
+import { sendArrival } from "@codecast/messages/sendArrival";
+import { sessionMessageIntentOf } from "@codecast/messages/machineMessages";
 
 setDefaultTimeout(60_000);
 
@@ -455,7 +453,8 @@ describe("sendArrival", () => {
 
 describe("a sender name with > keeps the intent readable", () => {
   test("the opening tag is read attribute by attribute", async () => {
-    const { formatSessionMessage } = await import("@codecast/shared/contracts");
+    const { formatSessionMessage } =
+      await import("@codecast/messages/machineMessages");
     expect(
       sessionMessageIntentOf(
         formatSessionMessage("jx7send", "x", { name: "a>b", intent: "done" }),

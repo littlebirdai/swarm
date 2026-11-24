@@ -28,7 +28,7 @@ import { workspaceAnchorFor } from "./anchors";
 import {
   isToolResultCarrier,
   parseDecisionDiscussion,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 type Ctx = { db: any };
 type DecisionRow = Doc<"session_decisions">;

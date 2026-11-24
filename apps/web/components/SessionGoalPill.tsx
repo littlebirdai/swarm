@@ -12,7 +12,7 @@ import {
   goalCanPause,
   goalCanResume,
   type SessionGoal,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 import { useInboxStore } from "../store/inboxStore";
 import { useSessionGoal } from "../hooks/useSessionGoal";
 import { useWatchEffect } from "../hooks/useWatchEffect";

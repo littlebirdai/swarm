@@ -4,7 +4,7 @@ import { stdinText } from "./sendBody.js";
 import {
   sendArrivalPhrase,
   type SendArrival,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/sendArrival";
 
 type SendOptions = {
   from?: string;

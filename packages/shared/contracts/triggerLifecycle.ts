@@ -1,4 +1,7 @@
-import { formatScheduledTask, type WaitingSession } from "./machineMessages";
+import {
+  formatScheduledTask,
+  type WaitingSession,
+} from "@codecast/messages/machineMessages";
 import type { RoleCard } from "@codecast/org/roleCard";
 import type { AreaChange } from "@codecast/org/orgAreas";
 import { orgReviewFocusOf } from "@codecast/org/orgReview";

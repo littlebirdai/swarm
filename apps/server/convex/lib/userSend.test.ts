@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatTaskCommentMessage } from "@codecast/shared/contracts";
+import { formatTaskCommentMessage } from "@codecast/messages/machineMessages";
 import {
   isUserMessageNoise,
   sendText,
@@ -13,12 +13,14 @@ import { AGENT_SETUP_CONTINUE_MESSAGE } from "@codecast/capabilities/agentToolSe
 import {
   HUDDLE_FEED_DISREGARD,
   formatDecisionAnswer,
-  formatScheduledTask,
-  formatSessionMessage,
-  formatUserMessage,
   huddleFeedBriefing,
   transcriptChunkHeader,
 } from "@codecast/shared/contracts";
+import {
+  formatScheduledTask,
+  formatSessionMessage,
+  formatUserMessage,
+} from "@codecast/messages/machineMessages";
 import {
   addToFlowsMessage,
   runThroughMessage,

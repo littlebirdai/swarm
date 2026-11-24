@@ -1,6 +1,6 @@
 // "Send together": when someone else in a session's composer has a draft at
 // the moment you send, one action sends both as one turn whose parts name
-// each author (shared/contracts/jointMessage), so the agent reads one
+// each author (packages/messages/src/jointMessage.ts), so the agent reads one
 // instruction instead of two that may contradict.
 //
 // The composer's own send path stays the only send path. The presence strip
@@ -13,7 +13,7 @@
 import {
   formatJointMessage,
   type JointPart,
-} from "@codecast/shared/contracts/jointMessage";
+} from "@codecast/messages/jointMessage";
 import type { PresenceRow } from "../hooks/useDocPresence";
 import { typingRows } from "./composerPresence";
 

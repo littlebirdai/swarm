@@ -10,7 +10,7 @@ import { recordExternalEventOnce } from "../externalEvents";
 import { enqueuePendingMessage } from "../pendingMessages";
 import { createTaskAs } from "../tasks";
 import { commitBySha } from "../deployTargetsState";
-import { formatSessionMessage } from "@codecast/shared/contracts";
+import { formatSessionMessage } from "@codecast/messages/machineMessages";
 import {
   mainRedBrief,
   type MainRedPayload,

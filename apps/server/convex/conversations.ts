@@ -44,7 +44,7 @@ import {
   findSharedCheckoutOccupant,
 } from "./cloudPlacement";
 import { agentTypeChangeRefusal } from "@codecast/agent-clients/agentClients";
-import { titleLine } from "@codecast/shared/contracts";
+import { titleLine } from "@codecast/messages/machineMessages";
 import { cloudPlacementFor } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   checkoutInUseMessage,

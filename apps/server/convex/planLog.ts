@@ -15,7 +15,7 @@ import {
 } from "./lib/sessionCost";
 import { isConversationOwner } from "./privacy";
 import type { Doc } from "./_generated/dataModel";
-import { resolveMessagingPolicy } from "@codecast/shared/contracts/messagingPolicy";
+import { resolveMessagingPolicy } from "@codecast/messages/messagingPolicy";
 
 // The shared log of a plan (messaging policy "shared-log"): the plan's fact,
 // fail and interface entries. A fact is stored as the plan's "discovery".

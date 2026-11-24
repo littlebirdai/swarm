@@ -1,5 +1,5 @@
 import { extractSessionImages } from "./sessionImages";
-import { stripPastedContent } from "@codecast/shared/contracts";
+import { stripPastedContent } from "@codecast/messages/machineMessages";
 
 export type PromptImage = {
   media_type: string;

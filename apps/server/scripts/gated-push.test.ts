@@ -189,12 +189,10 @@ describe("gated convex push", () => {
       "packages/",
       "platform/packages/",
     ]);
-    expect(shipsToProd("packages/shared/contracts/machineMessages.ts")).toBe(
-      true,
-    );
+    expect(shipsToProd("packages/messages/src/machineMessages.ts")).toBe(true);
     expect(shipsToProd("platform/packages/auth/src/index.ts")).toBe(true);
     expect(
-      shipsToProd("packages/shared/contracts/machineMessages.test.ts"),
+      shipsToProd("packages/messages/test/machineMessages.bootstrap.test.ts"),
     ).toBe(false);
     expect(shipsToProd("packages/shared/node_modules/x/index.js")).toBe(false);
     const a = signatureOf([

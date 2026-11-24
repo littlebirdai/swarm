@@ -1,4 +1,4 @@
-// A session's goal loop (shared/contracts/sessionGoal.ts, task ct-87437).
+// A session's goal loop (messages/src/sessionGoal.ts, task ct-87437).
 //
 // A person sets an objective on a session (/goal in the composer, `cast loop
 // set`). Every backend already reports a turn end through
@@ -60,7 +60,7 @@ import {
   stepGoal,
   usedToolsSinceLastGoalMessage,
   type GoalVerdict,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 
 /** The judge's model. Graded by apps/cli/scripts/goal-judge-eval.ts. */
 export const GOAL_JUDGE_MODEL = "claude-haiku-5-5";

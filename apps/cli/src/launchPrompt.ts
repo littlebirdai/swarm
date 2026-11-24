@@ -15,7 +15,7 @@
 import {
   isPollResponsePayload,
   stampDeliveryId,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { parseFileTags } from "@codecast/daemon/fileAttachment";
 import * as fs from "node:fs";
 import * as path from "node:path";

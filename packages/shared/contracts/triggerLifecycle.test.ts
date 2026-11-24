@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { formatScheduledTask, parseScheduledTask } from "./machineMessages";
+import {
+  formatScheduledTask,
+  parseScheduledTask,
+} from "@codecast/messages/machineMessages";
 import type { RoleCard } from "@codecast/org/roleCard";
 import { ORG_REVIEW_FOCUSES } from "@codecast/org/orgReview";
 import {

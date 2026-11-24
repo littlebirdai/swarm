@@ -6586,7 +6586,7 @@ export default defineSchema(
     // An ordered set of decisions one person clears in one sitting (D5).
     // Access is the anchor rule (lib/orgAccess): team_id / scope_user_id carry
     // the boundary; owner_user_id is the host.
-    // A session's goal (shared/contracts/sessionGoal.ts, task ct-87437): the
+    // A session's goal (messages/src/sessionGoal.ts, task ct-87437): the
     // objective a person gave the session, and the loop's own state. Each turn
     // end the judge reads it (managedSessions applyAgentStatus → sessionGoals
     // scheduleGoalJudge); continue delivers the next round, done and blocked

@@ -44,12 +44,12 @@ import {
   composeHandoffPrompt,
   composeContextRecoveryPrompt,
   composeContextRebuildPrompt,
-  isCompactionSummaryMessage,
   isContextRecoveryPrompt,
   CONTEXT_RECOVERY_COOLDOWN_MS,
   describeAgentRun,
   type RecoveryMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/handoffPrompt";
+import { isCompactionSummaryMessage } from "@codecast/messages/machineMessages";
 import { normalizeThreadState } from "@codecast/sessions/threadState";
 import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
 

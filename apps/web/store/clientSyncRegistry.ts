@@ -420,7 +420,7 @@ export const CLIENT_SYNC_REGISTRY = {
       ],
     },
   },
-  // A session's goal (convex sessionGoals.ts, shared/contracts/sessionGoal):
+  // A session's goal (convex sessionGoals.ts, packages/messages/src/sessionGoal.ts):
   // the newest goal row of each open session, fed per conversation while it
   // is open, so delta. The pill above the composer reads it. localFirst: /goal
   // paints a stub keyed by client_key that the server row supersedes, and

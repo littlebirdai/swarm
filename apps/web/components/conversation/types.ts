@@ -1,11 +1,11 @@
-import type { GoalFrame } from "@codecast/shared/contracts/sessionGoal";
+import type { GoalFrame } from "@codecast/messages/sessionGoal";
 import type { ThreadStateFields } from "@codecast/sessions/threadState";
 import type {
   DecisionAnswerMessage,
-  SessionEscalationMessage,
   VaultReadyMessage,
-  SessionMessageIntent,
 } from "@codecast/shared/contracts";
+import type { SessionEscalationMessage } from "@codecast/messages/sessionEscalation";
+import type { SessionMessageIntent } from "@codecast/messages/machineMessages";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { SentFileData } from "@codecast/files";
 import type { ChatWakePrompt, HuddleSummaryTag } from "../sessionMessage";
@@ -427,7 +427,7 @@ export type UserMessageKind =
   | { kind: "continuation" }
   | { kind: "poll_response" }
   | { kind: "scheduled_task" }
-  // A session goal's own message (<codecast-goal>, shared/contracts/sessionGoal):
+  // A session goal's own message (<codecast-goal>, packages/messages/src/sessionGoal.ts):
   // the start, a round's next step or a resume, folded to one line.
   | { kind: "goal_round"; frame: GoalFrame }
   // The prompt that seats or re-seats a standing agent (isBootstrapPrompt).

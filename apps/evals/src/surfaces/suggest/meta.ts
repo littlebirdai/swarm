@@ -12,7 +12,7 @@ export const meta: SurfaceMeta = {
     "apps/server/convex/composerSuggestions.ts",
     "apps/server/convex/lib/anthropic.ts",
     "apps/server/convex/titleGeneration.ts",
-    "packages/shared/contracts/machineMessages.ts",
+    "packages/messages/src/machineMessages.ts",
   ),
   reps: { check: 5 },
   maxUsdPerRep: 0.06,

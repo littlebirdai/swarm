@@ -5,7 +5,7 @@
 // widgets as ```line fenced blocks; the widgets and what each needs are
 // defined once here, read by the web's fence reader (lib/line/lineFence.ts)
 // and written into the brief the answering session reads.
-import { stripInjectionNoise } from "./machineMessages";
+import { stripInjectionNoise } from "@codecast/messages/machineMessages";
 
 // ── the `line` fence ─────────────────────────────────────────────────────────
 

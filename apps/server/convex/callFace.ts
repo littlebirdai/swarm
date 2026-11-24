@@ -56,7 +56,7 @@ import {
 } from "@codecast/shared/contracts";
 import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 import { characterOf } from "@codecast/org/sessionCharacter";
-import { spokenAgentLine } from "@codecast/shared/contracts/plainText";
+import { spokenAgentLine } from "@codecast/messages/plainText";
 import { signLivekitJwt } from "./lib/livekitJwt";
 import { timingSafeEqualHex } from "./lib/hmac";
 import { teamHasFeature } from "./lib/teamFeatureGuard";

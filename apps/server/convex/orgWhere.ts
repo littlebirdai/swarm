@@ -16,7 +16,7 @@ import type {
   OrgChatRoom,
   OrgSeatHow,
   OrgWhere,
-} from "@codecast/shared/contracts/orgWhere";
+} from "@codecast/messages/orgWhere";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { computeOrgRoles, requireWorkspaceCaller } from "./org";
 import { roleCardOf } from "./agentTasks";

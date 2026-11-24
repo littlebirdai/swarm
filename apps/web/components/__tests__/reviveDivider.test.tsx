@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router";
 import {
   MID_WORK_REVIVE_MESSAGE,
   MOVE_INTERRUPT_MESSAGE,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 const convexReact = await import("convex/react");
 mock.module("convex/react", () => ({
