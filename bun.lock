@@ -28,6 +28,7 @@
         "@anthropic-ai/sdk": "^0.71.2",
         "@codecast/async": "workspace:*",
         "@codecast/diff": "workspace:*",
+        "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/time": "workspace:*",
         "@inquirer/prompts": "^8.2.0",
@@ -87,6 +88,7 @@
         "@bacons/apple-targets": "5.0.0",
         "@codecast/analytics": "workspace:*",
         "@codecast/convex": "workspace:*",
+        "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/web": "workspace:*",
@@ -235,6 +237,7 @@
         "@codecast/analytics": "workspace:*",
         "@codecast/convex": "workspace:*",
         "@codecast/diff": "workspace:*",
+        "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codemirror/autocomplete": "^6.20.3",
@@ -399,6 +402,13 @@
     },
     "packages/edge-contract": {
       "name": "@codecast/edge-contract",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/network": {
+      "name": "@codecast/network",
       "version": "0.0.1",
       "devDependencies": {
         "@types/bun": "^1.3.3",
@@ -794,6 +804,8 @@
     "@codecast/electron": ["@codecast/electron@workspace:apps/desktop"],
 
     "@codecast/evals": ["@codecast/evals@workspace:apps/evals"],
+
+    "@codecast/network": ["@codecast/network@workspace:packages/network"],
 
     "@codecast/playground": ["@codecast/playground@workspace:apps/playground"],
 

@@ -22,6 +22,7 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@codecast/async": "workspace:*",
     "@codecast/diff": "workspace:*",
+    "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/time": "workspace:*",
     "@inquirer/prompts": "^8.2.0",

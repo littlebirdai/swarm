@@ -20,6 +20,7 @@
     "@bacons/apple-targets": "5.0.0",
     "@codecast/analytics": "workspace:*",
     "@codecast/convex": "workspace:*",
+    "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codecast/web": "workspace:*",

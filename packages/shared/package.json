@@ -10,7 +10,6 @@
   "types": "./index.ts",
   "exports": {
     ".": "./index.ts",
-    "./network": "./network/index.ts",
     "./contracts": "./contracts/index.ts",
     "./contracts/agentAccess": "./contracts/agentAccess.ts",
     "./contracts/resourceOffloadIntent": "./contracts/resourceOffloadIntent.ts",

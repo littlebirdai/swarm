@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { WEBSOCKET_HANDSHAKE_TIMEOUT_MS } from "@codecast/shared/network";
+import { WEBSOCKET_HANDSHAKE_TIMEOUT_MS } from "@codecast/network";
 import {
   DISCONNECT_GRACE_MS,
   connectionChipCopy,

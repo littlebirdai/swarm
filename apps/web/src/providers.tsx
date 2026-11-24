@@ -1,5 +1,5 @@
 import { ConvexReactClient } from "convex/react";
-import { recoveringWebSocket } from "@codecast/shared/network";
+import { recoveringWebSocket } from "@codecast/network";
 import { ReactNode, useRef } from "react";
 import { toast } from "sonner";
 import { captureException } from "@sentry/react";

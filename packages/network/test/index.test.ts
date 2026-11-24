@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { recoveringWebSocket } from "./index";
+import { recoveringWebSocket } from "../src/index";
 
 test("idle mutation bookkeeping skips reading query frames without hiding them from subscribers", () => {
   class Socket extends EventTarget {

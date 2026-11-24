@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { WEBSOCKET_HANDSHAKE_TIMEOUT_MS } from "@codecast/shared/network";
+import { WEBSOCKET_HANDSHAKE_TIMEOUT_MS } from "@codecast/network";
 
 import { useMountEffect } from "./useMountEffect";
 import { useWatchEffect } from "./useWatchEffect";

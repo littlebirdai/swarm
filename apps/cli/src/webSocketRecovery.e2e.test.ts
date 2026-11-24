@@ -5,7 +5,7 @@ import { makeFunctionReference } from "convex/server";
 import {
   MAX_CONCURRENT_MUTATIONS,
   recoveringWebSocket,
-} from "@codecast/shared/network";
+} from "@codecast/network";
 import { bindConvexConnectionState } from "./convexConnectionState.js";
 
 test("a disconnected client's mutation backlog drains without another overload or losing writes", async () => {

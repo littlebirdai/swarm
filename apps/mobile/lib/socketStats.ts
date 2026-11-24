@@ -6,7 +6,7 @@
 //
 // The counting lives here, in a subclass of the shared wrapper, so the CLI and
 // web, which share that wrapper, carry none of it.
-import { recoveringWebSocket } from "@codecast/shared/network";
+import { recoveringWebSocket } from "@codecast/network";
 
 export const socketStats = {
   lastConnectAt: 0,

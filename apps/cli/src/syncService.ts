@@ -8,7 +8,7 @@ import type { PermissionRuleRequest } from "@codecast/shared/contracts/permissio
 // The rule engine is 25 KB the command tree never runs; the two calls that
 // bound a rule request load it on first use.
 const ruleBounds = () => import("@codecast/shared/contracts/permissionRules");
-import { recoveringWebSocket } from "@codecast/shared/network";
+import { recoveringWebSocket } from "@codecast/network";
 import { readFile, stat } from "node:fs/promises";
 import * as os from "node:os";
 import * as nodePath from "node:path";
