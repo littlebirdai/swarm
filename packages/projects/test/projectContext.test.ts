@@ -6,7 +6,7 @@ import {
   PROJECT_INSTRUCTIONS_SHOWN,
   utf8Bytes,
   type ProjectContext,
-} from "./projectContext";
+} from "../src/projectContext";
 
 const base: ProjectContext = {
   id: "k1",

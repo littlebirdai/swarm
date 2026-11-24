@@ -1,5 +1,5 @@
-// A project's outputs (ct-94262), fed in two parts (shared/contracts/
-// projectOutputs.ts): the members row (sessions, tasks, images) under the
+// A project's outputs (ct-94262), fed in two parts
+// (packages/projects/src/projectOutputs.ts): the members row (sessions, tasks, images) under the
 // project's Convex id, and the items row (pull requests, pages, docs) under
 // `<id>:items`. The items query is asked by the member ids, so a session's
 // heartbeat re-runs only the members part. The view reads the two joined.
@@ -11,7 +11,7 @@ import {
   type ProjectOutputItems,
   type ProjectOutputMembers,
   type ProjectOutputs,
-} from "@codecast/shared/contracts/projectOutputs";
+} from "@codecast/projects/projectOutputs";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncCollection } from "./useSyncCollection";
 
@@ -25,7 +25,7 @@ export type {
   OutputSession,
   OutputTask,
   PrGroup,
-} from "@codecast/shared/contracts/projectOutputs";
+} from "@codecast/projects/projectOutputs";
 export type ProjectOutputsRow = ProjectOutputs & { _id: string };
 
 const itemsKey = (projectId: string) => `${projectId}:items`;

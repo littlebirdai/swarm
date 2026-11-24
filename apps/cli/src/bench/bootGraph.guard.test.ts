@@ -353,7 +353,7 @@ describe("command groups stay off the boot graph", () => {
       // the membership identity rules split out of contracts/inboxProjection.ts
       // for its max-lines pin, no new code. 363 on 2026-11-14: imageDownscale.ts,
       // the image size cap split out of syncService.ts so screenshot writers stop
-      // loading the sync client; contracts/projectContext.ts, the project block
+      // loading the sync client; packages/projects/src/projectContext.ts, the project block
       // every session start renders (pl-1033); tasks/resumeSources.ts, the one
       // predicate the start hook needs, split out of the task graph. 365 the same
       // day: museTranscript.ts (out of parser.ts) and contracts/sendArrival.ts
@@ -777,7 +777,7 @@ describe("command groups stay off the boot graph", () => {
       // 601 on 2026-11-14: imageDownscale.ts and browser/formatBytes.ts, leaves
       // split out so screenshot writers load less, no new code;
       // browser/codecastMachine.ts, describe/start/stop for a host on codecast's
-      // account (`cast cloud`); contracts/projectContext.ts and
+      // account (`cast cloud`); packages/projects/src/projectContext.ts and
       // tasks/resumeSources.ts, read by stable context (the leaf keeps the task
       // graph's 12 files off this graph). 603 the same day: museTranscript.ts and
       // contracts/sendArrival.ts, max-lines splits, no new code. 604 on

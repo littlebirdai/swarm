@@ -102,7 +102,7 @@ session records for all of them reaches every one.
   index (pinned docs the reader may open: the first
   `PROJECT_MEMORY_SHOWN` with a one-line gist, then a count). It also names
   the main session (SP4) and whether the reader is it.
-  `projectContextBlock` (`packages/shared/contracts/projectContext.ts`)
+  `projectContextBlock` (`packages/projects/src/projectContext.ts`)
   renders all of this once. The block says, as principles, that the memory
   is shared and is added to when every session should know something, and
   that findings which change the project's direction go to the main session.

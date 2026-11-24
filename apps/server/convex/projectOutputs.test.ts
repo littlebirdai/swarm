@@ -11,7 +11,7 @@ import { prGroupOf } from "./projectOutputs";
 import {
   joinProjectOutputs,
   outputItemArgs,
-} from "@codecast/shared/contracts/projectOutputs";
+} from "@codecast/projects/projectOutputs";
 
 const ANA = "a".repeat(64);
 const BEN = "b".repeat(64);

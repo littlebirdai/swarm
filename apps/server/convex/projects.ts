@@ -17,7 +17,7 @@ import { projectCountsFor } from "./lib/projectTaskCounts";
 import {
   PROJECT_INSTRUCTIONS_MAX,
   utf8Bytes,
-} from "@codecast/shared/contracts/projectContext";
+} from "@codecast/projects/projectContext";
 import { syncProjectTriggers } from "./lib/agentTaskRows";
 import {
   canAccessProject,

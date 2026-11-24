@@ -35,6 +35,7 @@
     "@codecast/org": "workspace:*",
     "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
+    "@codecast/projects": "workspace:*",
     "@codecast/provider-keys": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
     "@codecast/ratchet": "workspace:*",
