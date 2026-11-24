@@ -107,6 +107,19 @@ describe("codecast-status hook event mapping", () => {
     expect(out.session_boundary).toBeUndefined();
   });
 
+  test("Stop stamps ts and turn_completed_at from one read of the clock, even when a second ticks", () => {
+    // A date that answers a later second on every call: two reads would differ.
+    const bin = path.join(home, "ticking-bin");
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(path.join(bin, "date"), `#!/bin/bash\nn=$(cat "${bin}/n" 2>/dev/null || echo 1000)\necho $((n + 1)) > "${bin}/n"\necho "$n"\n`, { mode: 0o755 });
+    execFileSync("bash", [hookFile], {
+      input: JSON.stringify({ session_id: "stop-tick", hook_event_name: "Stop" }),
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: home, CODECAST_DIR: path.join(home, ".codecast") },
+    });
+    const out: HookRecord = JSON.parse(fs.readFileSync(statusFile("stop-tick"), "utf-8"));
+    expect(Number(out.turn_completed_at)).toBe(out.ts);
+  });
+
   // ct-59925. The settle reads the transcript the Stop hook was handed for open
   // background work, never the daemon's index, which can miss a fresh session.
   test("Stop forwards transcript_path", () => {

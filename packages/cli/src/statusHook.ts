@@ -47,7 +47,9 @@ return 0
 export const CODECAST_STATUS_EMIT = `
 codecast_status_emit() {
 [ -n "\${STATUS:-}" ] || return 0
-ts=$(date +%s)
+# A Stop stamps the turn's end on this same read of the clock, so ts and
+# turn_completed_at never differ by the second that ticks between two reads.
+ts="\${TURN_COMPLETED_AT:-$(date +%s)}"
 LT="\${CODECAST_LAUNCH_TOKEN:-}"
 ${HOOK_TOKEN_READ}
 
