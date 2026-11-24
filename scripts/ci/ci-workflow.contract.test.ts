@@ -342,13 +342,25 @@ describe("typecheck", () => {
     ),
   ) as { projects: Record<string, string> };
   const typecheckRun: string = jobs.typecheck.steps.find((step: any) =>
-    String(step.run ?? "").startsWith("bun run typecheck"),
+    String(step.run ?? "").startsWith("bun run typecheck "),
   ).run;
 
   test("covers every program in .codecast/check.toml", () => {
     const packages = new Set<string>();
     for (const [name, tsconfig] of Object.entries(checkToml.projects)) {
       if (NOT_IN_TYPECHECK_JOB.includes(name)) continue;
+      if (name === "packages") {
+        const rootPackage = JSON.parse(
+          readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+        );
+        expect(
+          jobs.typecheck.steps.map((step: { run?: string }) => step.run),
+        ).toContain("bun run typecheck:packages");
+        expect(rootPackage.scripts["typecheck:packages"]).toBe(
+          `tsc -p ${tsconfig}`,
+        );
+        continue;
+      }
       const pkgDir = tsconfig.split("/").slice(0, 2).join("/");
       const pkg = JSON.parse(
         readFileSync(

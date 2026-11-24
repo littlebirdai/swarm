@@ -52,6 +52,7 @@ import {
 } from "@babel/core";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { createLibraryResolver } from "../../../scripts/workspace-packages";
 import {
   REACT_COMPILER_OPTIONS,
   REACT_COMPILER_PLUGIN,
@@ -68,8 +69,8 @@ import {
 } from "./reactCompilerAst";
 
 const WEB = path.resolve(import.meta.dir, "..");
-const SHARED = path.resolve(WEB, "..", "..", "packages", "shared");
 const REPO = path.resolve(WEB, "..", "..");
+const resolveLibrary = createLibraryResolver(REPO);
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const entries = args.filter((a) => !a.startsWith("--"));
@@ -129,12 +130,11 @@ function resolveImport(from: string, spec: string): string | null {
   let base: string;
   if (spec.startsWith("@/")) base = path.join(WEB, spec.slice(2));
   else if (spec.startsWith(".")) base = path.resolve(path.dirname(from), spec);
-  else if (spec === "@codecast/time")
-    base = path.join(REPO, "packages/time/src/index.ts");
-  else if (spec === "@codecast/shared") base = path.join(SHARED, "index");
-  else if (spec.startsWith("@codecast/shared/"))
-    base = path.join(SHARED, spec.slice("@codecast/shared/".length));
-  else return null;
+  else {
+    const target = resolveLibrary(spec);
+    if (!target) return null;
+    base = target;
+  }
   for (const candidate of [
     base,
     `${base}.ts`,

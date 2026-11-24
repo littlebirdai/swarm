@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { JOB_AREAS } from "./changed-path-scope";
 import { alwaysRunFiles, SUITES } from "./always-run-tests";
+import { workspaceDirectories } from "../workspace-packages";
 import {
   crossingTests,
   JOB_TEST_ROOTS,
@@ -96,6 +97,13 @@ describe("job test roots", () => {
   // describes some other suite.
   test("each job's roots are in the packages its steps test", () => {
     for (const [job, roots] of Object.entries(JOB_TEST_ROOTS)) {
+      if (job === "test-shared") {
+        expect(workflow.jobs[job].steps.map((step) => step.run)).toContain(
+          "bun scripts/ci/package-tests.ts",
+        );
+        expect(roots).toEqual(workspaceDirectories(ROOT, "packages"));
+        continue;
+      }
       const dirs = workflow.jobs[job].steps
         .filter((step) => /\b(bun test|bun run test)\b/.test(step.run ?? ""))
         .map((step) => step["working-directory"]);

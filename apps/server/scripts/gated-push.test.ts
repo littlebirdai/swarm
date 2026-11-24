@@ -181,14 +181,12 @@ describe("gated convex push", () => {
     const sources = bundledSources("/repo");
     expect(sources.map((s) => s.dir)).toEqual([
       "/repo/apps/server/convex",
-      "/repo/packages/shared",
-      "/repo/packages/time",
+      "/repo/packages",
       "/repo/platform/packages",
     ]);
     expect(sources.map((s) => s.prefix)).toEqual([
       "",
-      "packages/shared/",
-      "packages/time/",
+      "packages/",
       "platform/packages/",
     ]);
     expect(shipsToProd("packages/shared/contracts/machineMessages.ts")).toBe(
@@ -200,17 +198,16 @@ describe("gated convex push", () => {
     ).toBe(false);
     expect(shipsToProd("packages/shared/node_modules/x/index.js")).toBe(false);
     const a = signatureOf([
-      { rel: "packages/time/src/index.ts", mtimeMs: 10, size: 100 },
+      { rel: "packages/new-library/src/index.ts", mtimeMs: 10, size: 100 },
     ]);
     expect(
       signatureOf([
-        { rel: "packages/time/src/index.ts", mtimeMs: 11, size: 100 },
+        { rel: "packages/new-library/src/index.ts", mtimeMs: 11, size: 100 },
       ]),
     ).not.toBe(a);
-    // A save in time dirties the gate like a save in convex/.
     const h = harness();
     await h.gate.tick();
-    h.gate.onChange("packages/time/src/index.ts");
+    h.gate.onChange("packages/new-library/src/index.ts");
     h.advance(QUIET_MS);
     expect(await h.gate.tick()).toBe("pushed");
     expect(h.calls.push).toBe(2);

@@ -12795,7 +12795,7 @@
     "swarm/no-comments": 8
   },
   "apps/server/scripts/gated-push.test.ts": {
-    "swarm/no-comments": 7
+    "swarm/no-comments": 6
   },
   "apps/server/scripts/gated-push.ts": {
     "swarm/no-comments": 45
@@ -30290,7 +30290,7 @@
     "swarm/no-comments": 17
   },
   "scripts/ci/test-reach.ts": {
-    "swarm/no-comments": 44
+    "swarm/no-comments": 42
   },
   "scripts/ci/vendor-manifest.test.ts": {
     "swarm/no-comments": 31

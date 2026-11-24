@@ -228,6 +228,7 @@ describe("doc references", () => {
 
     expect(projects.length).toBeGreaterThan(0);
     expect(named.sort()).toEqual([...projects].sort());
+    expect(section).toContain(`\`cast check\` runs all ${projects.length}`);
   });
 
   test("the scanner reads paths the way docs write them", () => {

@@ -7,7 +7,13 @@ Work directly in the main checkout. Other sessions may have uncommitted work in 
 ## Repository layout
 
 `apps/` holds applications that run or ship. Keep each app's `*.test.ts` files beside its source.
-`packages/` holds small, single-purpose libraries. Each library uses `src/` for source and `test/` for tests.
+`packages/` holds small, single-purpose libraries. To add a library, create a
+directory under `packages/` with a `package.json`. Set `name` to `@codecast/<name>`
+and set `exports` or `main` to its entry point. Put source in `src/` and tests in
+`test/`. Add the library as a `workspace:*` dependency of each importer. Run
+`bun install` to update the lockfile. Typecheck with `cast check packages`.
+CI and the source walkers discover the library automatically.
+
 `tests/` holds cross-package test suites; one with its own `package.json` is a workspace member.
 `platform/` is a generated mirror. Never restructure it by hand.
 
@@ -19,7 +25,7 @@ In Swarm, there is no canonical `~/src/platform` to vendor from, so Swarm owns i
 
 ## Typechecking
 
-Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `convex`, `mobile`, `sim`, `evals`, `playground`, `edge-contract` and `time`. `cast check` runs all nine, and `cast check web` runs one. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
+Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `convex`, `mobile`, `sim`, `evals`, `playground` and `packages`. `cast check` runs all 8, and `cast check web` runs one. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
 
 A watcher built while other sessions were editing several packages keeps checking the half-written tree it first saw: it reports "has no exported member 'X'" for exports present on disk (once 9 errors in `cli` and 25 in `mobile` while `convex` was clean on the same files). When a check is red with errors nobody wrote, confirm the code on disk, then run `cast check <project> --fresh` before changing anything.
 

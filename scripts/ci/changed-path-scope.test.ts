@@ -23,8 +23,7 @@ describe("areaOf", () => {
     expect(areaOf("apps/web/components/DiffView.tsx")).toBe("web");
     expect(areaOf("apps/server/convex/tasks.ts")).toBe("convex");
     expect(areaOf("packages/shared/contracts/agentClients.ts")).toBe("shared");
-    expect(areaOf("packages/edge-contract/src/index.ts")).toBe("shared");
-    expect(areaOf("packages/time/src/index.ts")).toBe("shared");
+    expect(areaOf("packages/new-library/src/index.ts")).toBe("shared");
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
     expect(areaOf("platform/vendor-manifest.txt")).toBe("platform");
     expect(areaOf("apps/desktop/main.js")).toBe("electron");

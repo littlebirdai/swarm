@@ -105,18 +105,30 @@ function context(originModulePath) {
   };
 }
 
+const {
+  createLibraryResolver,
+} = require("../../scripts/workspace-packages.ts");
+const resolveLibrary = createLibraryResolver(path.resolve(__dirname, "../.."));
+const workspaceDeps = Object.entries(
+  require("./package.json").dependencies,
+).filter(([, version]) => version.startsWith("workspace:"));
+
 for (const platform of ["ios", "android"]) {
-  test(`${platform}: Metro resolves the time package export`, () => {
-    expect(
-      config.resolver.resolveRequest(
-        context(path.join(__dirname, "index.ts")),
-        "@codecast/time",
-        platform,
-      ),
-    ).toEqual({
-      type: "sourceFile",
-      filePath: path.resolve(__dirname, "../../packages/time/src/index.ts"),
+  test(`${platform}: Metro resolves workspace library exports`, () => {
+    const libraries = workspaceDeps.flatMap(([name]) => {
+      const target = resolveLibrary(name);
+      return target ? [{ name, target }] : [];
     });
+    expect(libraries.length).toBeGreaterThan(0);
+    for (const { name, target } of libraries) {
+      expect(
+        config.resolver.resolveRequest(
+          context(path.join(__dirname, "index.ts")),
+          name,
+          platform,
+        ),
+      ).toEqual({ type: "sourceFile", filePath: target });
+    }
   });
 }
 

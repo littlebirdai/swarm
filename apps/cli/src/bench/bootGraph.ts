@@ -13,6 +13,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createLibraryResolver } from "../../../../scripts/workspace-packages";
 
 export interface GraphNode {
   /** Absolute path of the source file. */
@@ -118,23 +119,16 @@ export function callImportSpecifiers(source: string): string[] {
 }
 
 /** Resolves an import specifier to a repo source file, or null when it is a package. */
-export function resolveSpecifier(
+function resolveSpecifier(
   spec: string,
   fromFile: string,
   root: string,
-  opts: GraphOptions = {},
+  opts: GraphOptions,
+  resolveLibrary: (spec: string) => string | null,
 ): string | null {
   let base: string;
   if (spec.startsWith(".")) {
     base = path.resolve(path.dirname(fromFile), spec);
-  } else if (spec === "@codecast/time") {
-    base = path.join(root, "packages/time/src/index.ts");
-  } else if (spec.startsWith("@codecast/shared")) {
-    base = path.join(
-      root,
-      "packages/shared",
-      spec.slice("@codecast/shared".length) || "index",
-    );
   } else if (spec.startsWith("@platform/")) {
     const rest = spec.slice("@platform/".length);
     const slash = rest.indexOf("/");
@@ -147,7 +141,7 @@ export function resolveSpecifier(
       slash === -1 ? "index" : rest.slice(slash + 1),
     );
   } else {
-    const aliased = opts.alias?.(spec, fromFile, root);
+    const aliased = resolveLibrary(spec) ?? opts.alias?.(spec, fromFile, root);
     if (!aliased) return null;
     base = aliased;
   }
@@ -184,6 +178,7 @@ export function buildBootGraph(
     path.resolve(e),
   );
   const root = rootArg ?? repoRootFrom(entries[0]);
+  const resolveLibrary = createLibraryResolver(root);
   const nodes = new Map<string, GraphNode>();
   const externals = new Set<string>();
   // Several entries (a router that requires a whole directory) hang off one
@@ -203,7 +198,7 @@ export function buildBootGraph(
       ? [...staticImportSpecifiers(source), ...callImportSpecifiers(source)]
       : staticImportSpecifiers(source);
     for (const spec of specs) {
-      const resolved = resolveSpecifier(spec, file, root, opts);
+      const resolved = resolveSpecifier(spec, file, root, opts, resolveLibrary);
       if (!resolved) {
         externals.add(spec);
         continue;

@@ -18,9 +18,15 @@
 // `bun scripts/ci/test-reach.ts` prints each job's reach with one example chain
 // per area, and its crossing tests.
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import {
+  readWorkspaces,
+  workspaceDirectories,
+  workspaceImport,
+} from "../workspace-packages";
 import { AREAS, JOB_AREAS, areaOf, type Area } from "./changed-path-scope";
+import { testFiles } from "./package-tests";
 
 export const TREE_WIDE_TEST =
   /\.(guard|ratchet)\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
@@ -32,7 +38,7 @@ export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-convex": ["apps/server/convex", "apps/server/scripts"],
   "test-web": ["apps/web"],
   "test-cli": ["apps/cli/src", "apps/evals/src"],
-  "test-shared": ["packages/shared", "packages/edge-contract", "packages/time"],
+  "test-shared": workspaceDirectories(ROOT, "packages"),
   "test-mobile": ["apps/mobile"],
   "test-electron": ["apps/desktop"],
 };
@@ -45,68 +51,19 @@ export const JOB_TEST_EXCLUDES: Record<string, string[]> = {
   "test-cli": ["apps/cli/src/computer/"],
 };
 
-const SKIP_DIRS = new Set([
-  "node_modules",
-  "dist",
-  ".vite",
-  ".next",
-  "build",
-  ".turbo",
-  "coverage",
-  "out",
-]);
 const CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/;
-const TEST_FILE = /\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const READS_DISK =
   /\b(readFileSync|readdirSync|readFile|readdir|existsSync|statSync|Bun\.file|Bun\.Glob|new Glob|globSync|scanSync)\b/;
 
-export function testFiles(dir: string, out: string[] = []): string[] {
-  if (!existsSync(dir)) return out;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name.startsWith(".")) continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) testFiles(full, out);
-    } else if (TEST_FILE.test(entry.name)) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
 const WORKSPACE_ROOTS = ["apps", "packages", "tests"];
+const workspacePaths = WORKSPACE_ROOTS.flatMap((root) =>
+  workspaceDirectories(ROOT, root),
+);
 // Include directories without a manifest, such as the browser extension.
 const WORKSPACE_DIRS = new Map(
-  WORKSPACE_ROOTS.flatMap((root) =>
-    readdirSync(join(ROOT, root), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => [entry.name, `${root}/${entry.name}`] as const),
-  ),
+  workspacePaths.map((dir) => [dir.split("/")[1], dir]),
 );
-
-type Workspace = { dir: string; exports: Record<string, string> };
-
-/** Every workspace package by name, with its subpath exports. */
-const WORKSPACES = new Map<string, Workspace>();
-for (const workspace of WORKSPACE_DIRS.values()) {
-  const dir = join(ROOT, workspace);
-  const manifest = join(dir, "package.json");
-  if (!existsSync(manifest)) continue;
-  const pkg = JSON.parse(readFileSync(manifest, "utf8"));
-  const exports: Record<string, string> = {};
-  if (typeof pkg.exports === "string") exports["."] = pkg.exports;
-  else if (pkg.exports && typeof pkg.exports === "object") {
-    for (const [key, value] of Object.entries(pkg.exports)) {
-      const target =
-        typeof value === "string"
-          ? value
-          : ((value as any)?.import ?? (value as any)?.default);
-      if (typeof target === "string") exports[key] = target;
-    }
-  }
-  if (!exports["."] && typeof pkg.main === "string") exports["."] = pkg.main;
-  WORKSPACES.set(pkg.name, { dir, exports });
-}
+const WORKSPACES = readWorkspaces(ROOT, workspacePaths);
 
 const PLATFORM_MARKER = join(ROOT, "platform", "packages");
 
@@ -140,20 +97,11 @@ function resolveFile(spec: string, fromDir: string): string | null {
 export function resolveImport(spec: string, fromFile: string): string | null {
   if (spec.startsWith("node:") || spec.startsWith("bun:")) return null;
   if (spec.startsWith("@platform/")) return PLATFORM_MARKER;
-  const workspaceName = spec.startsWith("@")
-    ? spec.split("/").slice(0, 2).join("/")
-    : spec.split("/")[0];
-  const workspace = WORKSPACES.get(workspaceName);
+  const workspace = workspaceImport(WORKSPACES, spec);
   if (workspace) {
-    const sub = spec.slice(workspaceName.length);
-    const key = sub ? `.${sub}` : ".";
-    const target = workspace.exports[key] ?? (sub ? `.${sub}` : "./index");
-    // A subpath bun cannot resolve to a file (a .d.ts, a generated file not
-    // checked in) still lands in that package's area.
-    return (
-      resolveFile(join(workspace.dir, target), workspace.dir) ??
-      join(workspace.dir, "package.json")
-    );
+    // An unresolved subpath still lands in the package's area.
+    const { dir, target } = workspace;
+    return (target && resolveFile(target, dir)) || join(dir, "package.json");
   }
   if (spec.startsWith("@/")) {
     const workspace = relative(ROOT, fromFile).split("/").slice(0, 2).join("/");
