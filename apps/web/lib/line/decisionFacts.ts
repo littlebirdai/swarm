@@ -34,7 +34,7 @@ type AssignableRow =
 export const decisionAssignee = (d: AssignableRow): string | null =>
   d?.passed_to?.kind === "user" ? String(d.passed_to.id) : null;
 
-export { contactsOf } from "@codecast/shared/contracts/problemReach";
+export { contactsOf } from "@codecast/signals/problemReach";
 
 export type SeverityBand = "high" | "mid" | "low";
 

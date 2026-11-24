@@ -15,14 +15,13 @@
 import { v } from "convex/values";
 import { query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
+import { isoWeekOf, weekMonday } from "@codecast/changes/week";
 import {
-  isoWeekOf,
   latestShips,
   waitingStories,
-  weekMonday,
   withoutShadowedReleases,
-  type ShipEvent,
-} from "@codecast/shared/changes";
+} from "@codecast/changes/surfaces";
+import { type ShipEvent } from "@codecast/changes/types";
 import { getUserOrToken } from "./lib/auth";
 import { isTeamMember } from "./lib/access";
 import { teamHasFeature } from "./lib/teamFeatureGuard";

@@ -4,13 +4,15 @@ import { useState } from "react";
 import { Pin, Shield, SlidersHorizontal, SquareTerminal } from "lucide-react";
 import {
   AGENT_CLIENTS,
+  isHostedAgentType,
+  type AgentClientId,
+} from "@codecast/shared/contracts";
+import {
   CLAUDE_BACKEND_LABELS,
   DEFAULT_CLAUDE_BACKEND,
   asClaudeBackend,
-  isHostedAgentType,
-  type AgentClientId,
   type ClaudeBackend,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/claudeBackend";
 import { usePinnedAgentIds } from "../../../hooks/usePinnedAgents";
 import { NewSessionDefaultsSection } from "../../../components/settings/NewSessionDefaults";
 import { AgentTypeIcon } from "../../../components/AgentTypeIcon";

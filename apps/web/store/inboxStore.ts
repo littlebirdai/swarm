@@ -249,9 +249,11 @@ import {
   hasThreadState,
   answeredThreadStateFields,
   isInboxRowField,
+} from "@codecast/shared/contracts";
+import {
   settingsAfterSnippet,
   type DeviceSnippetChange,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/harnessHooks";
 import {
   type AgentStatus,
   ACTIVE_AGENT_STATUSES,
@@ -353,12 +355,12 @@ import {
   sessionHasOpenQuestion,
   type QuestionResolutions,
 } from "../lib/decisionQueue";
+import type { SessionActivity } from "@codecast/shared/contracts";
 import type {
   MergeBackStatus,
-  SessionActivity,
   SubagentCaps,
   SubagentSlot,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/subagentFleet";
 import type { LocalMirror } from "@codecast/cloud-hosts/localMirror";
 import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import {
@@ -468,11 +470,11 @@ import {
 } from "./workProjects";
 import { pendingJoinRow } from "../lib/teamMachines";
 import { projectRootOf } from "../lib/recentProjectPaths";
+import { isHostedAgentType } from "@codecast/shared/contracts";
 import {
   CLOUD_SESSION_SOURCES,
-  isHostedAgentType,
   type CloudSessionSource,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudSessionSync";
 import { cloudPlacementFor } from "@codecast/cloud-hosts/cloudPlacement";
 import { promptTitle } from "@codecast/shared/contracts/assistant";
 

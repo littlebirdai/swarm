@@ -21,7 +21,7 @@ import {
   type GroupKind,
   type Transition,
 } from "@codecast/shared/contracts/ingest";
-import { groupFingerprint } from "@codecast/shared/contracts/signalFingerprint";
+import { groupFingerprint } from "@codecast/signals/signalFingerprint";
 import {
   HOUR_MS,
   SAMPLES_PER_BATCH,

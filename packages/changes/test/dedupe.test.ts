@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { commit, MIN, T0 } from "./__fixtures__/commit";
-import { dedupeCommits } from "./dedupe";
+import { commit, MIN, T0 } from "../src/__fixtures__/commit";
+import { dedupeCommits } from "../src/dedupe";
 
 const base = (
   sha: string,

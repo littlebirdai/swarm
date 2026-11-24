@@ -5,7 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { recordSendFor } from "./lib/userSend";
 import { createTeamFeedFilter } from "./privacy";
 import { dayBounds } from "./lib/teamDay";
-import { isTestArtifactPath } from "@codecast/shared/contracts";
+import { isTestArtifactPath } from "@codecast/agent-clients/testArtifacts";
 import { verifyApiToken } from "./apiTokens";
 
 export const record = internalMutation({

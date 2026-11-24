@@ -13,7 +13,6 @@ export * from "./idleDigest";
 export * from "./closedSession";
 export * from "./taskStats";
 export * from "./threadState";
-export * from "./subagentFleet";
 export * from "./apiErrorBanner";
 // Cloud placement: the one predicate the web composer and the Convex start
 // chokepoint share for "does this launch need a laptop to prepare the host".
@@ -22,14 +21,11 @@ export * from "./newSessionDefaults";
 // the ONE occupancy rule Convex, the CLI and `cast hosts ls` apply to it.
 export * from "./worktrees";
 export * from "./deviceName";
-export * from "./cloudSessionSync";
 export * from "./cloudAgents";
 export * from "./orgTemplateBind";
 export * from "./snippets";
 export * from "./featureExplainers";
-export * from "./harnessHooks";
 export * from "./agentSwitch";
-export * from "./claudeBackend";
 export * from "./machineSwitch";
 export * from "./forkSeed";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
@@ -56,7 +52,6 @@ export * from "./sanitizeText";
 export * from "./machineMessages";
 export * from "./sessionEscalation";
 export * from "./vaultMessages";
-export * from "./slashCommand";
 export * from "./decisionAnswers";
 export * from "./usageLimits";
 // The connectable-apps catalog (the /capabilities Apps tab): Convex answers
@@ -85,5 +80,4 @@ export type { AskResult, SideAnswerRow } from "./sessionAsk";
 export { SIDE_ANSWER_EXPIRE_MS, explainAskFailure } from "./sessionAsk";
 export * from "./systemResources";
 export * from "./resourceOffloadPolicy";
-export * from "./testArtifacts";
 // Codecast for outside agents (MCP): the address, the read tools, what a connection can do.

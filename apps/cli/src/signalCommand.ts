@@ -31,7 +31,7 @@ import { formatAge } from "./decideCommand.js";
 import { stdinText } from "./sendBody.js";
 import { slugifyHeading } from "@codecast/vault/parseNote";
 import { scopeFor, signalDefaultProject } from "./lineScope.js";
-import { SIGNAL_KINDS } from "@codecast/shared/contracts/signalFingerprint";
+import { SIGNAL_KINDS } from "@codecast/signals/signalFingerprint";
 import {
   DIAGNOSIS_ANSWERS,
   judgeReviewLine,

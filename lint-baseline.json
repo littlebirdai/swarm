@@ -28516,6 +28516,27 @@
   "infra/replay-player/src/worker.ts": {
     "swarm/no-comments": 51
   },
+  "packages/agent-clients/src/claudeBackend.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/agent-clients/src/cloudSessionSync.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/agent-clients/src/harnessHooks.ts": {
+    "swarm/no-comments": 28
+  },
+  "packages/agent-clients/src/slashCommand.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/agent-clients/src/subagentFleet.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/agent-clients/src/testArtifacts.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/agent-clients/test/harnessHooks.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/agents/src/index.ts": {
     "swarm/no-comments": 41
   },
@@ -28755,6 +28776,69 @@
   },
   "packages/capabilities/test/fleetDiff.test.ts": {
     "swarm/no-comments": 89
+  },
+  "packages/changes/src/__fixtures__/commit.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/changes/src/__fixtures__/genCodecastDays.ts": {
+    "eslint/no-restricted-imports": 1,
+    "swarm/no-blocking-child-process-call": 1,
+    "swarm/no-comments": 7,
+    "swarm/no-raw-child-process": 1
+  },
+  "packages/changes/src/__fixtures__/littlebird.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/changes/src/classify.ts": {
+    "swarm/no-comments": 38
+  },
+  "packages/changes/src/cluster.ts": {
+    "swarm/no-comments": 54
+  },
+  "packages/changes/src/dedupe.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/changes/src/headline.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/changes/src/index.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/changes/src/keys.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/changes/src/people.ts": {
+    "swarm/no-comments": 9
+  },
+  "packages/changes/src/risks.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/changes/src/surfaces.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/changes/src/types.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/changes/src/week.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/changes/test/cluster.test.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/changes/test/dedupe.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/changes/test/headline.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/changes/test/keys.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/changes/test/risks.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/changes/test/surfaces.test.ts": {
+    "swarm/no-comments": 1
   },
   "packages/chat/src/agent.ts": {
     "swarm/no-comments": 24
@@ -29152,69 +29236,6 @@
   "packages/sessions/test/sessionRead.test.ts": {
     "swarm/no-comments": 27
   },
-  "packages/shared/changes/__fixtures__/commit.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/changes/__fixtures__/genCodecastDays.ts": {
-    "eslint/no-restricted-imports": 1,
-    "swarm/no-blocking-child-process-call": 1,
-    "swarm/no-comments": 7,
-    "swarm/no-raw-child-process": 1
-  },
-  "packages/shared/changes/__fixtures__/littlebird.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/changes/classify.ts": {
-    "swarm/no-comments": 38
-  },
-  "packages/shared/changes/cluster.test.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/changes/cluster.ts": {
-    "swarm/no-comments": 54
-  },
-  "packages/shared/changes/dedupe.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/changes/dedupe.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/changes/headline.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/changes/headline.ts": {
-    "swarm/no-comments": 21
-  },
-  "packages/shared/changes/index.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/changes/keys.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/changes/keys.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/changes/people.ts": {
-    "swarm/no-comments": 9
-  },
-  "packages/shared/changes/risks.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/changes/risks.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/changes/surfaces.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/changes/surfaces.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/changes/types.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/changes/week.ts": {
-    "swarm/no-comments": 19
-  },
   "packages/shared/contracts/__fixtures__/capabilityResolverGolden.ts": {
     "swarm/no-comments": 17
   },
@@ -29326,9 +29347,6 @@
   "packages/shared/contracts/ciFailures.ts": {
     "swarm/no-comments": 15
   },
-  "packages/shared/contracts/claudeBackend.ts": {
-    "swarm/no-comments": 6
-  },
   "packages/shared/contracts/climb.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29343,9 +29361,6 @@
   },
   "packages/shared/contracts/cloudAgents.ts": {
     "swarm/no-comments": 97
-  },
-  "packages/shared/contracts/cloudSessionSync.ts": {
-    "swarm/no-comments": 3
   },
   "packages/shared/contracts/codecastConfig.ts": {
     "swarm/no-comments": 32
@@ -29472,12 +29487,6 @@
   },
   "packages/shared/contracts/handoffPrompt.ts": {
     "swarm/no-comments": 34
-  },
-  "packages/shared/contracts/harnessHooks.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/harnessHooks.ts": {
-    "swarm/no-comments": 28
   },
   "packages/shared/contracts/headOfPeoplePrompt.test.ts": {
     "swarm/no-comments": 6
@@ -29785,9 +29794,6 @@
   "packages/shared/contracts/predictedEffect.ts": {
     "swarm/no-comments": 56
   },
-  "packages/shared/contracts/problemReach.ts": {
-    "swarm/no-comments": 1
-  },
   "packages/shared/contracts/problemScore.ts": {
     "swarm/no-comments": 36
   },
@@ -29914,15 +29920,6 @@
   "packages/shared/contracts/sessionProject.ts": {
     "swarm/no-comments": 27
   },
-  "packages/shared/contracts/signalFingerprint.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/signalFingerprint.ts": {
-    "swarm/no-comments": 38
-  },
-  "packages/shared/contracts/slashCommand.ts": {
-    "swarm/no-comments": 10
-  },
   "packages/shared/contracts/snippets.test.ts": {
     "swarm/no-comments": 16
   },
@@ -29935,9 +29932,6 @@
   "packages/shared/contracts/stableContext.ts": {
     "swarm/no-comments": 20
   },
-  "packages/shared/contracts/subagentFleet.ts": {
-    "swarm/no-comments": 15
-  },
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
   },
@@ -29949,9 +29943,6 @@
   },
   "packages/shared/contracts/teamHosts.ts": {
     "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/testArtifacts.ts": {
-    "swarm/no-comments": 17
   },
   "packages/shared/contracts/theme.ts": {
     "swarm/no-comments": 16
@@ -30180,6 +30171,15 @@
   },
   "packages/ship/test/shipPlan.test.ts": {
     "swarm/no-comments": 3
+  },
+  "packages/signals/src/problemReach.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/signals/src/signalFingerprint.ts": {
+    "swarm/no-comments": 38
+  },
+  "packages/signals/test/signalFingerprint.test.ts": {
+    "swarm/no-comments": 5
   },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4

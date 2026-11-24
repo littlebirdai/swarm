@@ -1,7 +1,7 @@
 import type { CheckResult, ConvoMessage } from "@platform/evals";
 
-import type { ChangeCommit } from "@codecast/shared/changes";
-import { DEK_MAX, HEADLINE_MAX } from "@codecast/shared/changes";
+import type { ChangeCommit } from "@codecast/changes/types";
+import { DEK_MAX, HEADLINE_MAX } from "@codecast/changes/headline";
 import {
   BODY_CHARS,
   parseStoryReply,

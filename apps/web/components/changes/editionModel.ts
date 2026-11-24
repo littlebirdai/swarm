@@ -1,7 +1,8 @@
 // What the Changes timeline reads about stories and editions, worked out from
 // store rows: weight order, the filters, the people behind stories, whether
 // an edition has prose, and a story's risks as text. Pure.
-import { bareName, personKey, type ShipEvent } from "@codecast/shared/changes";
+import { bareName, personKey } from "@codecast/changes/people";
+import { type ShipEvent } from "@codecast/changes/types";
 import type { EditionRow, StoryRow } from "../../hooks/useSyncChanges";
 import type { RosterIdentity } from "../../hooks/useTeamRoster";
 import { addDays } from "@codecast/convex/convex/lib/teamDay";

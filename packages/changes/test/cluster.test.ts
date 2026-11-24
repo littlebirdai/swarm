@@ -1,13 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { commit, MIN, T0 } from "./__fixtures__/commit";
-import { littlebirdDay } from "./__fixtures__/littlebird";
-import days from "./__fixtures__/codecastDays.json";
-import { buildLayerZero, SPREAD_AREAS, type LayerZeroInput } from "./cluster";
+import { commit, MIN, T0 } from "../src/__fixtures__/commit";
+import { littlebirdDay } from "../src/__fixtures__/littlebird";
+import days from "../src/__fixtures__/codecastDays.json";
+import {
+  buildLayerZero,
+  SPREAD_AREAS,
+  type LayerZeroInput,
+} from "../src/cluster";
 import type {
   ChangeCommit,
   LayerZeroStory,
   VisibleConversation,
-} from "./types";
+} from "../src/types";
 
 const REPO = "codecast-sh/codecast";
 const day = (d: string) =>

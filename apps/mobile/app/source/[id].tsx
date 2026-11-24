@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { isCiRunRecord } from "@codecast/shared/contracts/signalFingerprint";
+import { isCiRunRecord } from "@codecast/signals/signalFingerprint";
 import { Text as RNText } from "@/components/Themed";
 import {
   CHROME_FONT_CAP,

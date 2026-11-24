@@ -1,6 +1,6 @@
 // Layer 0 of the Changes page, stored (docs/proposals/changes-page.md 7.1,
 // 8.1). buildDay reads one team-local day of a repository's commits through
-// small paged internal queries, clusters them with @codecast/shared/changes
+// small paged internal queries, clusters them with @codecast/changes/cluster
 // inside the action (so a whole day never meets a query's 1s user-JS or
 // 16 MiB caps), and writes one change_stories row per story with its
 // deterministic headline and dek.
@@ -19,22 +19,23 @@ import {
 } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import { buildLayerZero } from "@codecast/changes/cluster";
+import { inputsHash } from "@codecast/changes/keys";
+import { onDefaultBranch } from "@codecast/changes/dedupe";
+import { personKey } from "@codecast/changes/people";
 import {
-  buildLayerZero,
-  inputsHash,
-  onDefaultBranch,
-  personKey,
   splitMessage,
-  statsHeadline,
   summarizeFiles,
+  pathInArea,
+} from "@codecast/changes/classify";
+import { statsHeadline, clipToSentence } from "@codecast/changes/headline";
+import {
   type ChangeCommit,
   type ChangePr,
   type LayerZeroStory,
   type ShipEvent,
   type VisibleConversation,
-  clipToSentence,
-  pathInArea,
-} from "@codecast/shared/changes";
+} from "@codecast/changes/types";
 import {
   teamVisibleInputs,
   teamVisibleRecentInsights,

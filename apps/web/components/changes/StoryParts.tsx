@@ -4,7 +4,7 @@
 // sessions behind it, and the line that says where its "why" came from.
 import { useRef, useState, type ReactNode } from "react";
 import { ChevronUp, CircleDashed, CornerUpLeft, Zap } from "lucide-react";
-import { waitingStories } from "@codecast/shared/changes";
+import { waitingStories } from "@codecast/changes/surfaces";
 import type { LiveRow, StoryRow } from "../../hooks/useSyncChanges";
 import { changesDayLabel, localDay } from "../../lib/changesDay";
 import { useTeamRosterIdentity } from "../../hooks/useTeamRoster";

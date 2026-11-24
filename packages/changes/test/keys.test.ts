@@ -5,7 +5,7 @@ import {
   inputsHash,
   storyKey,
   type StoryInputs,
-} from "./keys";
+} from "../src/keys";
 
 describe("keys", () => {
   test("hash64 is 16 hex chars and separates its parts", () => {

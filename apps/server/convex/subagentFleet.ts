@@ -1,4 +1,4 @@
-// The subagent fleet (shared/contracts/subagentFleet.ts): how many workers a
+// The subagent fleet (packages/agent-clients/src/subagentFleet.ts): how many workers a
 // session and a machine run at once, the queue a spawn joins when either is
 // full, and the merge of an isolated worker's changes into its parent's
 // checkout when it finishes done.
@@ -23,16 +23,18 @@ import { enqueueStartSession } from "./devices";
 import { enqueuePendingMessage, formatSessionMessage } from "./pendingMessages";
 import { NEEDS_INPUT_IDLE_CHECK_DELAY_MS } from "./inboxFilters";
 import {
+  type AgentClientId,
+  type AgentDefinitionSpec,
+} from "@codecast/shared/contracts";
+import {
   drainQueue,
   mergeBackNote,
   normalizeSubagentCaps,
-  type AgentClientId,
-  type AgentDefinitionSpec,
   type MergeBackStatus,
   type SlotRow,
   type SubagentCaps,
   type SubagentOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/subagentFleet";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 
 /** Everything a queued row needs to start later exactly as it would have now. */

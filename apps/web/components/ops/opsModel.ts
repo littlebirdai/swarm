@@ -8,7 +8,7 @@ import {
   kindTriggerEvents,
   sourceFilterAdmits,
 } from "@codecast/shared/contracts/ingest";
-import { parseStackFrame } from "@codecast/shared/contracts/signalFingerprint";
+import { parseStackFrame } from "@codecast/signals/signalFingerprint";
 import {
   capForeignText,
   escapeForeignControlChars,

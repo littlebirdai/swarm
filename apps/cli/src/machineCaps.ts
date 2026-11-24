@@ -3,7 +3,7 @@
  * the environment variable wins (one shell), then `<key>.per_machine` in
  * config.json (`cast config <key>.per_machine <n>`, this machine), then the
  * default. Subagent workers are capped too, but by the server
- * (shared/contracts/subagentFleet.ts), from the same config shape.
+ * (packages/agent-clients/src/subagentFleet.ts), from the same config shape.
  */
 
 import { readLocalConfig } from "./config/readLocalConfig.js";

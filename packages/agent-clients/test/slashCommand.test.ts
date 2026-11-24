@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canonicalSlashCommand, parseSlashCommand } from "./slashCommand";
+import { canonicalSlashCommand, parseSlashCommand } from "../src/slashCommand";
 
 describe("canonicalSlashCommand", () => {
   test("a typed command and Claude Code's record of it read the same", () => {

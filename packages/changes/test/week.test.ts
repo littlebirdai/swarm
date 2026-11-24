@@ -8,7 +8,7 @@ import {
   weekDates,
   weekMonday,
   weekStats,
-} from "./week";
+} from "../src/week";
 
 describe("ISO weeks", () => {
   test("a day's week, a week's Monday and its seven days, across year edges", () => {

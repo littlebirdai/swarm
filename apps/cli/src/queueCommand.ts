@@ -2,7 +2,7 @@
  * `cast queue`: every queue that decides when work starts on this machine,
  * what holds each one now and what waits for it. Typecheck watchers and
  * Interactive jobs are capped by this CLI (machineCaps.ts); subagent workers
- * by the server, per session and per machine (shared/contracts/subagentFleet.ts).
+ * by the server, per session and per machine (packages/agent-clients/src/subagentFleet.ts).
  */
 
 import { listQueue } from "./check.js";
@@ -15,7 +15,7 @@ import {
   queueAhead,
   queuedLabel,
   type SlotRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/subagentFleet";
 
 type WorkerRow = SlotRow & { title: string | null };
 

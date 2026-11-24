@@ -1449,7 +1449,7 @@ export default defineSchema(
           v.literal("archived"),
         ),
       ),
-      // The subagent fleet (subagentFleet.ts, shared/contracts/subagentFleet):
+      // The subagent fleet (subagentFleet.ts, packages/agent-clients/src/subagentFleet.ts):
       // a `cast spawn --subagent` row holds a slot ("running") or waits for one
       // ("queued"); absent once the worker ends or for rows the fleet never
       // counted. `subagent_slot_at` orders the queue, `subagent_slot_device` is

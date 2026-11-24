@@ -83,7 +83,7 @@ import {
 import { cancelBot, requestBot } from "./meetingBots";
 import { disconnectCore } from "./mcpAuth";
 import { setJoinAllFor, setMeetingChoiceFor } from "./lib/meetingCalendarCore";
-import type { DeviceSnippetChange } from "@codecast/shared/contracts";
+import type { DeviceSnippetChange } from "@codecast/agent-clients/harnessHooks";
 import type { ProviderKeyCommand } from "@codecast/provider-keys/providerKeyCrypto";
 import { upsertBinding } from "./capabilityBindings";
 import { Id } from "./_generated/dataModel";
@@ -275,11 +275,11 @@ import {
   handThreadToSession,
   handableThread,
 } from "./chatHandoff";
+import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/shared/contracts";
 import {
-  DISPATCHABLE_CONVERSATION_FIELDS,
   CLOUD_SESSION_SOURCES,
   type CloudSessionSource,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudSessionSync";
 import { claimProjectDefaultSession, readableProject } from "./sessionProjects";
 import { insertProject } from "./projects";
 

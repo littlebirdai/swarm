@@ -7,7 +7,10 @@
 //
 // Pure: no node or convex imports. The CLI, the browser SDK and the Convex
 // runtime all load it, which is why the key helpers use globalThis.crypto.
-import { dropRequestIds, type SignalKind } from "./signalFingerprint";
+import {
+  dropRequestIds,
+  type SignalKind,
+} from "@codecast/signals/signalFingerprint";
 import {
   JUDGE_BACKENDS,
   MOMENT_RETENTIONS,

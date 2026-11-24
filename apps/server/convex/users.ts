@@ -45,9 +45,11 @@ import {
   isPinnableAgentId,
   pinnableAgentIds,
   findModelOption,
+} from "@codecast/shared/contracts";
+import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncSettings,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudSessionSync";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { adminChangesZones, recutChangesDays } from "./lib/changesDirty";
 import { normalizeTimezone } from "./lib/teamDay";
@@ -69,11 +71,9 @@ import {
   matchDirectoryMapping,
   type DirectoryMapping,
 } from "./privacy";
-import {
-  isUnattendedConversation,
-  isTestArtifactPath,
-} from "@codecast/shared/contracts";
+import { isUnattendedConversation } from "@codecast/shared/contracts";
 import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
+import { isTestArtifactPath } from "@codecast/agent-clients/testArtifacts";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import {
   DAEMON_COMMAND_TTL_MS,

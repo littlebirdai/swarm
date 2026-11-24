@@ -9,8 +9,8 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { buildLayerZero } from "@codecast/shared/changes";
-import { littlebirdDay } from "../../../packages/shared/changes/__fixtures__/littlebird";
+import { buildLayerZero } from "@codecast/changes/cluster";
+import { littlebirdDay } from "@codecast/changes/__fixtures__/littlebird";
 import { addDays, localDate } from "./lib/teamDay";
 import {
   dateWindow,

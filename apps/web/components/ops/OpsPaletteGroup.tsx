@@ -16,7 +16,7 @@ import { KeyCap } from "../KeyboardShortcutsHelp";
 import { opsHref, opsRefHref } from "./opsPaths";
 import { issueAttention, replayName, watchAlerting } from "./opsHomeModel";
 import { PALETTE_LIVE } from "../../lib/paletteActions";
-import { dropRequestIds } from "@codecast/shared/contracts/signalFingerprint";
+import { dropRequestIds } from "@codecast/signals/signalFingerprint";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { ATTENTION_CLOCK_MS } from "./useOpsAttention";
 import { useSourceHealthMap } from "./useSourceHealth";

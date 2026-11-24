@@ -57,8 +57,6 @@ import {
   STABLE_ENV_MODE,
   agentForksNatively,
   agentReconstitutes,
-  CLOUD_SESSION_SOURCES,
-  cloudSessionSyncOn,
   classifyApiErrorBanner,
   isCloudAgentActionName,
   findModelOption,
@@ -70,14 +68,20 @@ import {
   isRecoveryContinueClientId,
   type ApiErrorBannerKind,
   isMachineDeliveredMessage,
-  isMachineSetting,
-  MACHINE_SETTINGS,
-  machineSettingValues,
   snippetBySlug,
   worktreeOfPath,
   localAgentClient,
   isHostedAgentType,
 } from "@codecast/shared/contracts";
+import {
+  CLOUD_SESSION_SOURCES,
+  cloudSessionSyncOn,
+} from "@codecast/agent-clients/cloudSessionSync";
+import {
+  isMachineSetting,
+  MACHINE_SETTINGS,
+  machineSettingValues,
+} from "@codecast/agent-clients/harnessHooks";
 import { isValidPaneTarget } from "@codecast/daemon/terminalStream";
 import { isValidBrowserStreamKey } from "@codecast/browser/browserStream";
 import {
@@ -93,11 +97,11 @@ import {
   verdictFromProbe,
 } from "@codecast/sessions/liveness";
 import {
-  canonicalSlashCommand,
   isHomeDirectoryPath,
   stampDeliveryId,
   withoutDeliveryId,
 } from "@codecast/shared/contracts";
+import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
 import { CLOUD_START_RUN_MS } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   codePasteSignInUrl,
@@ -1173,14 +1177,14 @@ import {
 import type {
   AgentClientId,
   AgentDefinitionSpec,
-  CloudSessionSource,
   AgentPaneReadiness,
   DeviceSnippetSettings,
-  MachineSettingValues,
   PaneTerminalModes,
   ResourceProcess,
   StableLaunchPrefs,
 } from "@codecast/shared/contracts";
+import type { CloudSessionSource } from "@codecast/agent-clients/cloudSessionSync";
+import type { MachineSettingValues } from "@codecast/agent-clients/harnessHooks";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import type { LivenessVerdict } from "@codecast/sessions/liveness";
 import type { OpenTaskReport } from "@codecast/sessions/openTasks";
@@ -45296,7 +45300,6 @@ async function tickHerd(titleCache: TitleCache): Promise<void> {
     herdTickRunning = false;
   }
 }
-
 async function main(): Promise<void> {
   // Refuse before any state, lock, or exit-handler setup: on Windows the daemon
   // spawned a visible console window per background child (git, codex, cast) —
@@ -50858,7 +50861,6 @@ export async function runDaemon(): Promise<void> {
   recordRemoteLaunch();
   return main();
 }
-
 export async function runWatchdog(): Promise<void> {
   const config = readConfig();
   if (!config?.auth_token || !config?.convex_url) {
@@ -51228,7 +51230,6 @@ export async function runWatchdog(): Promise<void> {
     );
   }
 }
-
 function getDaemonExecInfo(): { executablePath: string; args: string[] } {
   return selfExecInfo("_daemon");
 }

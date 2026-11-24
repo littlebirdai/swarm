@@ -3,7 +3,7 @@
 // themes repaint it; the page never uses Tailwind's accent classes, which are
 // hardcoded Solarized hex. Areas and surfaces share this map, so `cli` the area
 // and `cli` the surface wear one color.
-import { hash64 } from "@codecast/shared/changes";
+import { hash64 } from "@codecast/changes/keys";
 
 const NAMED: Record<string, string> = {
   web: "--sol-blue",

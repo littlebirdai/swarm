@@ -25,7 +25,7 @@ import {
   jobFingerprint,
   metricFingerprint,
   sdkErrorFingerprint,
-} from "@codecast/shared/contracts/signalFingerprint";
+} from "@codecast/signals/signalFingerprint";
 import type { ReplayIssue } from "@codecast/shared/replay";
 import { utcDayKey } from "@codecast/shared/contracts/flowMap";
 

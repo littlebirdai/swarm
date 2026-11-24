@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { evalsSignalFingerprint } from "./signalFingerprint";
+import { evalsSignalFingerprint } from "../src/signalFingerprint";
 
 describe("evalsSignalFingerprint", () => {
   test("names the surface and the check or freeze", () => {
@@ -20,7 +20,7 @@ import {
   sdkErrorFingerprint,
   sentryIssueFingerprint,
   topInAppFrame,
-} from "./signalFingerprint";
+} from "../src/signalFingerprint";
 
 describe("groupFingerprint", () => {
   test("segment and fp, with the source prefix in front when set", () => {

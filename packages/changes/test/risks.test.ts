@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { commit } from "./__fixtures__/commit";
-import { isGeneratedPath } from "./classify";
-import { BULK_LINES, computeRisks } from "./risks";
+import { commit } from "../src/__fixtures__/commit";
+import { isGeneratedPath } from "../src/classify";
+import { BULK_LINES, computeRisks } from "../src/risks";
 
 const base = { conversations: [], pr_ids: [], task_ids: [] };
 const ctx = { ships: [], linked: true };

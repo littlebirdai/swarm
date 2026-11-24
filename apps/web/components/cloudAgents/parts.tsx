@@ -7,10 +7,12 @@ import Link from "next/link";
 import { ExternalLink, Info } from "lucide-react";
 import {
   CLOUD_AGENT_BACKFILL_DAYS,
-  CLOUD_SESSION_SOURCES,
-  cloudSessionSyncOn,
   type CloudAgentProviderSpec,
 } from "@codecast/shared/contracts";
+import {
+  CLOUD_SESSION_SOURCES,
+  cloudSessionSyncOn,
+} from "@codecast/agent-clients/cloudSessionSync";
 import { useInboxStore } from "../../store/inboxStore";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 

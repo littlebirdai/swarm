@@ -11,9 +11,9 @@ import {
   cloudAgentSetupSentence,
   deviceDisplayName,
   distinctDeviceNames,
-  isMachineSetting,
   snippetBySlug,
 } from "@codecast/shared/contracts";
+import { isMachineSetting } from "@codecast/agent-clients/harnessHooks";
 import {
   STALE_MACHINE_MS,
   machineOutOfService,

@@ -2,7 +2,7 @@
 // the area's numbers are, the bar that says an opened item belongs to another
 // workspace (with the switch to it), and the issue stepper that walks the list
 // the issue was opened from.
-import { isRecordNotIssue } from "@codecast/shared/contracts/signalFingerprint";
+import { isRecordNotIssue } from "@codecast/signals/signalFingerprint";
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

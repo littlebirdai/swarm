@@ -11,7 +11,7 @@
  * apps/cli/src/cloudAgents; the web's in components/cloudAgents.
  */
 import type { AgentClientId } from "./agentClients";
-import type { CloudSessionSource } from "./cloudSessionSync";
+import type { CloudSessionSource } from "@codecast/agent-clients/cloudSessionSync";
 import type { ModelOption } from "./modelOptions";
 
 export interface CloudAgentProviderSpec {

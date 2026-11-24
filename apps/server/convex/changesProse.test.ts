@@ -20,7 +20,7 @@ import schema from "./schema";
 import { internal } from "./_generated/api";
 import { PROSE_ATTEMPTS, STORY_PROMPT_VERSION } from "./changes";
 import type { Doc, Id } from "./_generated/dataModel";
-import type { ChangeCommit } from "@codecast/shared/changes";
+import type { ChangeCommit } from "@codecast/changes/types";
 import { STRONG_MODEL, modelCost } from "./lib/anthropic";
 import { isInstructionEdit } from "./lib/sessionMedia";
 import { dayBounds, localDate } from "./lib/teamDay";

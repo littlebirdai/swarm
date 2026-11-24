@@ -6,7 +6,7 @@ import {
   type MergeBackStatus,
   type SlotRow,
   type SubagentSlot,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/subagentFleet";
 import { useInboxStore } from "../store/inboxStore";
 
 type FleetRow = {

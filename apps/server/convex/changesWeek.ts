@@ -24,13 +24,12 @@ import {
 } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import { fitProse, statsHeadline } from "@codecast/changes/headline";
+import { hash64 } from "@codecast/changes/keys";
 import {
-  fitProse,
-  hash64,
   isoWeekOf,
   ledgerLabel,
   releaseLedger,
-  statsHeadline,
   topWeekStories,
   weekAreaTotals,
   weekDates,
@@ -39,7 +38,7 @@ import {
   type AreaTotal,
   type WeekRelease,
   type WeekStats,
-} from "@codecast/shared/changes";
+} from "@codecast/changes/week";
 import {
   STRONG_MODEL,
   callModel,

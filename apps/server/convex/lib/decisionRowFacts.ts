@@ -7,7 +7,7 @@
 // findings and the people they reached (the task's cause). Each task, run and
 // flow is read once per call.
 import type { Doc, Id } from "../_generated/dataModel";
-import { contactsOf } from "@codecast/shared/contracts/problemReach";
+import { contactsOf } from "@codecast/signals/problemReach";
 
 type Ctx = { db: any };
 type Row = Pick<Doc<"session_decisions">, "task_id" | "workflow_run_id">;

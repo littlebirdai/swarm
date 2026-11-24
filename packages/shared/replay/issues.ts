@@ -34,7 +34,7 @@ import {
   dropRequestIds,
   normalizeErrorMessage,
   replayIssueFingerprint,
-} from "../contracts/signalFingerprint";
+} from "@codecast/signals/signalFingerprint";
 import { isFailedRequest } from "./events";
 
 export const REPLAY_ISSUE_KINDS = ["error", "request", "rage_click"] as const;

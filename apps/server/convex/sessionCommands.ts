@@ -1,4 +1,4 @@
-import { hasDirectBackend } from "@codecast/shared/contracts";
+import { hasDirectBackend } from "@codecast/agent-clients/claudeBackend";
 import { REWIND_FILES_OPS } from "@codecast/daemon/rewindFiles";
 import { mutation, query } from "./functions";
 import { v } from "convex/values";

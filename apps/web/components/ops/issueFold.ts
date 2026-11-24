@@ -4,7 +4,7 @@ import { bucketSeries } from "@codecast/shared/contracts/ingest";
 import {
   dropRequestIds,
   failureMessageKey,
-} from "@codecast/shared/contracts/signalFingerprint";
+} from "@codecast/signals/signalFingerprint";
 import { routeOf } from "@codecast/shared/replay";
 import type { OpsGroup, OpsSample } from "./opsTypes";
 import { DAY, HOUR } from "./issueState";

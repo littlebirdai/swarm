@@ -6,7 +6,7 @@
 // pill a direct session shows where a tmux session shows its terminal pill.
 
 import { SquareTerminal, Zap } from "lucide-react";
-import type { ClaudeBackend } from "@codecast/shared/contracts";
+import type { ClaudeBackend } from "@codecast/agent-clients/claudeBackend";
 import { useClaudeBackend } from "../hooks/useSessionCommands";
 import { useManagedSessionFields } from "../hooks/useManagedSessionFields";
 import { requestBackendSwitch } from "../lib/sessionCommands";
