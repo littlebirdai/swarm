@@ -5,7 +5,7 @@
 // bell feeds it from the store and owns the verbs.
 
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
-import { groupIdleNotifications } from "@codecast/shared/contracts";
+import { groupIdleNotifications } from "@codecast/inbox/idleDigest";
 import { NotificationGroupRow, NotificationRow } from "./NotificationRow";
 
 export function NotificationList({

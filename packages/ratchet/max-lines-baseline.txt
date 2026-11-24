@@ -563,7 +563,7 @@ apps/web/components/faces/FaceRow.tsx 1300
 apps/web/components/faces/__tests__/faceRow.mount.test.tsx 1650
 apps/web/components/goals/GoalsDocument.tsx 1500
 apps/web/components/inbox/SessionCardParts.tsx 900
-apps/web/components/inbox/SessionCardView.tsx 1300
+apps/web/components/inbox/SessionCardView.tsx 1250
 apps/web/components/initiatives/InitiativeAtoms.tsx 1000
 apps/web/components/initiatives/InitiativePanel.tsx 850
 apps/web/components/initiatives/InitiativeRecord.mount.test.tsx 1000
@@ -771,6 +771,8 @@ packages/goals/src/initiative.ts 1450
 packages/goals/src/metricStanding.ts 1300
 packages/goals/test/initiativeRecord.test.ts 900
 packages/goals/test/metricStanding.test.ts 1100
+packages/inbox/src/inboxProjection.ts 1900
+packages/inbox/test/inboxProjection.test.ts 1700
 packages/ingest/src/ingest.ts 1100
 packages/keyboard/src/shortcutCatalog.ts 1550
 packages/messages/src/machineMessages.ts 1200
@@ -793,8 +795,6 @@ packages/shared/contracts/causeHistory.ts 1400
 packages/shared/contracts/changeCard.ts 1350
 packages/shared/contracts/expectations.test.ts 850
 packages/shared/contracts/expectations.ts 900
-packages/shared/contracts/inboxProjection.test.ts 1700
-packages/shared/contracts/inboxProjection.ts 1900
 packages/shared/contracts/judges.test.ts 1050
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300

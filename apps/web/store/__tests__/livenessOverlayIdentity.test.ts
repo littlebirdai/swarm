@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { INBOX_FACT_FIELDS } from "@codecast/shared/contracts";
+import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 import { useInboxStore } from "../inboxStore";
 
 // A liveness payload is decoded fresh on every push, so its structured facts

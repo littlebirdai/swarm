@@ -30,8 +30,8 @@ import {
   pickAnsweredDecision,
   formatDecisionAnswer,
   decisionAnswerClientId,
-  advisoryAnswerOpen,
 } from "@codecast/shared/contracts";
+import { advisoryAnswerOpen } from "@codecast/inbox/inboxMembership";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { Doc, Id } from "./_generated/dataModel";
 import { emitNotification } from "./notificationRouter";

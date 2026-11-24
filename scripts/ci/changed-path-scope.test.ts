@@ -148,7 +148,7 @@ describe("classifyChangedPaths", () => {
   });
 
   test("a shared change runs every job that reads shared", () => {
-    expect(ran(["packages/shared/contracts/inboxProjection.ts"])).toEqual([
+    expect(ran(["packages/inbox/src/inboxProjection.ts"])).toEqual([
       "build",
       "lint",
       "test-cli",

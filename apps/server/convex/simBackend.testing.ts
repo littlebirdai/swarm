@@ -25,7 +25,7 @@
 // types.
 import { getFunctionName } from "convex/server";
 import { convexToJson, jsonToConvex } from "convex/values";
-import { inboxEpoch } from "@codecast/shared/contracts";
+import { inboxEpoch } from "@codecast/inbox/inboxProjection";
 import { levenshtein } from "@codecast/search/levenshtein";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import schema from "./schema";

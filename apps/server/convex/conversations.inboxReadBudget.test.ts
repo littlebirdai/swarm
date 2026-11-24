@@ -8,7 +8,7 @@ import {
 import {
   INBOX_WINDOW_CAPS,
   shouldShowInInbox,
-} from "../../../packages/shared/contracts/inboxProjection";
+} from "@codecast/inbox/inboxProjection";
 
 // ct-73243: listInboxSessions timed out on heavy accounts ("Function execution
 // timed out (maximum duration: 3s)" and "Your request timed out performing too

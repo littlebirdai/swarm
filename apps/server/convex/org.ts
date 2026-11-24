@@ -16,9 +16,9 @@ import { nestParentIdOf } from "./ccAccountsShared";
 import { derivePresenceState } from "./presenceState";
 import {
   WORKING_SET_RECENCY_MS,
-  addressesAgent,
   inboxEpoch,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
+import { addressesAgent } from "@codecast/shared/contracts";
 import {
   parseThreadStateStatus,
   threadStateHeadline,

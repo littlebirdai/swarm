@@ -17,7 +17,7 @@ import { getPost } from "../posts";
 // composited or retouched. The import numbers come from the test run in session
 // jx71jtq (ct-57303) and were rechecked against apps/cli/src/daemon.ts,
 // packages/convex/convex/conversations.ts and
-// packages/shared/contracts/inboxProjection.ts.
+// packages/inbox/src/inboxProjection.ts.
 
 const DIR = "/blog/claude-code-history-on-day-one";
 

@@ -44,7 +44,7 @@ describe("NotificationGroupRow", () => {
     const { NotificationGroupRow } =
       await import("../notifications/NotificationRow");
     const { groupIdleNotifications } =
-      await import("@codecast/shared/contracts");
+      await import("@codecast/inbox/idleDigest");
 
     const rows = [
       {

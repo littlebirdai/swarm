@@ -9,7 +9,7 @@ import {
   isWorkingSetWindow,
   projectInbox,
   type WorkingSetRow,
-} from "./inboxProjection";
+} from "../src/inboxProjection";
 
 const EPOCH = inboxEpoch(1_800_000_000_000);
 const DAY = 24 * 60 * 60 * 1000;

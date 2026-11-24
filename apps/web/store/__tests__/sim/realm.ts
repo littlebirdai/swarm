@@ -27,8 +27,8 @@
 
 import { drainMicrotasks } from "bun:jsc";
 import { fnv1a32 } from "@codecast/hash/fnv1a32";
-import { inboxEpoch } from "@codecast/shared/contracts";
-import { makeRng } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+import { inboxEpoch } from "@codecast/inbox/inboxProjection";
+import { makeRng } from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import { __createInboxStoreForTests, useInboxStore } from "../../inboxStore";
 import type { Net } from "./net";
 import {

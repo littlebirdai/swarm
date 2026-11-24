@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { INBOX_CREATE_GRACE_MS } from "@codecast/shared/contracts";
+import { INBOX_CREATE_GRACE_MS } from "@codecast/inbox/inboxProjection";
 import {
   NEW_SESSION_HOLD_MS,
   placeInboxRows,

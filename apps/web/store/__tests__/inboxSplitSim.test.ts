@@ -9,7 +9,7 @@ import {
 
 setDefaultTimeout(300_000);
 import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conversations";
-import type { SplitCache } from "@codecast/shared/contracts/inboxSplit";
+import type { SplitCache } from "@codecast/inbox/inboxSplit";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 import { LIST_INBOX_SESSIONS_ARGS } from "../../hooks/useLiveInboxSessions";
 import {

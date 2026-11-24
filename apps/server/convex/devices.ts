@@ -7,7 +7,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 import type { AgentDefinitionSpec } from "@codecast/agents/agentDefinitions";
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import {
   cloudAgentProviderOfSession,
   isCloudAgentActionName,

@@ -1,11 +1,9 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { Star, Rocket } from "lucide-react";
-import {
-  withSafetyBlock,
-  isClosedSession,
-  isStashHidden,
-} from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
+import { isStashHidden } from "@codecast/inbox/inboxProjection";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { entityRoute } from "@codecast/entities";
 import { useWatchEffect } from "../../hooks/useWatchEffect";

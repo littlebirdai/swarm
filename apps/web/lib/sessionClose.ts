@@ -9,10 +9,10 @@
 // only: the phone bundles this file (Metro maps `@/` to the mobile package).
 import {
   closeInFlightReason,
-  rowHeartbeatAliveAt,
   type InFlightFacts,
   type InFlightReason,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/closedSession";
+import { rowHeartbeatAliveAt } from "@codecast/inbox/inboxProjection";
 import { isLoopFresh, type LoopState } from "@codecast/sessions/loopState";
 import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import {

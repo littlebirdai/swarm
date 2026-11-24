@@ -1,4 +1,4 @@
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 // Cast machines (sd-3042): a person with no CLI starts a session and it runs
 // on a cloud machine of their own, in codecast's AWS account, with pi on our
 // model key. This backend launches the machine (RunInstances from a fixed

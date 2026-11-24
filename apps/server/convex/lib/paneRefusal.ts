@@ -1,4 +1,4 @@
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { Id } from "../_generated/dataModel";
 
 // A daemon wrote a message into a session's terminal TMUX_PASTE_WRITE_CAP

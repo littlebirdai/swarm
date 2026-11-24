@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { computeInboxSessions } from "./conversations";
 import { enqueuePendingMessage } from "./pendingMessages";
-import { inboxEpoch } from "@codecast/shared/contracts";
+import { inboxEpoch } from "@codecast/inbox/inboxProjection";
 import { makeFakeDb } from "./testDb";
 
 // A flow station is a subagent of its run's log, and the log is never listed,

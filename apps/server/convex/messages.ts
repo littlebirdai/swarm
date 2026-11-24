@@ -105,7 +105,7 @@ import {
   type FileChangeRef,
 } from "./fileChanges/extractor";
 import { activityLine } from "@codecast/render/toolCall";
-import type { SessionActivity } from "@codecast/shared/contracts";
+import type { SessionActivity } from "@codecast/inbox/inboxProjection";
 import {
   attachmentViews,
   extractSessionImages,

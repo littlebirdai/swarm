@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { makeFunctionReference } from "convex/server";
-import { rowHash, splitRows } from "@codecast/shared/contracts/inboxSplit";
+import { rowHash, splitRows } from "@codecast/inbox/inboxSplit";
 import { querySplitWhole, setSplitPersistence } from "../useSplitQuery";
 
 // The recovery polls read through querySplitWhole: a quiet inbox's poll must

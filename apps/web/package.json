@@ -42,6 +42,7 @@
     "@codecast/goals": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/hosted-assistant": "workspace:*",
+    "@codecast/inbox": "workspace:*",
     "@codecast/ingest": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",

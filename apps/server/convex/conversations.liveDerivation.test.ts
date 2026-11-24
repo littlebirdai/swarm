@@ -19,16 +19,16 @@ import {
 import {
   digestProjection,
   inboxEpoch,
-  INBOX_FACT_FIELDS,
   INBOX_PROJECTION_VERSION,
   deriveLiveAt,
   trustedStatusAt,
   rowLiveDeadlines,
   computeBucketStale,
   placeProjectableRow,
-  rollupParentIdOf,
   type InboxBucket,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
+import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
+import { rollupParentIdOf } from "@codecast/inbox/inboxMembership";
 import { makeFakeDb } from "./testDb";
 
 // The server half of sync-convergence (docs/architecture/sync-convergence.md):

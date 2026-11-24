@@ -1,5 +1,6 @@
 import type { Doc, Id } from "./_generated/dataModel";
-import { commandsSession, isClosedSession } from "@codecast/shared/contracts";
+import { commandsSession } from "@codecast/inbox/inboxProjection";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { localAgentTypeOf } from "@codecast/agent-clients/agentClients";
 import {
   ACTIVE_AGENT_STATUSES,

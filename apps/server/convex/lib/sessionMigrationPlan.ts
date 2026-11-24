@@ -3,7 +3,7 @@
 // does the work, a batch's roll-up, and the staleness and batch limits.
 
 import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { DEVICE_ONLINE_MS } from "../deviceRouting";
 
 export type MigrationDirection = "to_cloud" | "to_local";

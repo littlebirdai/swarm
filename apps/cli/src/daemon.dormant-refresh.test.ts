@@ -6,7 +6,7 @@ import {
   deriveLiveAt,
   placeProjectableRow,
   type ProjectableInboxRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import {
   DORMANT_CLAIM_TTL_MS,
   HEARTBEAT_ALIVE_MS,

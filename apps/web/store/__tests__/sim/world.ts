@@ -19,19 +19,19 @@
 // principal views) a deployed mutation gets.
 
 import { v } from "convex/values";
-import { inboxEpoch } from "@codecast/shared/contracts";
+import { inboxEpoch } from "@codecast/inbox/inboxProjection";
 import { type AgentStatus } from "@codecast/sessions/agentStatus";
 import { type TeamFeatures } from "@codecast/policy/teamFeatures";
 import {
   GEN_MIN,
   convexIdFor,
-} from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+} from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import {
   genTeamWorld,
   teamIdFor,
   userIdFor,
   type WorldRow,
-} from "@codecast/shared/contracts/__fixtures__/teamWorldGen";
+} from "@codecast/inbox/__fixtures__/teamWorldGen";
 import { hashToken } from "@codecast/convex/convex/apiTokens";
 import { internalMutation } from "@codecast/convex/convex/functions";
 import { patchConversationVisibility } from "@codecast/convex/convex/lib/conversationVisibility";

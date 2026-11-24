@@ -7,7 +7,7 @@ import {
   splitRows,
   stableStringify,
   type SplitCache,
-} from "./inboxSplit";
+} from "../src/inboxSplit";
 
 const NOW = 1_800_000_000_000;
 const old = (id: string, extra: Record<string, unknown> = {}) =>

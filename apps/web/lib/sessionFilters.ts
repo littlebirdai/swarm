@@ -1,4 +1,4 @@
-import { isRunLog } from "@codecast/shared/contracts";
+import { isRunLog } from "@codecast/inbox/inboxMembership";
 
 export type FilterableSession = {
   title?: string | null;

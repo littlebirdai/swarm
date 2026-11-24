@@ -8,7 +8,7 @@ import {
   syncInflightCount,
 } from "../syncActivity";
 import { createRecoveryController } from "../../hooks/useRecoveryPoll";
-import { INBOX_FACT_FIELDS } from "@codecast/shared/contracts";
+import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 
 // The quiescence inputs of the digest compare (sync-convergence C6 gate 4):
 // row-channel applies stamp the activity clock, catch-up operations count as

@@ -11,7 +11,7 @@ import {
   deriveLiveAt,
   placeInboxRow,
   type InboxPlacementInput,
-} from "./inboxProjection";
+} from "../src/inboxProjection";
 import { HIBERNATED_COPY, isHibernated } from "@codecast/sessions/hibernation";
 
 const base = {
