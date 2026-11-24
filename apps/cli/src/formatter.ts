@@ -1,8 +1,5 @@
 import { c, fmt, UNVERIFIABLE_MARK } from "./colors.js";
-import {
-  computeCumulativeFiles,
-  type CumulativeChange,
-} from "@codecast/shared/diff";
+import { computeCumulativeFiles, type CumulativeChange } from "@codecast/diff";
 import {
   structuredPayloadSummary,
   structuredPayloadKeysFromRaw,

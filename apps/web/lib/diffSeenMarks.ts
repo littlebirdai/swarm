@@ -1,6 +1,6 @@
 // "Seen" marks on a conversation's diff pane: the reader's own note that a
 // file is read. A mark keeps the stamp of the file's text when it was made
-// (shared/diff contentHash), so it lapses by itself when the agent changes the
+// (@codecast/diff contentHash), so it lapses by itself when the agent changes the
 // file again, and survives a base switch, which changes the diff but not the
 // text. It also keeps the change that produced that text, which is what the
 // "review" base diffs from, and the mark before it, so a file that has not

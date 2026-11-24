@@ -10,7 +10,7 @@ import type {
   FileChangeBody,
   FileChangeRef,
 } from "../lib/fileChangeExtractor";
-import type { DiffBase } from "@codecast/shared/diff";
+import type { DiffBase } from "@codecast/diff";
 export type { FileChange, FileChangeBody, FileChangeRef };
 
 /** What the timeline holds: the server's references (sizes, no text) merged

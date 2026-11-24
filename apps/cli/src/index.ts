@@ -267,7 +267,7 @@ import {
 } from "@codecast/shared/contracts";
 /** Parallel agents for plan orchestrate and autopilot when no --max is given and no subagent cap is configured (0 = no limit is not a wave size). */
 const ORCHESTRATE_DEFAULT_MAX = 3;
-import type { CumulativeChange } from "@codecast/shared/diff";
+import type { CumulativeChange } from "@codecast/diff";
 import { writeThreadStatePulse } from "./threadStateStamp.js";
 import { AuthServer } from "./authServer.js";
 import {

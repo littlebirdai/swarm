@@ -3,7 +3,7 @@ import {
   computeCumulativeFiles,
   selectFoldInputs,
   type CumulativeChange,
-} from "./index";
+} from "../src/index";
 
 type Change = CumulativeChange & { id: string };
 

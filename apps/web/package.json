@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@codecast/convex": "workspace:*",
+    "@codecast/diff": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",

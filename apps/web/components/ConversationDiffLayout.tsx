@@ -44,7 +44,7 @@ import {
   selectRangeFoldInputs,
   selectReviewFoldInputs,
   type DiffBase,
-} from "@codecast/shared/diff";
+} from "@codecast/diff";
 import { SegmentedToggle } from "./SegmentedToggle";
 import {
   hasReviewBase,

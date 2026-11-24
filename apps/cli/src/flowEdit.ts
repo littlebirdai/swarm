@@ -21,7 +21,7 @@ import {
   type FlowEdit,
   type FlowEditChange,
 } from "@codecast/shared/contracts/flowEdit";
-import { generateUnifiedPatch } from "@codecast/shared/diff";
+import { generateUnifiedPatch } from "@codecast/diff";
 import {
   graphExtends,
   graphHash,

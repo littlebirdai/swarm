@@ -1,8 +1,8 @@
-// The folding now lives in @codecast/shared/diff so `cast diff` draws the same
+// The folding now lives in @codecast/diff so `cast diff` draws the same
 // tree; re-exported here to keep the web import paths.
-export { computeCumulativeFiles } from "@codecast/shared/diff";
+export { computeCumulativeFiles } from "@codecast/diff";
 
-import { computeRangeFiles, type RangeDiffFile } from "@codecast/shared/diff";
+import { computeRangeFiles, type RangeDiffFile } from "@codecast/diff";
 import {
   withBody,
   type FileChange,
@@ -13,7 +13,7 @@ import { isNoiseUserMessage } from "./conversationProcessor";
 
 /**
  * Fold the files whose inputs all have text. `inputs` is what the fold reads
- * on each side of the base (shared/diff selectRangeFoldInputs; a fold from
+ * on each side of the base (@codecast/diff selectRangeFoldInputs; a fold from
  * the session's start has an empty `base`); a body comes from the entry
  * itself (the loaded window's extraction) or from the fetched cache. A file
  * with an unfetched input is `pending`; one with a body the server does not

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@auth/core": "^0.37.2",
+    "@codecast/diff": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/time": "workspace:*",
     "@convex-dev/auth": "0.0.79",

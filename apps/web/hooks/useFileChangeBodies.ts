@@ -19,7 +19,7 @@ const BATCH_KEYS = 200;
 
 /**
  * Fill the diff viewer's body cache for `needed` (the changes a fold reads,
- * shared/diff selectFoldInputs), one batch at a time: each answer lands in the
+ * @codecast/diff selectFoldInputs), one batch at a time: each answer lands in the
  * store, the next render asks for what is still missing, and the loop ends
  * when nothing is. Changes the server cannot answer for are marked missing
  * so they never block the batch after them.

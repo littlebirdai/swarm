@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { contentHash } from "@codecast/shared/diff";
+import { contentHash } from "@codecast/diff";
 import {
   hasReviewBase,
   isSeen,
