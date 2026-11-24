@@ -3,7 +3,7 @@
 // suggestion; the roster carries the same two facts the server decides on
 // (the member's view and their derived presence), so the composer can say
 // "Suggest" before the press. The server still decides at send time.
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   memberPresenceState,
   viewersOf,

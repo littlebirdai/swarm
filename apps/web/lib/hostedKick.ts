@@ -5,7 +5,7 @@
 // turn's claim (turns.ts begin) lets only one of the two run it.
 // Relative imports only: mobile reaches this file.
 import type { DispatchFn } from "@platform/engine";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { isConvexId, useInboxStore } from "../store/inboxStore";
 
 /** The dispatch actions that give a conversation input, with where each

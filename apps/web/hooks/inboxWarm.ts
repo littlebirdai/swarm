@@ -16,7 +16,7 @@ import { whenInputQuiet } from "../lib/inputQuiet";
 import { windowDrawsTranscripts } from "../lib/windowRole";
 import { windowOrgTree } from "../store/orgSlice";
 import { shareTokenArg } from "../lib/shareTokenScope";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 
 // Background warming of inbox conversations so opening one is instant.
 //

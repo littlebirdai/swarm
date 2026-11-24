@@ -1,6 +1,6 @@
 import { getProjectName } from "../store/inboxStore";
 import { VISIT_OBJECT_LABEL, type ResolvedVisit } from "./recentVisits";
-import { agentDisplayName } from "@codecast/shared/contracts";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 import { statusesForTeam, taskStatusOf } from "./taskStatuses";
 import { computePlanProgress } from "./liveEntities";
 import {

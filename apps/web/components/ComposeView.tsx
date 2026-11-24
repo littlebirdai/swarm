@@ -24,7 +24,7 @@ import { broadcastComposeOptimistic } from "../lib/composeBridge";
 import {
   agentDisplayName,
   isHostedAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { newConversationAgentType } from "../lib/defaultAgent";
 import {
   composeDraftContent,

@@ -17,7 +17,7 @@ import {
   cloudAgentPageUrl,
   type CloudAgentActionName,
   type CloudAgentLoginStateName,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { getProviderKeySpec } from "@codecast/provider-keys/providerKeys";
 import { encryptProviderKey } from "./providerKeyCrypto";
 import { useInboxStore } from "../store/inboxStore";

@@ -25,16 +25,18 @@ import {
   agentTypeChangeRefusal,
   fromConvexAgentType,
   isHostedAgentType,
+  modelOptionKey,
+  type ConvexAgentType,
+} from "@codecast/agent-clients/agentClients";
+import {
   cloudAgentLaunch,
   cloudAgentLaunchKey,
   cloudAgentProviderForLaunch,
   cloudAgentProvidersFor,
-  compareMachineChips,
-  modelOptionKey,
   type CloudAgentLaunch,
   type CloudAgentProviderSpec,
-  type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
+import { compareMachineChips } from "@codecast/shared/contracts";
 import { useLiveSessionMeta } from "../../hooks/useLiveSessionMeta";
 import { commitModelChange } from "../../lib/modelSwitchWeb";
 import { useCloudAgentStatus } from "../cloudAgents/machine";

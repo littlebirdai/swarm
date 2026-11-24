@@ -501,7 +501,7 @@ apps/web/components/DesktopProvider.tsx 850
 apps/web/components/EntityIdPill.references.test.tsx 1000
 apps/web/components/EntityIdPill.tsx 2100
 apps/web/components/EntityObjectCard.tsx 1450
-apps/web/components/FileDiffLayout.tsx 1900
+apps/web/components/FileDiffLayout.tsx 1850
 apps/web/components/ForkTreePanel.tsx 1150
 apps/web/components/GenericListView.tsx 1850
 apps/web/components/GlobalSessionPanel.tsx 5550
@@ -716,11 +716,11 @@ apps/web/src/routes.manifest.ts 1850
 apps/web/store/__tests__/buckets.test.ts 950
 apps/web/store/__tests__/capabilities.test.ts 1150
 apps/web/store/__tests__/chatSlice.test.ts 1550
-apps/web/store/__tests__/gestureBridge.test.ts 2450
+apps/web/store/__tests__/gestureBridge.test.ts 2350
 apps/web/store/__tests__/inboxDigestCompare.test.ts 1050
 apps/web/store/__tests__/inboxLifecycle.model.test.ts 850
 apps/web/store/__tests__/inboxSimHarness.ts 1350
-apps/web/store/__tests__/inboxStore.test.ts 6950
+apps/web/store/__tests__/inboxStore.test.ts 6900
 apps/web/store/__tests__/orgSlice.intents.test.ts 1450
 apps/web/store/__tests__/outboxRetention.test.ts 1600
 apps/web/store/__tests__/sim/dsl.ts 1150

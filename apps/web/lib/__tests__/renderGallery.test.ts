@@ -20,7 +20,7 @@ import {
 } from "../../components/conversation/classify";
 import { normalizeCastCategory } from "../../components/castCommand";
 import type { UserMessageKind } from "../../components/conversation/types";
-import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import { DELIVERY_FAILED_SUBTYPE } from "@codecast/shared/contracts/deliveryFailed";
 import { LINE_FENCE_LANG } from "@codecast/shared/contracts/lineChat";
 import { VIEW_FENCE_LANG } from "../productViewRefs";

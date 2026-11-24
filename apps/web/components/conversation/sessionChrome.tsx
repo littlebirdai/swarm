@@ -7,9 +7,9 @@ import { isSupersededBanner } from "../../lib/limitRecovery";
 import {
   withSafetyBlock,
   SAFETY_BLOCK_HINT,
-  isHostedAgentType,
   isSessionActivityFresh,
 } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   PROVIDER_KEYS,
   getProviderKeySpec,

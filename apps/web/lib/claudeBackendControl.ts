@@ -7,7 +7,7 @@ import {
   hasDirectBackend,
   type ClaudeBackend,
 } from "@codecast/agent-clients/claudeBackend";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 
 export type BackendSwitching =

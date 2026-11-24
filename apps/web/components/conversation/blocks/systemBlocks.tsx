@@ -50,8 +50,8 @@ import {
   type ChatWakePrompt,
   type HuddleSummaryTag,
 } from "../../sessionMessage";
+import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import {
-  CLOUD_AGENT_ACTION_SUBTYPE,
   stripCompactionProvenance,
   parseHuddleDigestContent,
   parseScheduledTask,

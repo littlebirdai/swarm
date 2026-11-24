@@ -8,7 +8,7 @@ import {
   isCloudAgentCredentialKind,
   type CloudAgentProviderSpec,
   type CloudAgentSetupKind,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { useDevices, type Device } from "../DeviceBadge";
 import { deviceManagedKeys } from "../../lib/useProviderKeyCommand";
 import {

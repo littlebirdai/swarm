@@ -1,11 +1,11 @@
 import {
   canSessionBecomeAgent,
   fromConvexAgentType,
-  pinnedLaunchOptions,
-  cloudAgentProviderOfConversation,
   isHostedAgentType,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { pinnedLaunchOptions } from "@codecast/agent-clients/agentPins";
+import { cloudAgentProviderOfConversation } from "@codecast/agent-clients/cloudAgents";
 
 // ── Moving a session ──────────────────────────────────────────────────────────
 //

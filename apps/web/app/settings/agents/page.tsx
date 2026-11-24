@@ -6,7 +6,7 @@ import {
   AGENT_CLIENTS,
   isHostedAgentType,
   type AgentClientId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import {
   CLAUDE_BACKEND_LABELS,
   DEFAULT_CLAUDE_BACKEND,

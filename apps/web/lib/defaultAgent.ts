@@ -11,7 +11,7 @@ import {
   fromConvexAgentType,
   toConvexAgentType,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
 
 /** The developer default when nothing else decides. */

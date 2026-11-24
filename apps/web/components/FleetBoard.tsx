@@ -54,7 +54,7 @@ import { useIsModernStyle } from "../hooks/useVisualStyle";
 import { isModernStyle } from "../lib/visualStyle";
 import { ModernFleetBody } from "./fleet/ModernFleetBoard";
 import { hostedStopOf } from "../lib/hostedNotice";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { modernDialog, modernScrim } from "./ui/modernLook";
 import { lazyNamed } from "../lib/lazyNamed";
 

@@ -7,7 +7,7 @@
 // notice in the transcript, which carries Try again. While it works, the
 // person can Stop it.
 import { useState } from "react";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useInboxStore } from "../../store/inboxStore";

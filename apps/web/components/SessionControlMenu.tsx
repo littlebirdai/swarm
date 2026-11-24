@@ -13,13 +13,15 @@ import {
 } from "lucide-react";
 import {
   AGENT_MODEL_CONFIG,
-  cloudAgentLaunch,
-  cloudAgentLaunchWords,
   findModelOption,
-  isCloudAgentBranch,
   modelAgentKey,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import {
+  cloudAgentLaunch,
+  cloudAgentLaunchWords,
+  isCloudAgentBranch,
+} from "@codecast/agent-clients/cloudAgents";
 import { useShortcuts } from "../shortcuts";
 import { MenuKeyCaps } from "./KeyboardShortcutsHelp";
 import { useWatchEffect } from "../hooks/useWatchEffect";

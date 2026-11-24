@@ -4,14 +4,16 @@ import { useShallow } from "zustand/react/shallow";
 import {
   AGENT_MODEL_CONFIG,
   modelAgentKey,
-  cloudAgentProviderForLaunch,
   findModelOption,
-  isDynamicModelKey,
-  dynamicModelOption,
   launchRailOptions,
   liveRailOptions,
+} from "@codecast/agent-clients/agentClients";
+import { cloudAgentProviderForLaunch } from "@codecast/agent-clients/cloudAgents";
+import {
+  isDynamicModelKey,
+  dynamicModelOption,
   type ModelOption,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/modelOptions";
 import { useDynamicModels } from "../hooks/useDynamicModels";
 import {
   DropdownMenu,
@@ -24,7 +26,7 @@ import {
 import { useInboxStore } from "../store/inboxStore";
 import { useLiveSessionMeta } from "../hooks/useLiveSessionMeta";
 import { useAgentDefinitions } from "../hooks/useSyncAgentDefinitions";
-import { toConvexAgentType } from "@codecast/shared/contracts";
+import { toConvexAgentType } from "@codecast/agent-clients/agentClients";
 import {
   modelOptionKey,
   modelFitsAgent,

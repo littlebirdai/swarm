@@ -1,11 +1,11 @@
 import {
   AGENT_MODEL_CONFIG,
-  cloudAgentProviderOfConversation,
   findModelOption,
   modelAgentKey,
   modelFitsAgent,
   modelOptionKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { cloudAgentProviderOfConversation } from "@codecast/agent-clients/cloudAgents";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
 import { DispatchNotWiredError } from "../store/mutativeMiddleware";
 import { withoutUndo } from "../store/undoStack";

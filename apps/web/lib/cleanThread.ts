@@ -1,4 +1,4 @@
-import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import {
   DELIVERY_FAILED_SUBTYPE,
   parseDeliveryFailedNotice,

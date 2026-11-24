@@ -52,11 +52,11 @@ import {
   AGENT_LAUNCH_OPTIONS,
   AGENT_MODEL_CONFIG,
   modelAgentKey,
-  dynamicModelOption,
   canSessionBecomeAgent,
   listedModels,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { dynamicModelOption } from "@codecast/agent-clients/modelOptions";
 import { useDynamicModels } from "../hooks/useDynamicModels";
 import {
   useOnlyHostedAgent,

@@ -1,4 +1,4 @@
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 
 /** `quiet`: a resting state the runner pill already shows, so the header
  *  draws only the dot and keeps the word in its hover. */

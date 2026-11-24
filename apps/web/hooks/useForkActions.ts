@@ -1,5 +1,5 @@
 import { useCallback, type RefObject } from "react";
-import { agentSupportsFork } from "@codecast/shared/contracts";
+import { agentSupportsFork } from "@codecast/agent-clients/agentClients";
 import { toast } from "sonner";
 import { toastWriteError } from "../lib/dispatchBinding";
 import {

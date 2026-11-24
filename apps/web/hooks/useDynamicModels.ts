@@ -13,9 +13,11 @@ import { useSyncDevices } from "./useSyncDevices";
 import {
   AGENT_MODEL_CONFIG,
   modelAgentKey,
+} from "@codecast/agent-clients/agentClients";
+import {
   featuredModelOptions,
   type ModelOption,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/modelOptions";
 
 export interface DynamicModelData {
   dynamic: boolean;

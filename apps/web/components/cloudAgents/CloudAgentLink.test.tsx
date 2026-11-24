@@ -6,7 +6,7 @@ import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentChangedProblem,
   cloudAgentLimitProblem,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import type { CloudAgentActions } from "./sessionAgent";
 import type { CloudAgentProblem } from "./machine";

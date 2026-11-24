@@ -16,7 +16,7 @@ import { ExternalLink } from "lucide-react";
 import {
   CLOUD_AGENT_PROVIDERS,
   type CloudAgentProviderId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { getProviderKeySpec } from "@codecast/provider-keys/providerKeys";
 import { useVerifiedKeySubmit } from "../../lib/useProviderKeyCommand";
 import { Spinner, Step } from "../MintTokenDialog";
