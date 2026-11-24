@@ -1,4 +1,4 @@
-import type { RunRow } from "@codecast/shared/contracts/evalsApi";
+import type { RunRow } from "@codecast/evals-api/evalsApi";
 import {
   failedControls as failedControlsWith,
   readProbe as readProbeWith,

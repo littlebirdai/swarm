@@ -9,7 +9,7 @@ import { GitBranch, Pause, Play, Scissors } from "lucide-react";
 import type {
   SimFailureResult,
   SimRunResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { evalsHref } from "./evalsPaths";
 import {
   CopyCommand,

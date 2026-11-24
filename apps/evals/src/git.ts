@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-import type { CommitRef } from "@codecast/shared/contracts/evalsApi";
+import type { CommitRef } from "@codecast/evals-api/evalsApi";
 
 import { treeRoot } from "./paths";
 

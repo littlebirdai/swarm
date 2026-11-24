@@ -10,7 +10,7 @@ import type {
   SimCatalogResponse,
   SimGridCell,
   SimSessionSummary,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { MiniTrace } from "../resources/HealthStrip";
 import { evalsHref } from "./evalsPaths";
 import {

@@ -1,4 +1,4 @@
-import type { StalenessWord } from "@codecast/shared/contracts/evalsApi";
+import type { StalenessWord } from "@codecast/evals-api/evalsApi";
 
 import { surfaces } from "../registry";
 import { staleness, type Staleness } from "../state";

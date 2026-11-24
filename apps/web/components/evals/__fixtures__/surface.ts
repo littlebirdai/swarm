@@ -8,7 +8,7 @@ import type {
   BatchesResponse,
   EpochResponse,
   SurfaceResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { evalsFixtureWorld } from "./world";
 
 export const SURFACE_NOW = Date.parse("2026-10-03T12:00:00.000Z");

@@ -27,6 +27,7 @@
     "@codecast/daemon": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/evals-api": "workspace:*",
     "@codecast/files": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/keyboard": "workspace:*",

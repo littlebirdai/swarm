@@ -4,10 +4,7 @@
 // epoch, which is exactly what changed in what the model was shown. Codecast's
 // own: the host renders it through useRunPanels (runPanels.tsx).
 
-import type {
-  CallDetail,
-  TokenUsage,
-} from "@codecast/shared/contracts/evalsApi";
+import type { CallDetail, TokenUsage } from "@codecast/evals-api/evalsApi";
 import { usd } from "@platform/evals/client";
 import { TextPane } from "@platform/evals/react";
 

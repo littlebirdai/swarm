@@ -13,7 +13,7 @@ import type {
   CommitRef,
   SimFailureResult,
   SimResult,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 import { SIM_SOURCES } from "../../../../apps/web/store/__tests__/sim/history";
 import type { AttributionGit } from "../history/attribution";

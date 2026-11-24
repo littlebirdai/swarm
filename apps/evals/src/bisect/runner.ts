@@ -11,7 +11,7 @@ import type {
   RenderClass,
   RunRow,
   SeparationResult,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { formatCost } from "@platform/cli-kit/format";
 import { separate } from "@platform/evals/analysis";
 

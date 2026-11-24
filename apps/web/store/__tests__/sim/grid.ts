@@ -14,7 +14,7 @@ import type {
   SimRunRow,
   SimScenario,
   SimSession,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 /**
  * The grid over `sessions`, newest first (unsessioned legacy folders are left

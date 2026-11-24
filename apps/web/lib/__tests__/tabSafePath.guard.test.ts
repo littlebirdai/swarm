@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { resolveEvalsBatchRef } from "@codecast/shared/contracts/evalsApi";
+import { resolveEvalsBatchRef } from "@codecast/evals-api/evalsApi";
 import { useInboxStore } from "../../store/inboxStore";
 import { leafNode, sanitizeLayout, setLeafPath } from "../../store/stageSplit";
 import { pathLabel } from "../pathLabel";

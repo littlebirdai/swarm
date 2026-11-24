@@ -2,7 +2,7 @@ import type {
   Attribution,
   BisectPlan,
   RunRow,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import {
   NO_LEGACY,
   planFrom as planWith,

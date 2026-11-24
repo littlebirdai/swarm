@@ -8,7 +8,7 @@ import type {
   FreezeResponse,
   LedgerCell,
   RunResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { evalsFixtureWorld } from "./world";
 import {
   defaultFreezePair,

@@ -14,7 +14,7 @@
 // Production builds never read the flag, and the world is a dynamic import
 // inside the dev branch, so it never ships.
 
-import type { EvalsErrorBody } from "@codecast/shared/contracts/evalsApi";
+import type { EvalsErrorBody } from "@codecast/evals-api/evalsApi";
 import { localTransport, type EvalsTransport } from "@platform/evals/client";
 
 export const EVALS_FIXTURE_KEY = "EVALS_FIXTURE";

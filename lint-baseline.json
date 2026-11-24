@@ -28846,6 +28846,27 @@
   "packages/docs/test/drafting.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/evals-api/src/evalsApi.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/evals-api/src/evalsApi/bisect.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/evals-api/src/evalsApi/core.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/evals-api/src/evalsApi/endpoints.ts": {
+    "swarm/no-comments": 39
+  },
+  "packages/evals-api/src/evalsApi/routes.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/evals-api/src/evalsApi/sim.ts": {
+    "swarm/no-comments": 40
+  },
+  "packages/evals-api/test/evalsApi.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/files/src/index.ts": {
     "swarm/no-comments": 19
   },
@@ -29289,27 +29310,6 @@
   },
   "packages/shared/contracts/evalResult.ts": {
     "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/evalsApi.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/evalsApi.ts": {
-    "swarm/no-comments": 21
-  },
-  "packages/shared/contracts/evalsApi/bisect.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/evalsApi/core.ts": {
-    "swarm/no-comments": 17
-  },
-  "packages/shared/contracts/evalsApi/endpoints.ts": {
-    "swarm/no-comments": 39
-  },
-  "packages/shared/contracts/evalsApi/routes.ts": {
-    "swarm/no-comments": 17
-  },
-  "packages/shared/contracts/evalsApi/sim.ts": {
-    "swarm/no-comments": 40
   },
   "packages/shared/contracts/executionBinding.ts": {
     "swarm/no-comments": 6

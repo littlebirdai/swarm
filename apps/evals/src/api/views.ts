@@ -12,7 +12,7 @@ import type {
   SimSessionSummary,
   StalenessWord,
   SurfaceInfo,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import type { ConvoMessage, Freeze } from "@platform/evals";
 import { BadRequest, keptRead, NotFound } from "@platform/evals/query";
 import { diffRuns } from "@platform/evals/render";

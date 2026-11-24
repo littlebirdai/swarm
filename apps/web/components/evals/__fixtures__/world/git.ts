@@ -7,7 +7,7 @@ import {
   EVALS_SHA_RE,
   type CommitRef,
   type CommitResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import type { AttributionGit, AttributionMeta } from "@platform/evals/analysis";
 import { BadRequest } from "@platform/evals/query";
 import { type FixtureState, surfaceDef } from "./model";

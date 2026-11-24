@@ -14,7 +14,7 @@ import type {
   SimRunResponse,
   SimSessionSummary,
   StalenessWord,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { makeVerdict, statusPassRule } from "@platform/evals/analysis";
 import { NotFound, type HandlerPolicy } from "@platform/evals/query";
 

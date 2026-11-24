@@ -3,7 +3,7 @@
 // many deliveries the failure needs. A chip moves the playhead to its delivery.
 
 import type { CSSProperties } from "react";
-import type { SimMinimal } from "@codecast/shared/contracts/evalsApi";
+import type { SimMinimal } from "@codecast/evals-api/evalsApi";
 import { feedTone, parseChannel, shrinkCaption } from "./simLanes";
 import "./sim.css";
 import { chipText } from "./simModel";

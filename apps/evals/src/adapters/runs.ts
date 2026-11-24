@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { RunRow } from "@codecast/shared/contracts/evalsApi";
+import type { RunRow } from "@codecast/evals-api/evalsApi";
 import type { RunSource, RunSummary } from "@platform/evals";
 import { fsRunSource, parseRunId } from "@platform/evals/fs";
 

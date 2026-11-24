@@ -5,7 +5,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useInterval } from "../../../hooks/useInterval";
-import type { ChangesResponse } from "@codecast/shared/contracts/evalsApi";
+import type { ChangesResponse } from "@codecast/evals-api/evalsApi";
 import { EVALS_POLL } from "@platform/evals/client";
 import {
   useEvalsChanges,

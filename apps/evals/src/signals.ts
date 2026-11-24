@@ -5,7 +5,7 @@ import {
   evalsBatchRef,
   type BisectState,
   type Candidate,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { evalsSignalFingerprint } from "@codecast/shared/contracts/signalFingerprint";
 
 // The eval finder (docs/architecture/the-line-end-to-end.md LE3): what `check

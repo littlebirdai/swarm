@@ -30,10 +30,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import type {
-  SimRunRow,
-  SimSession,
-} from "@codecast/shared/contracts/evalsApi";
+import type { SimRunRow, SimSession } from "@codecast/evals-api/evalsApi";
 
 export const SIM_HOME_ENV = "CODECAST_SIM_HOME";
 /** The newest sessions kept whole; older ones survive only when something in them failed. */

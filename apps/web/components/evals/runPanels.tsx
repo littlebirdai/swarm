@@ -5,7 +5,7 @@
 // in codecast while the run page they sit under is shared.
 
 import { useState } from "react";
-import type { RunResponse } from "@codecast/shared/contracts/evalsApi";
+import type { RunResponse } from "@codecast/evals-api/evalsApi";
 import type { RunPanel, RunPanelContext } from "@platform/evals/react";
 import { useEvalsResource } from "../../lib/evals/hooks";
 import { AgentTranscript } from "./AgentTranscript";

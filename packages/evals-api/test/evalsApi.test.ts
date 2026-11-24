@@ -10,7 +10,7 @@ import {
   unaskedSet,
   type RunRow,
   type VerdictFlip,
-} from "./evalsApi";
+} from "../src/evalsApi";
 
 const row: RunRow = {
   id: "settle-1a2b3c4d-seed1-2026-10-03T01-13-08-164Z",

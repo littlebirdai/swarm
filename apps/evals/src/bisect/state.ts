@@ -14,7 +14,7 @@ import type {
   BisectState,
   BisectStep,
   BisectSummary,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { bisectSummaryOf } from "@platform/evals/analysis";
 
 import { evalsHome, writeJsonAtomic } from "../paths";

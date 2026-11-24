@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type {
-  BisectState,
-  CommitRef,
-} from "@codecast/shared/contracts/evalsApi";
+import type { BisectState, CommitRef } from "@codecast/evals-api/evalsApi";
 
 import {
   bisectSignal,

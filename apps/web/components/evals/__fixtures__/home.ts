@@ -3,7 +3,7 @@
 // and a batch still landing), and a quiet variant with nothing worse, nothing moved, no bisect and
 // no Multiplayer sim session, for the empty states.
 
-import type { OverviewResponse } from "@codecast/shared/contracts/evalsApi";
+import type { OverviewResponse } from "@codecast/evals-api/evalsApi";
 import { evalsFixtureWorld, fixtureWorldNow } from "./world";
 
 export const HOME_NOW = fixtureWorldNow();

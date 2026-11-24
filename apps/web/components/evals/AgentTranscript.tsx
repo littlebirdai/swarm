@@ -3,10 +3,7 @@
 // harness sent (thenN.md), what the agent said out loud, and the knobs the
 // dry run used (args.json).
 
-import type {
-  AgentDetail,
-  AgentItem,
-} from "@codecast/shared/contracts/evalsApi";
+import type { AgentDetail, AgentItem } from "@codecast/evals-api/evalsApi";
 import { TokenLine } from "./CallPane";
 import { TextPane } from "@platform/evals/react";
 

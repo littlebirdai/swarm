@@ -9,7 +9,7 @@ import type {
   SimRunRow,
   SimScenario,
   SimSessionSummary,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { makeRng } from "@platform/evals/analysis";
 import { simGridOf } from "../../../../store/__tests__/sim/grid";
 import { simFixtureRun } from "../sim";

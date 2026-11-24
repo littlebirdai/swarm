@@ -5,7 +5,7 @@ import type {
   BisectResponse,
   BisectStartRequest,
   BisectState,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { bisectResponseOf, isBisectLive } from "@platform/evals/analysis";
 
 import {

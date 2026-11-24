@@ -9,7 +9,7 @@ import type {
   SimMarker,
   SimMode,
   SimScenario,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import type { VerdictState } from "@platform/evals/client";
 import { formatTimeAgo } from "../../lib/messageNavigator";
 import { parseChannel } from "./simLanes";

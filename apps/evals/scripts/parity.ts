@@ -55,7 +55,7 @@ import type {
   OverviewResponse,
   RunRow,
   SurfaceResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 // ── The clock ───────────────────────────────────────────────────────────────
 
