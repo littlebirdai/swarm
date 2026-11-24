@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { carryRenames, compareLintCounts, parseRenames } from "./lint-baseline";
+import {
+  carryRenames,
+  compareLintCounts,
+  parseRenames,
+  staleFiles,
+} from "./lint-baseline";
 
 test("reports a count that grew", () => {
   const { grew } = compareLintCounts(
@@ -97,5 +102,17 @@ test("reads renames from git's -z name-status output and ignores copies and othe
   expect(parseRenames(out)).toEqual([
     ["old.ts", "new.ts"],
     ["p/q.ts", "r/q.ts"],
+  ]);
+});
+
+test("names the baseline files that no longer exist", () => {
+  const baseline = {
+    "moved.ts": { comments: 2 },
+    "kept.ts": { comments: 1 },
+    "deleted.ts": { comments: 4 },
+  };
+  expect(staleFiles(baseline, (file) => file === "kept.ts")).toEqual([
+    "deleted.ts",
+    "moved.ts",
   ]);
 });

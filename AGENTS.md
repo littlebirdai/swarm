@@ -31,7 +31,7 @@ A watcher built while other sessions were editing several packages keeps checkin
 
 ## Lint
 
-Run `bun run lint` from the repository root. Oxlint checks the whole repository except `platform/`, the vendored mirror. The baseline (`lint-baseline.json`) tracks existing violations by file and rule, and a renamed file keeps its counts. Baseline counts can only decrease. After you remove violations, run `bun run lint:prune` and commit the baseline update.
+Run `bun run lint` from the repository root. Oxlint checks the whole repository except `platform/`, the vendored mirror. The baseline (`lint-baseline.json`) tracks existing violations by file and rule, and a renamed file keeps its counts. Baseline counts can only decrease. After you remove violations, or move or delete a file the baseline names, run `bun run lint:prune` and commit the baseline update; lint fails while the baseline names a file that no longer exists.
 
 Code comments are forbidden except for semantic tool directives. The baseline covers existing code comments. Keep new code free of explanatory comments. Use clear names or record the rationale in the relevant documentation. A lint disable comment (`oxlint-disable`, `eslint-disable`) is not a way around a rule: new code adds none.
 
