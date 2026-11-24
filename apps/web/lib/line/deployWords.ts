@@ -4,7 +4,7 @@ import {
   deployStateWords,
   type DeployAfter,
   type DeployView,
-} from "@codecast/shared/contracts/deploys";
+} from "@codecast/line/deploys";
 
 type DeployLike = Partial<
   Pick<

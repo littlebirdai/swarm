@@ -10,10 +10,7 @@
 //   useStationInput(sessionId, runId)      a station's brief, fed when opened
 //   store action labelDecision(runId, nodeId, verdict, note)
 import type { FlowBar } from "@codecast/shared/contracts/linePriority";
-import type {
-  DeployAfter,
-  DeployView,
-} from "@codecast/shared/contracts/deploys";
+import type { DeployAfter, DeployView } from "@codecast/line/deploys";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useWatchEffect } from "./useWatchEffect";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";

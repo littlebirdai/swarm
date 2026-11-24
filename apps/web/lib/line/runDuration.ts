@@ -6,7 +6,7 @@
 // its limit), is not what the control starts, so it is not counted. Under three such runs there is no number: an
 // anecdote is not a duration. Pure, with one store reader.
 import { useMemo } from "react";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import { useInboxStore } from "../../store/inboxStore";
 
 type DurationStep = {

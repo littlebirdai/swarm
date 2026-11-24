@@ -4,7 +4,7 @@
 // sessions as live titled pills, a chat line as a link to its message, a
 // commit by its repository and short sha, a person by name. Never a raw id.
 import Link from "next/link";
-import type { ExpectationCitation } from "@codecast/shared/contracts/expectations";
+import type { ExpectationCitation } from "@codecast/line/expectations";
 import { EntityIdPill } from "../EntityIdPill";
 import { chatHref } from "../../lib/chatHref";
 import { resolveAssigneeInfo } from "../../lib/liveEntities";

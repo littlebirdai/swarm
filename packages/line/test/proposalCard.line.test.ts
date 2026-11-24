@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { alongsideMissing, validateProposalCard } from "./proposalCard";
+import { alongsideMissing, validateProposalCard } from "../src/proposalCard";
 
 // A line run's proposal card: the gather reruns of tc-40, tc-41 and tc-43 came back with no recommendation and no
 // proof, and tc-41 reversed tc-30's fix without saying so.

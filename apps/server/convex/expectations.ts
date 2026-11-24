@@ -59,7 +59,7 @@ import {
   type ExpectationOp,
   type ExpectationsVersion,
   type PersonEdit,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 
 type Ctx = { db: any; auth?: any };
 

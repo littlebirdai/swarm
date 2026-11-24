@@ -3,7 +3,7 @@
 // and the ticks under it. Pure; the history it reads is the model's
 // (causeHistory.ts), so nothing here re-derives a ship, a deploy or a
 // regression, it only places them in time.
-import { backTimes, shortDay } from "@codecast/shared/contracts/causeHistory";
+import { backTimes, shortDay } from "@codecast/line/causeHistory";
 import type {
   CauseHistory,
   CloseKind,

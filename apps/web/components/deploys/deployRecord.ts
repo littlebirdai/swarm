@@ -1,10 +1,7 @@
 // How a backend push reached prod and what it changed there. Shared by the web deploy detail and the phone's deploy
 // screen, so imports stay relative. A list row (the targets feed) carries the origin and the counts
 // (DeployPushSummary); the names come only with the deploy itself (deploys.get, a DeployView).
-import type {
-  DeployPushSummary,
-  DeployView,
-} from "@codecast/shared/contracts/deploys";
+import type { DeployPushSummary, DeployView } from "@codecast/line/deploys";
 import type { TargetDevPush } from "@codecast/deploys/deployTargets";
 import { agoOf } from "../../lib/threadState";
 

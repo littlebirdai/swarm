@@ -26,7 +26,7 @@ import {
   type ExpectationCitation,
   type ExpectationOp,
   type PersonEdit,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import { EntityIdPill } from "../EntityIdPill";
 import {
   useDecisionDetail,

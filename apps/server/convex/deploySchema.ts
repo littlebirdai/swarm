@@ -23,7 +23,7 @@ const liveReader = v.union(
 
 const nullableString = v.union(v.string(), v.null());
 
-// One failure read out of a CI job's log (shared/contracts/ciFailures.ts).
+// One failure read out of a CI job's log (packages/line/src/ciFailures.ts).
 const ciFailureValidator = v.object({
   job: v.string(),
   test: nullableString,
@@ -33,7 +33,7 @@ const ciFailureValidator = v.object({
   excerpt: v.string(),
 });
 
-// The main_red / main_green payload (shared/contracts/mainRed.ts MainRedPayload).
+// The main_red / main_green payload (packages/line/src/mainRed.ts MainRedPayload).
 export const mainRedPayloadValidator = v.object({
   repo: v.string(),
   branch: v.string(),

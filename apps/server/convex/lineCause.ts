@@ -21,7 +21,7 @@ import { projectLeadOf } from "@codecast/org/orgLead";
 import { commitSignal, normalizeSignal } from "./signals";
 import { admitRoleRun, requeueForSweep, startLineRun } from "./orgLine";
 import { cancelCore, liveRunRefusal } from "./workflow_runs";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 
 export const LINE_SUBJECT_PREFIX = "line:";
 

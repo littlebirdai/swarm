@@ -17,8 +17,8 @@ import {
 import { splitReviewNote } from "./reviewNote";
 import { definitionLaunchFlags } from "../agentLaunch.js";
 import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
-import { NO_CAUSE_HISTORY } from "@codecast/shared/contracts/causeHistory";
-import { gateDoc } from "@codecast/shared/contracts/changeCard";
+import { NO_CAUSE_HISTORY } from "@codecast/line/causeHistory";
+import { gateDoc } from "@codecast/line/changeCard";
 import { ParkedClock, taskWaiting } from "./parkedClock.js";
 import { HandWatch, handTimeouts, steadyTail } from "./handWatch.js";
 import { diskFullFailReason, requeueAfterDiskFull } from "../diskFull.js";

@@ -6,7 +6,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./functions";
 import { normalizeRepository } from "./lib/gitRefs";
-import { normalizeDeployTarget } from "@codecast/shared/contracts/deploys";
+import { normalizeDeployTarget } from "@codecast/line/deploys";
 import { recordDeployMarker, type DeployMarker } from "./deploys";
 import { closeSuperseded, supersededNote, urlFields } from "./lib/deployRows";
 import {

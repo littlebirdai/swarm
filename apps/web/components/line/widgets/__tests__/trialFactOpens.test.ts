@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { checkRows, trialFacts } from "../../../trial/TrialFactsStrip";
-import { UNSCORED_DETAIL } from "@codecast/shared/contracts/changeCard";
+import { UNSCORED_DETAIL } from "@codecast/line/changeCard";
 
 const card = {
   cause: {

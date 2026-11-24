@@ -46,6 +46,7 @@
     "@codecast/ingest": "workspace:*",
     "@codecast/judges": "workspace:*",
     "@codecast/keyboard": "workspace:*",
+    "@codecast/line": "workspace:*",
     "@codecast/machines": "workspace:*",
     "@codecast/memory": "workspace:*",
     "@codecast/messages": "workspace:*",

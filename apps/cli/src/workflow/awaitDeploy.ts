@@ -18,10 +18,7 @@ import {
   releaseOrder,
   type DeployTarget,
 } from "@codecast/deploys/deployTargets";
-import {
-  mainRedSince,
-  type MainRedPayload,
-} from "@codecast/shared/contracts/mainRed";
+import { mainRedSince, type MainRedPayload } from "@codecast/line/mainRed";
 import { git, gitTry } from "../wipSnapshot.js";
 
 /** One deploy of a target, as the targets read lists its history. */

@@ -26,10 +26,7 @@ import { recordDevPush } from "./lib/devPushes";
 import { adderOf, targetPushes } from "./lib/droppedWork";
 import { sameSha } from "./deployCarries";
 import { devPushedOver } from "./deployTargetsState";
-import {
-  normalizeDeployTarget,
-  type AddedBy,
-} from "@codecast/shared/contracts/deploys";
+import { normalizeDeployTarget, type AddedBy } from "@codecast/line/deploys";
 
 const SURFACE = /^[a-z][a-z0-9-]{0,31}$/;
 const SHA = /^[0-9a-f]{7,40}$/;

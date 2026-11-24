@@ -39,10 +39,7 @@ import {
   MAIN_GREEN_EVENT,
   MAIN_RED_EVENT,
 } from "@codecast/triggers/triggerEvents";
-import {
-  parseFailures,
-  type CiFailure,
-} from "@codecast/shared/contracts/ciFailures";
+import { parseFailures, type CiFailure } from "@codecast/line/ciFailures";
 import {
   aggregateJobs,
   culpritOf,
@@ -55,7 +52,7 @@ import {
   type JobRef,
   type JudgedRun,
   type MainRedPayload,
-} from "@codecast/shared/contracts/mainRed";
+} from "@codecast/line/mainRed";
 
 const GITHUB_API = "https://api.github.com";
 const MINUTE = 60_000;

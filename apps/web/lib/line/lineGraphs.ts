@@ -10,10 +10,7 @@
 // codecast's line takes on the map (its terminal steps folded into the map's
 // ends, its stations given a phase).
 import { DEFAULT_STEPS_LABEL } from "@codecast/flows/lineSlug";
-import {
-  CARD_GATE_NODE_ID,
-  LINE_END_NODES,
-} from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID, LINE_END_NODES } from "@codecast/line/changeCard";
 import { DEFAULT_LINE_SLUG } from "@codecast/flows/lineSlug";
 import { isRepoLineSlug } from "@codecast/shared/contracts/lineProfile";
 import { choiceWords, stationWords, type LinePhaseKey } from "./runReport";

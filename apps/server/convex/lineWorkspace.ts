@@ -29,7 +29,7 @@ import {
   CARD_GATE_NODE_ID,
   isLineRun,
   passedUnansweredCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   causeHistory,
   closedAtStep,
@@ -44,7 +44,7 @@ import {
   type AttemptOutcome,
   type OccurrenceRow,
   type RunSaid,
-} from "@codecast/shared/contracts/causeHistory";
+} from "@codecast/line/causeHistory";
 import {
   guessPhase,
   halfOfPhase,

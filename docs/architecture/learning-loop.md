@@ -624,7 +624,7 @@ the real order. A scoring pass reads every open problem once and writes
   Batch API on the deployment's key (`problemScores.submit` / `collect`),
   reading the title, the description and up to five findings (most severe
   first, one per distinct opening) with the counts of findings and distinct
-  conversations. The prompt lives in `shared/contracts/problemScore.ts`.
+  conversations. The prompt lives in `packages/line/src/problemScore.ts`.
 - **root_cause**: a few words naming the mechanism, worded so two problems
   with one cause get one label.
 - **cluster_key** and **cluster_name**: the family the label belongs to. One

@@ -7,7 +7,7 @@ import { UsageError } from "@platform/evals/cli";
 import {
   parseProposal,
   type ExpectationProposalInput,
-} from "../../../../../packages/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import { substitute } from "@codecast/org-templates/orgTemplateManifest";
 import { treeRoot } from "../../paths";
 import { gate, type ReplayResult, type SurfaceImpl } from "../../surface";

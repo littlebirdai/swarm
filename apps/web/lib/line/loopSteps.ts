@@ -39,10 +39,7 @@
 // Labels: a codecast judge's decision is a judge_runs row; a product judge's is
 // the finding (a signals row); a grouping decision is the same finding at the
 // "group" step. The label store keys them by (subject id, step id).
-import {
-  isExpectationId,
-  type Expectation,
-} from "@codecast/shared/contracts/expectations";
+import { isExpectationId, type Expectation } from "@codecast/line/expectations";
 import type { JudgeFinding } from "@codecast/judges/judges";
 import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
 import { DAY, WEEK, perDay, type LineSignal } from "../lineFlow";

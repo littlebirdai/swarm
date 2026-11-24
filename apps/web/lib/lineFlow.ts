@@ -32,11 +32,8 @@ import {
   lineRunOutcome,
   type AnsweredGate,
   type LineRunEnd,
-} from "@codecast/shared/contracts/changeCard";
-import {
-  runEnd,
-  shippedUnanswered,
-} from "@codecast/shared/contracts/causeHistory";
+} from "@codecast/line/changeCard";
+import { runEnd, shippedUnanswered } from "@codecast/line/causeHistory";
 import { quietWatchEnd } from "@codecast/shared/contracts/flowMap";
 import {
   isLiveRun,

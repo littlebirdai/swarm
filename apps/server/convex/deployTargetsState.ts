@@ -17,10 +17,7 @@ import {
   type QueueCommit,
 } from "@codecast/deploys/deployTargets";
 import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
-import {
-  liveDeployOf,
-  type DeployPushSummary,
-} from "@codecast/shared/contracts/deploys";
+import { liveDeployOf, type DeployPushSummary } from "@codecast/line/deploys";
 import type { TargetDevPush } from "@codecast/deploys/deployTargets";
 
 const DAY = 86_400_000;

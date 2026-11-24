@@ -7,7 +7,7 @@ import {
   raisedLimits,
   trialRunLimit,
 } from "../trialStopLedgers";
-import { failedAtStation } from "@codecast/shared/contracts/causeHistory";
+import { failedAtStation } from "@codecast/line/causeHistory";
 
 describe("a stopped trial run's acts", () => {
   test("a new approach is one run from main that carries the station's report", () => {

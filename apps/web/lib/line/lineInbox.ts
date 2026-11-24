@@ -44,8 +44,8 @@ import {
   mostOf,
   type DecisionChange,
 } from "./decisionFacts";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
-import { runEnd } from "@codecast/shared/contracts/causeHistory";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
+import { runEnd } from "@codecast/line/causeHistory";
 
 export type InboxKind =
   | "decide"

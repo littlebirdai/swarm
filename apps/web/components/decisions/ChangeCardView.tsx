@@ -34,7 +34,7 @@ import {
   type CardCheck,
   type ChangeCard,
   type ChangeVerdict,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   useInboxStore,
   type DecisionAnswerInput,
@@ -68,7 +68,7 @@ import {
 // natively, one component for every surface that shows a decision about a
 // change: the decision page (full), the transcript sheet (inline) and the
 // queue's compact card (line). The contract and the helpers that read it
-// live in @codecast/shared/contracts/changeCard, the same ones the HTML page
+// live in @codecast/line/changeCard, the same ones the HTML page
 // renderer uses, so the two never tell a card differently.
 
 export type ChangeCardDensity = "full" | "inline" | "line";

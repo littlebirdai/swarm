@@ -5118,7 +5118,7 @@ export default defineSchema(
       sha: v.optional(v.string()),
       previous_sha: v.optional(v.string()),
       // The sha's place in main's order (its commit's commits.main_at), stamped when the deploy's range is filled: a
-      // merge is in the deploy's code when it reached main at or before this (contracts/causeHistory carryingDeploys).
+      // merge is in the deploy's code when it reached main at or before this (packages/line/src/causeHistory.ts carryingDeploys).
       cut_at: v.optional(v.number()),
       version: v.optional(v.string()),
       // The CI run or the page that shows the deploy.
@@ -5138,7 +5138,7 @@ export default defineSchema(
           }),
         ),
       ),
-      // The fixes it carried (contracts/deploys DeployCarry).
+      // The fixes it carried (packages/line/src/deploys.ts DeployCarry).
       carries: v.array(
         v.object({
           task_id: v.id("tasks"),
@@ -6343,7 +6343,7 @@ export default defineSchema(
       ),
       // Published artifact slug (cast publish) carrying a full HTML report.
       report_slug: v.optional(v.string()),
-      // A change card (the-line-end-to-end.md LE10, shared/contracts/changeCard.ts):
+      // A change card (the-line-end-to-end.md LE10, packages/line/src/changeCard.ts):
       // the web renders it natively in place of a report. Validated on ask.
       card: v.optional(v.any()),
       // A command the asker wants a person to run (`cast decide --run`,

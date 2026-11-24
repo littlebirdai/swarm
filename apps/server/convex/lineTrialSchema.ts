@@ -35,9 +35,9 @@ export const lineTrialTables = {
         }),
       ),
     ),
-    /** The change card, as validated for a decision (shared/contracts/changeCard). */
+    /** The change card, as validated for a decision (packages/line/src/changeCard.ts). */
     card: v.optional(v.any()),
-    /** The proposal gate's card (shared/contracts/proposalCard), when its words node wrote one. */
+    /** The proposal gate's card (packages/line/src/proposalCard.ts), when its words node wrote one. */
     proposal: v.optional(v.any()),
     /** The judge route's card (packages/judges/src/judgeFix.ts): a fix to a judge, its extractor or an expectation, measured on the ruled moments; the project's reviewer answers it. */
     judge_fix: v.optional(v.any()),

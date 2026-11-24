@@ -3,7 +3,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import { normalizeRepository } from "./gitRefs";
 import { targetDevPushes } from "../deployTargetsState";
-import { normalizeDeployTarget } from "@codecast/shared/contracts/deploys";
+import { normalizeDeployTarget } from "@codecast/line/deploys";
 import { latestLiveDeploy } from "./deployRows";
 import {
   capNames,

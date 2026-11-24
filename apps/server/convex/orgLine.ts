@@ -54,7 +54,7 @@ import {
 import { taskWork } from "./lib/orgOwnership";
 import { ownerOf, projectLeadOf } from "@codecast/org/orgLead";
 import { chainHeadOf } from "@codecast/org/orgAssignee";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import { byStartOrder, startValue } from "./lib/linePriority";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { accessJudgeFor, canAccessTask } from "./lib/access";

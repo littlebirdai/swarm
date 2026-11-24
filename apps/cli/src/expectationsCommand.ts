@@ -10,7 +10,7 @@
 //
 // Routes: /cli/expectations/{show,brief,propose,resolve} (convex/expectations.ts).
 // The shapes, the proposal parser and the renderings are
-// shared/contracts/expectations. The project is --project, else the repo
+// packages/line/src/expectations.ts. The project is --project, else the repo
 // profile's `[line] project`.
 import fs from "node:fs";
 import type { Command } from "commander";
@@ -29,7 +29,7 @@ import {
   type Expectation,
   type ExpectationOp,
   type ExpectationsVersion,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 // The line template's proposer routine, the one prompt every pass follows,
 // whether its trigger runs it daily or a person asks for one pass.
 import routinePrompt from "../org-templates/line/org/prompts/expectations-daily.md" with { type: "text" };

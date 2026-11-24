@@ -9,7 +9,7 @@
 import { afterAll, describe, expect, mock, test } from "bun:test";
 import React, { act } from "react";
 import { JSDOM } from "jsdom";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import { replaceGlobals } from "../../../../../../test-helpers/globals";
 import { closeDomWindow } from "../../../../../../test-helpers/domGlobals";
 

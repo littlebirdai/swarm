@@ -1,5 +1,5 @@
 // A problem's score and family as the lists read them (tasks.cause.scored,
-// shared/contracts/problemScore.ts): the value of fixing it next, and the
+// packages/line/src/problemScore.ts): the value of fixing it next, and the
 // family its cause belongs to. Pure.
 
 /** A problem's score and family (tasks.cause.scored, problemScore.ts), as the lists read them. */

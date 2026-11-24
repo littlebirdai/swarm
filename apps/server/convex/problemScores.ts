@@ -46,7 +46,7 @@ import {
   sampleFindings,
   spentToday,
   type ProblemFamily,
-} from "@codecast/shared/contracts/problemScore";
+} from "@codecast/line/problemScore";
 
 const ASSIGN_CHUNK = 250;
 /**

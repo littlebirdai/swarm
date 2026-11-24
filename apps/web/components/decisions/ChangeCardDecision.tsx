@@ -18,7 +18,7 @@ import {
   riskLabel,
   type CardOverturns,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   CheckRow,
   EarlierFixes,

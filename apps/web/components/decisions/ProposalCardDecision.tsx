@@ -15,8 +15,8 @@ import type {
   ProposalAudience,
   ProposalCard,
   ProposalVerdict,
-} from "@codecast/shared/contracts/proposalCard";
-import { riskLabel } from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/proposalCard";
+import { riskLabel } from "@codecast/line/changeCard";
 import { OverturnsLine, SeenQuote, type SeenCase } from "./ChangeCardDecision";
 import { CardFacts, type CardFactsProps } from "./CardFacts";
 import "./changeCard.css";

@@ -1,0 +1,34 @@
+{
+  "name": "@codecast/line",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./causeHistory": "./src/causeHistory.ts",
+    "./changeCard": "./src/changeCard.ts",
+    "./changeCardHtml": "./src/changeCardHtml.ts",
+    "./ciFailures": "./src/ciFailures.ts",
+    "./deploys": "./src/deploys.ts",
+    "./evalResult": "./src/evalResult.ts",
+    "./expectations": "./src/expectations.ts",
+    "./lineRunEnd": "./src/lineRunEnd.ts",
+    "./lineTimeline": "./src/lineTimeline.ts",
+    "./mainRed": "./src/mainRed.ts",
+    "./problemScore": "./src/problemScore.ts",
+    "./proposalCard": "./src/proposalCard.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/deploys": "workspace:*",
+    "@codecast/ingest": "workspace:*",
+    "@codecast/pull-requests": "workspace:*",
+    "@platform/evals": "file:../../platform/packages/evals"
+  }
+}

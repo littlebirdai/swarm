@@ -5,7 +5,7 @@
 // decision page and the workspace's model. Pure: no store, no React.
 import type { LineCauseTask } from "../lineFlow";
 import type { MapDecision, MapRun, MapSignal } from "./lineMap";
-import { plainWords } from "@codecast/shared/contracts/causeHistory";
+import { plainWords } from "@codecast/line/causeHistory";
 
 export { plainWords };
 

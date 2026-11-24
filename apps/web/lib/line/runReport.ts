@@ -10,7 +10,7 @@ import {
   isLineRun,
   passedUnansweredCard,
   type LineRunEnd,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   threadStateHeadline,
   threadStateResult,
@@ -20,7 +20,7 @@ import {
   closedAtStep,
   isLiveRun,
   runEnd,
-} from "@codecast/shared/contracts/causeHistory";
+} from "@codecast/line/causeHistory";
 import {
   LINE_PHASES,
   phaseOfStation,
