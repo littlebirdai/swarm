@@ -1,5 +1,5 @@
 // A checkout's own flows as the viewer's machines report them (schema
-// checkout_flows, shared/contracts/repoFlows.ts). A checkout reports at session
+// checkout_flows, packages/flows/src/repoFlows.ts). A checkout reports at session
 // start (cli workflow/repoFlowsReport.ts) only when its flows changed; the
 // web's Ship picker reads the row of the session's checkout and puts its flows
 // ahead of the shipped ones of the same slug, because that is what `cast flow

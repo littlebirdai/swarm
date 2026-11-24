@@ -117,7 +117,7 @@ export type LineNeed = {
   assignee?: string | null;
   reach?: number | null;
   severity?: number | null;
-  /** How much getting it answered matters, 1-5, as the asking station judged it (shared/contracts/decisionImpact.ts). */
+  /** How much getting it answered matters, 1-5, as the asking station judged it (packages/decisions/src/decisionImpact.ts). */
   impact?: number | null;
   /** For a decision: what its run recommends (ship, revise, drop, ...), when its card says. */
   recommend?: string | null;

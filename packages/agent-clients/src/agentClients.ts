@@ -1203,7 +1203,7 @@ export const LOCAL_AGENT_CLIENTS: Record<
 
 /** The hosted assistant (plan pl-840). A conversation with this agent_type
  *  is run by Convex actions (convex/assistant), never claimed by a device.
- *  No model picker: the person's plan picks the model (contracts/assistant).
+ *  No model picker: the person's plan picks the model (packages/hosted-assistant/src/assistant).
  *  No fork or reconstitute: the history is the server's own and no local
  *  client can take it over. */
 export const HOSTED_AGENT_CLIENTS: { codecast: HostedAgentClientDescriptor } = {

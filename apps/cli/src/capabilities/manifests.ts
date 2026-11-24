@@ -5,7 +5,7 @@
 // OBSERVATION the ingest layer consumes. Observation means: what is actually
 // in the file and on the disk, nothing derived. No hash is computed here and
 // no execution-surface list is emitted — `manifestHash` and
-// `deriveExecutionSurfaces` (`packages/shared/contracts/capabilities.ts`) run
+// `deriveExecutionSurfaces` (`packages/capabilities/src/capabilities.ts`) run
 // server side over exactly the `CapabilityManifest` objects built here, so a
 // publisher can never hand us a pre-derived answer.
 //

@@ -54,13 +54,13 @@ export const CLOUD_SPAWN_RUN_MS = CLOUD_START_RUN_MS;
 
 type Ctx = { db: any };
 
-/** The wire form of CloudWorkspaceMode (@codecast/shared). Absent = isolated. */
+/** The wire form of CloudWorkspaceMode (@codecast/cloud-hosts/cloudWorkspace). Absent = isolated. */
 export const cloudWorkspaceValidator = v.union(
   v.literal("isolated"),
   v.literal("shared"),
 );
 
-/** The wire form of CloudStartFrom (@codecast/shared). Absent = checkout. */
+/** The wire form of CloudStartFrom (@codecast/cloud-hosts/cloudWorkspace). Absent = checkout. */
 export const cloudStartFromArg = v.union(
   v.literal("checkout"),
   v.literal("origin_main"),

@@ -3,7 +3,7 @@
  *
  * An agent pays the CLI's startup on every step, and the whole saving is in
  * what this path does not load: index.ts's ~640-module graph, the sync client,
- * the browser launcher, the shared contracts barrel. A static import added
+ * the browser launcher. A static import added
  * anywhere under the computer modules can quietly put one of them back, so
  * the modules the path evaluates are read from a real process here. The rest
  * pins that the short path still behaves like the full CLI where it must:

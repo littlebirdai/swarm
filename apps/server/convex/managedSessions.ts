@@ -478,7 +478,7 @@ export const updateManagedSessionId = mutation({
   },
 });
 
-// Derived from the single source of truth in @codecast/shared/contracts so the
+// Derived from the single source of truth in @codecast/sessions/agentStatus so the
 // CLI daemon, the browser store, and this validator can never drift. Accepts
 // exactly AGENT_STATUSES — same set as before, just no longer hand-maintained.
 const agentStatusValidator = v.union(

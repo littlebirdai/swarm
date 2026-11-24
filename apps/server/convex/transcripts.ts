@@ -1711,7 +1711,7 @@ export const setSummary = internalMutation({
   },
 });
 
-/** Fires `call_ended` triggers (shared/contracts/triggerEvents.ts) once the
+/** Fires `call_ended` triggers (packages/triggers/src/triggerEvents.ts) once the
  *  call's record is ready to read: its summary, or the words of a call too
  *  short to summarize. A failed summary waits for its retry, which comes back
  *  through here as the first verdict again (retryFailedSummaries), and a call
@@ -3056,7 +3056,7 @@ export const authForAsr = internalQuery({
 // ── Route delivery ────────────────────────────────────────────────────────
 
 // Chunk formatting is shared with the web's "send to agent" actions:
-// @codecast/shared/contracts formatTranscriptChunk.
+// @codecast/calls/transcriptChunk formatTranscriptChunk.
 export { formatChunk };
 
 export const readUnsent = internalQuery({

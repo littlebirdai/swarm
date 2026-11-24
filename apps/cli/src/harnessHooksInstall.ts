@@ -1,5 +1,5 @@
 // Install and remove the codecast hooks listed in HARNESS_HOOKS
-// (@codecast/shared/contracts). This is the only place that registers them, so
+// (@codecast/agent-clients/harnessHooks). This is the only place that registers them, so
 // the one switch that governs them (`hooks_enabled`) is checked in one place:
 // setup, `cast update`, the automatic update, and the daemon's refresh after
 // a self update all come through `syncHarnessHooks`.

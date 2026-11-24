@@ -1,5 +1,5 @@
 // Per-team opt-in features (chat, calls, org): the admin toggles. The catalog
-// and the "absent = off" rule live in @codecast/shared/contracts/teamFeatures;
+// and the "absent = off" rule live in @codecast/policy/teamFeatures;
 // the gate machinery (resolver, guard, offMessage, the per-user snippet
 // availability the daemon heartbeat carries) is lib/teamFeatureGuard, a leaf
 // re-exported here so existing importers keep one path.

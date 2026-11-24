@@ -171,12 +171,12 @@ export function isViableInboxParent(
   return shouldShowInInbox(parent);
 }
 
-// AGENT_IDLE_GRACE_MS (re-exported above) lives in @codecast/shared/contracts:
+// AGENT_IDLE_GRACE_MS (re-exported above) lives in @codecast/sessions/agentStatus:
 // the anti-flicker grace before a finished agent is treated as idle, shared
 // with the web client's statusless-row sweep so both sides settle a quiet
 // session on the same clock.
 
-// STATUS_TRUST_TTL_MS (imported from @codecast/shared/contracts): how long a
+// STATUS_TRUST_TTL_MS (imported from @codecast/sessions/agentStatus): how long a
 // daemon-reported "active" status is trusted with no new synced activity. When
 // the daemon loses a turn's idle transition (a dropped Stop hook, Codex's
 // sleep-killed idle timer) it re-asserts the last "working" on every heartbeat,
@@ -219,7 +219,7 @@ export function nextAgentStatusOnAddMessages(
 // message — and append-only sync never un-syncs it, leaving a stale "Please
 // run /login" card on a session that actually recovered. We detect these so
 // the server can supersede them once a genuine turn follows. The classifier
-// lives in @codecast/shared/contracts as the single source of truth shared
+// lives in @codecast/agent-clients/apiErrorBanner as the single source of truth shared
 // with the web client's ApiErrorCard rendering.
 export {
   isApiErrorBanner,

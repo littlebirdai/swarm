@@ -1,5 +1,5 @@
 /**
- * The daemon's half of the setup card (contracts/agentToolSetup.ts): where
+ * The daemon's half of the setup card (packages/capabilities/src/agentToolSetup.ts): where
  * `cast browser`'s extension and `cast computer`'s grants stand on this
  * machine, and the step that moves them forward.
  *

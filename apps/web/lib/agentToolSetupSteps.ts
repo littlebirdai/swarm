@@ -1,6 +1,6 @@
 /**
  * The steps `cast browser` and `cast computer` need on a machine, read off the
- * machine's setup status (contracts/agentToolSetup.ts). The setup card under a
+ * machine's setup status (packages/capabilities/src/agentToolSetup.ts). The setup card under a
  * blocked command, the Agent features page and the /setup pages all draw these
  * same steps; each surface only decides how they look.
  */

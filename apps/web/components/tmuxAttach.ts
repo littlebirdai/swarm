@@ -74,7 +74,7 @@ export function tailnetSshHost(
  * quotes, since the inner single quotes are already spent.
  *
  * The ssh shape itself (TTY flag, PATH prefix, quoting) lives in
- * @codecast/shared/contracts (sshTmuxAttachCommand) so the CLI's post-move
+ * @codecast/daemon/sshAttach (sshTmuxAttachCommand) so the CLI's post-move
  * hint prints the identical command.
  *
  * ssh_host is pre-validated server-side against an allowlist (sanitizeSshHost

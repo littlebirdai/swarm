@@ -1,8 +1,7 @@
 // Daemon side of the web→daemon provider-key transport (pl-207, Phase 3). Holds a
 // persistent ECDH P-256 keypair, publishes the public half (for the heartbeat), and
 // decrypts a payload the web sealed to it. node:crypto here must match SubtleCrypto
-// on the web — the shared parameters live in @codecast/shared/contracts
-// (providerKeyCrypto). See that file for the wire contract.
+// on the web. See @codecast/provider-keys/providerKeyCrypto for the wire contract.
 
 import * as crypto from "crypto";
 import * as fs from "fs";

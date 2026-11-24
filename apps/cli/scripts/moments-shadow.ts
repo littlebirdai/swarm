@@ -8,7 +8,7 @@
 // before a person decides where those may be stored.
 //
 // Each step is codecast's own: runExtractor and keepOnHost (momentsHost.ts),
-// parseExtractorOutput, judgeRequest and parseJudgeReply (shared/contracts),
+// parseExtractorOutput (packages/ingest/src/moments.ts), judgeRequest and parseJudgeReply (packages/judges/src/judges.ts),
 // and the request body prod posts (convex lib/anthropic.ts, thinking off on
 // the cheap model), billed to the evals' API key, never ANTHROPIC_API_KEY.
 //

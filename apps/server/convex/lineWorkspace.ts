@@ -541,7 +541,7 @@ function stationReport(node: {
   }
 }
 
-/** What a run's stations found, proposed and built, placed by the line's phases (shared/contracts/linePhases), and the argument a close made. */
+/** What a run's stations found, proposed and built, placed by the line's phases (packages/flows/src/linePhases), and the argument a close made. */
 export function runSaid(run: { node_statuses?: any[] }): RunSaid {
   const out: RunSaid = {
     found: null,

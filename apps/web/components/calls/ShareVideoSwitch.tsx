@@ -5,7 +5,7 @@ import { firstName } from "./speakers";
 import { modernButton } from "../ui/modernLook";
 
 // Whether a call's public link shows its video too. Off unless somebody turns
-// it on for this very link (shared/contracts callRecordings shareIncludesVideo): a link
+// it on for this very link (@codecast/calls/callRecordings shareIncludesVideo): a link
 // made to share a transcript never starts handing out faces and screens
 // because Record was pressed later, and a link turned off and on again starts
 // without. Only the room's recording is shared, never a single person's

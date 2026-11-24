@@ -84,7 +84,7 @@ export const expectationTables = {
   // A proposed change (xp-N): additions, edits and retirements, each with
   // its sources, written against one version. Applied by a person (the CLI,
   // or the card it put in their queue), or on its own when it only adds
-  // lines in a person's own quoted words (shared/contracts autoApplies). `since`/`until` are the window of team context it was
+  // lines in a person's own quoted words (@codecast/line/expectations autoApplies). `since`/`until` are the window of team context it was
   // read from: the routine's cursor is the newest `until`.
   expectation_proposals: defineTable({
     short_id: v.string(),

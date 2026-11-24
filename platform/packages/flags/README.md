@@ -109,7 +109,7 @@ The library reads no env vars. The standalone `src/cli.ts` reads:
 
 **codecast** — the catalog stays, the machinery becomes imports:
 
-- `shared/contracts/teamFeatures.ts` stays as the app's catalog, rebuilt
+- `packages/policy/src/teamFeatures.ts` stays as the app's catalog, rebuilt
   as `defineFeatures(TEAM_FEATURES)`; the `snippets` field rides along as
   an extra descriptor field and the snippet fan out maps to
   `attachedAvailability` / `attachedItemAvailable`.

@@ -1,6 +1,6 @@
 // The vendor guard (HIPAA, plan pl-990): a regulated team's content reaches a
 // third-party vendor only when Codecast holds a BAA with that vendor
-// (BAA_COVERED_VENDORS in @codecast/shared/contracts/vendorCoverage). Every
+// (BAA_COVERED_VENDORS in @codecast/policy/vendorCoverage). Every
 // vendor's chokepoint asks here: lib/anthropic.ts for model calls, lib/openai.ts
 // for OpenAI, the call token and recording paths for LiveKit, callFace for
 // Tavus. A leaf beside teamPolicyGuard: it imports nothing from

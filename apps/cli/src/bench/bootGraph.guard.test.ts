@@ -218,8 +218,8 @@ describe("command groups stay off the boot graph", () => {
       // move runs needs the bundle shape and the receiver script);
       // codexAuthDecode.ts is the auth.json decoder split out of
       // codexAccounts.ts so that bundle does not drag the codex usage cluster
-      // off this graph; shared/contracts/cloudPlacement.ts and cloudWorkspace.ts
-      // come through the contracts barrel. The rest of the bytes are the cloud
+      // off this graph; packages/cloud-hosts/src/cloudPlacement.ts and cloudWorkspace.ts
+      // then came through the contracts barrel. The rest of the bytes are the cloud
       // placement, seed and `cast git-credential` fast path code written into
       // files already here (cloud/cli.ts, cloud/prepare.ts, cloud/transfer.ts,
       // hosts/cli.ts, fastPath.ts, index.ts). The credential helper's own module
@@ -267,8 +267,7 @@ describe("command groups stay off the boot graph", () => {
       // 80 files of line profile, moments, trials, dissolves and judges), and
       // taskGraphCommands.ts stopped importing shq from remote/session-move.ts,
       // which had put the session move cluster back on every command (17 files).
-      // The rest is real growth: 22 contracts through the barrel, 6 shared/tasks
-      // modules and about 25 small leaves index.ts uses. Owed next: the shared
+      // The rest is real growth: 22 contracts through the barrel, 6 modules now in packages/tasks/src and about 25 small leaves index.ts uses. The next change removed the
       // contracts barrel, 77 files that reach this graph only through it, moved
       // to subpath imports.
       // 325 on 2026-10-16: the workflows section of the agent instructions moved
@@ -285,7 +284,7 @@ describe("command groups stay off the boot graph", () => {
       // 326 on 2026-10-26: ccAdoptLogin.ts, the cloud Mac's keychain adopt job,
       // split out of ccAccounts.ts to hold that file under its max-lines pin.
       // 328 on 2026-10-26: managed policy (MDM), config/managedPolicy.ts, which
-      // every config reader overlays, and the barrel's contracts/managedPolicy.ts.
+      // every config reader overlays, and the barrel's packages/policy/src/managedPolicy.ts.
       // 329 on 2026-10-26: managedInstall.ts, whether this binary is the MDM
       // .pkg's root-owned copy (self-update steps aside for it).
       // 327 on 2026-10-26: jsonlGenerator.ts took only encodePiCwdSlug from
@@ -306,15 +305,15 @@ describe("command groups stay off the boot graph", () => {
       // CLAUDE_CONFIG_DIR projects dirs reconciliation.ts walks), shared/async
       // (the mapLimit knownValueRedaction.ts reads with instead of readdirSync),
       // packages/deploys/src/deployTargets.ts (workspace/manifest.ts's deploy targets), and
-      // the barrels' contracts/slashCommand.ts and render/structuredMessage.ts.
+      // packages/agent-clients/src/slashCommand.ts and packages/render/src/structuredMessage.ts.
       // 338 the same day, three leaves: packages/secrets/src/vaultMessages.ts (the vault's
       // message tags, split out of the barrel's secrets contract), and
-      // replay/events.ts with the packages/replay/src/replay.ts it reads, which
+      // packages/replay/src/events.ts with the packages/replay/src/replay.ts it reads, which
       // entities/index.ts now loads for the replay link's ?t (parseReplayT,
       // replayTParam). None imports a command group.
       // 346 on 2026-11-08, eight leaves: the contracts barrel's claudeBackend,
       // newSessionDefaults, rewindFiles, sessionAsk and vendorCoverage;
-      // contracts/permissionRules.ts (syncService.ts) and contracts/shellWords.ts
+      // packages/policy/src/permissionRules.ts (syncService.ts) and packages/daemon/src/shellWords.ts
       // (shellQuote.ts); config/storedConfig.ts (writeConfig's write, split out
       // of index.ts) and tmuxFleetInventory.ts (split out of tmux.ts). The
       // 1,961-line packages/org/src/orgProposal.ts and its three leaves arrived with
@@ -340,7 +339,7 @@ describe("command groups stay off the boot graph", () => {
       // castInvocation.ts (how this process was invoked, read by stableContext.ts
       // and the deploy paths), writeBudgetBackoff.ts (syncService.ts's backoff
       // when Convex reports the write budget spent), and two contracts the
-      // barrels carry: contracts/browserStream.ts (the remote browser watch
+      // barrels carry: packages/browser/src/browserStream.ts (the remote browser watch
       // relay) and tasks/planState.ts. 356 the same day: stableContextHooks.ts,
       // the hook script and installers split out of stableContext.ts for its
       // max-lines cap (no new code).
@@ -373,7 +372,7 @@ describe("command groups stay off the boot graph", () => {
       // split out of ccAccounts.ts for its max-lines pin, no new code. 369 the
       // same day: `plan verify` loads workspace/detect.ts on demand, which took
       // detect.ts, share.ts, manifest.ts and packages/machines/src/dataSync.ts off the graph.
-      // 370 the same day: contracts/fileAttachment.ts, the [File <path>] tag a
+      // 370 the same day: packages/daemon/src/fileAttachment.ts, the [File <path>] tag a
       // web attachment becomes (no imports), carried by the contracts barrel.
       // 372 on 2026-11-22: Antigravity CLI (agy) as a client: contracts/
       // antigravityClient.ts, its registry descriptor (out of agentClients.ts for
@@ -408,10 +407,10 @@ describe("command groups stay off the boot graph", () => {
       // knownValueRedaction.ts +4.4), then installed guidance in snippets.ts
       // (+8.3), render/structuredResult.ts (+7.8) and handoffPrompt.ts (+4.8).
       // 4405 on 2026-10-26: managed policy (MDM), which every config read
-      // overlays: contracts/managedPolicy.ts (+14.5), config/managedPolicy.ts
+      // overlays: packages/policy/src/managedPolicy.ts (+14.5), config/managedPolicy.ts
       // (+13.5), managedInstall.ts (+2.4), the policy guards and the enroll
       // retry hint in index.ts (4406).
-      // 4374 on 2026-10-26: the Flows feature state in contracts/teamFeatures.ts
+      // 4374 on 2026-10-26: the Flows feature state in packages/policy/src/teamFeatures.ts
       // (+1.3) and the pool's flows_on read in stableContext.ts (+0.4) went past
       // 4406; the watcher pair above leaving (-36) more than pays for them.
       // 4379 on 2026-10-26: the max-lines splits above moved code between files
@@ -429,15 +428,15 @@ describe("command groups stay off the boot graph", () => {
       // metric spec, the value formatter) and packages/org/src/rolePlaybook.ts (+5:
       // the Experiments section and the climbing guidance `cast brief` prints),
       // folded into files already here rather than two new leaves.
-      // 4400 on 2026-10-28: managed devices (MDM). contracts/managedPolicy.ts
+      // 4400 on 2026-10-28: managed devices (MDM). packages/policy/src/managedPolicy.ts
       // (+2: each policy's refusal words and the removed-device message) and
       // index.ts printing that message when a team has removed the device.
       // 4401 on 2026-10-29: packages/inbox/src/inboxProjection.ts lifting a hidden role
       // lead whose only live work is a nested subagent (child_live).
       // 4405 on 2026-10-31: that day's ship grew files already here: castApi.ts
       // (+1.1, publish limits), index.ts and parser.ts (+0.6 each),
-      // packages/sessions/src/threadState.ts (+0.5), contracts/lineProfile.ts,
-      // analytics/events.ts and contracts/transcriptChunk.ts (+0.4 each).
+      // packages/sessions/src/threadState.ts (+0.5), packages/line/src/lineProfile.ts,
+      // analytics/events.ts and packages/calls/src/transcriptChunk.ts (+0.4 each).
       // +1 on 2026-11-01: the `herd take` subcommand registration in index.ts
       // (its module, herdCommand.ts, loads lazily).
       // 4465 on 2026-11-04, never re-pinned while the file count failed first:
@@ -469,7 +468,7 @@ describe("command groups stay off the boot graph", () => {
       // (+6, the shared nearMatches ranking and listDescription, folded in from
       // its own file to keep the file count at 346), the argChecks.ts leaf
       // (+7: count, enum and --state parsers, the not-found and wrong-kind id
-      // lines) and the --state filter list moved into contracts/workState.ts
+      // lines) and the --state filter list moved into packages/sessions/src/workState.ts
       // (+2), and a few KB across the command modules already here. spawnArgs.ts
       // loads lazily in the spawn action.
       // 4635 after rebasing both passes onto main's 4525. The second pass of that work: index.ts grew by 30 KB
@@ -484,7 +483,7 @@ describe("command groups stay off the boot graph", () => {
       // 4652 on 2026-11-11: stableContext.ts (+19, the one combined stable-context
       // read and the session-start fast path; its hook script and installers
       // split into stableContextHooks.ts, both still loaded), the remote browser
-      // watch relay's contracts/browserStream.ts (+4.7), tasks/planState.ts
+      // watch relay's packages/browser/src/browserStream.ts (+4.7), tasks/planState.ts
       // (+2.9), castInvocation.ts (+2.1) and writeBudgetBackoff.ts (+2), less
       // formatter.ts's cast decisions and patterns formatters, which moved
       // behind the dynamic import in formatKnowledge.ts. 4654 with Tailscale direct
@@ -739,7 +738,7 @@ describe("command groups stay off the boot graph", () => {
       // removalPreview, gitRepoProbe and terminal/terminalHub; fsAtomic,
       // ghostty, terminalHold, config/storedConfig and tmuxFleetInventory; and
       // the contracts index.ts names above plus commandRun and deliveryHold.
-      // 577 later the same day: contracts/approvalAnswers.ts, the four-line
+      // 577 later the same day: packages/decisions/src/approvalAnswers.ts, the four-line
       // approval answer words commandRun.ts and assistant.ts share (e2056d25b).
       // 578 that evening: tmuxLiveness.ts, a leaf split out for unsticking a session whose pane is gone.
       // 579 the same day: browser/deadline.ts, the one wall-clock budget for a
@@ -759,7 +758,7 @@ describe("command groups stay off the boot graph", () => {
       // files as on index.ts's graph above. 584 after mtimeGatedCache.ts, the
       // same split as on index.ts's graph.
       // 589 on 2026-11-11, five leaves: browser/watchRelay.ts (the stream_browser
-      // relay loop, types only from watchServer.ts) with contracts/browserStream.ts,
+      // relay loop, types only from watchServer.ts) with packages/browser/src/browserStream.ts,
       // writeBudgetBackoff.ts, stepTimer.ts (a 17-line timing helper), and
       // fastPath.ts, which stableContext.ts now reads. 590 with stableContextHooks.ts,
       // the same max-lines split as on index.ts's graph. 591 after folderFetchGate.ts,
@@ -790,7 +789,7 @@ describe("command groups stay off the boot graph", () => {
       // 611 the same day: packages/messages/src/messagingPolicy.ts, through orgWhere.ts (no imports).
       // 612 the same day: ccRateLimitHeaders.ts, out of ccAccounts.ts, the same split.
       // 613 the same day: remote/localSession.ts, out of remote/session-move.ts, the same split.
-      // 615 the same day: contracts/fileAttachment.ts (no imports) and attachedFileDownload.ts,
+      // 615 the same day: packages/daemon/src/fileAttachment.ts (no imports) and attachedFileDownload.ts,
       // which saves a file attached on the web next to the agent before its prompt is delivered.
       // 616 on 2026-11-20: subagentFinish.ts (node imports only), which marks a finished
       // Task subagent completed and reopens it when its transcript grows.

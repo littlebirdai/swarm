@@ -1,7 +1,7 @@
 // The hosted assistant's tables (plan pl-840, docs/architecture/hosted-assistant.md
 // "Data model"). Spliced into schema.ts as `...assistantTables` (the
 // capabilitiesSchema.ts pattern). The value lists live in the shared contract
-// (contracts/assistant), so the engine, the wallet and the clients spell every
+// (packages/hosted-assistant/src/assistant), so the engine, the wallet and the clients spell every
 // status, reason and plan the same way.
 import { defineTable } from "convex/server";
 import { v } from "convex/values";

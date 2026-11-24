@@ -1,7 +1,7 @@
 // How far a merged pull request or a commit on main has gone toward production
 // (docs/architecture/deploys.md DP16): per deploy target the change touches,
 // live, going out, failed, rolled back or waiting, read from the deploys the
-// target recorded. The rule is contracts/deployReach; this reads its inputs.
+// target recorded. The rule is packages/deploys/src/deployReach; this reads its inputs.
 
 import { v } from "convex/values";
 import { query } from "./functions";

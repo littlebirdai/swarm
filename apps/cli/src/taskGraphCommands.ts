@@ -61,8 +61,7 @@ export type GraphDeps = {
   >;
 };
 
-// ---------------------------------------------------------------------------
-// Blocker refs (TG3)
+// --- Blocker refs (TG3) ---------------------------------------------------
 
 /** A ref routed to its route: a task edge, a wait, or (removal only) a wait by id. */
 export type RoutedRef =

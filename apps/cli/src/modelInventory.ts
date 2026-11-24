@@ -1,5 +1,5 @@
 // Per-device model inventory for dynamic clients (opencode, pi) — see
-// DeviceModelInventory in @codecast/shared/contracts. Each client's own listing
+// DeviceModelInventory in @codecast/agent-clients/modelOptions. Each client's own listing
 // command is the honest source of what THIS machine can launch (its catalog
 // filtered by the API keys / logins present here), so the daemon collects it and
 // ships it on the heartbeat. The payload is a few hundred ids (~10KB), so it

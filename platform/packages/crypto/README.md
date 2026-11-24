@@ -100,7 +100,7 @@ package's test suite decrypts a ciphertext produced by the donor module, and
 asserts the derivation vectors the donor produces from a fixed seed. If a
 future edit breaks compatibility, those tests fail.
 
-`packages/shared/contracts/providerKeyCrypto.ts` stays in codecast. It is the
+`packages/provider-keys/src/providerKeyCrypto.ts` stays in codecast. It is the
 wire contract for one codecast feature, not a primitive: it names an HKDF info
 string of `codecast-provider-key-v1` and a payload shaped around codecast's
 daemon commands. An app that wants a sealed box over ECDH keeps its own such

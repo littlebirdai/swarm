@@ -1,5 +1,5 @@
 // Page state: the rows a published page reads and writes live (pageState.ts,
-// declared under "state" in cast-data.json; @codecast/shared/contracts/pageData).
+// declared under "state" in cast-data.json; @codecast/pages/pageData).
 
 import { defineTable } from "convex/server";
 import { v } from "convex/values";

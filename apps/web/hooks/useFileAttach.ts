@@ -1,6 +1,6 @@
 // Files attached in the web composer that are neither images nor screen
 // recordings. Each uploads to storage at once; the send carries one tag per
-// file (shared/contracts/fileAttachment), which the delivering daemon swaps
+// file (packages/daemon/src/fileAttachment), which the delivering daemon swaps
 // for the path it saved the file to on the session's machine.
 import { useCallback, useRef, useState } from "react";
 import { useConvex } from "convex/react";

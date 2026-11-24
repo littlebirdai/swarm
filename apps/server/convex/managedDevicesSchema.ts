@@ -2,7 +2,7 @@ import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
 /**
- * A team's managed policy (shared/contracts/managedPolicy.ts TeamPolicy), as
+ * A team's managed policy (packages/policy/src/managedPolicy.ts TeamPolicy), as
  * stored on teams.policy. Written only through parseTeamPolicy, so the stored
  * shape never holds a key the catalog does not know.
  */

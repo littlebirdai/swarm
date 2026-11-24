@@ -4,7 +4,7 @@
 //
 // One write path: applyBatchCore (lib/liveArtifactWrite.ts). It validates the
 // ops against the product's spec, folds each onto the element's stored row
-// with @codecast/shared's applyOp, stamps every element write with the next doc
+// with the artifact model's applyOp, stamps every element write with the next doc
 // revision, and logs the batch. Revisions are unique per doc, so a client's live tail is one
 // index range ("rows with rev > what I hold") and the first load is the same
 // query from 0. Every field converges on the server's arrival order.

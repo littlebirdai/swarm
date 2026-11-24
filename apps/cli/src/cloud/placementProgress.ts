@@ -1,6 +1,6 @@
 /**
  * The `cast cloud start` child's live report of where its placement stands
- * (contracts/cloudPlacementProgress), written onto the conversation so the
+ * (packages/cloud-hosts/src/cloudPlacementProgress), written onto the conversation so the
  * session's placement strip shows the host, the step and the log as they
  * happen. A step change is sent at once; log lines ride along, at most one
  * write per LINE_FLUSH_MS. A failed write is dropped: the report is for a

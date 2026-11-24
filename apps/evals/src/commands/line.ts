@@ -112,8 +112,7 @@ const tsFile = (p: string): string | undefined =>
  * exports every value it takes from it, and otherwise reads this checkout's
  * copy, so a helper the tool gained since the base cannot crash the base run
  * (today's `label` command reads orgReview's grade module, which older
- * commits lack parts of; today's index reads `@codecast/shared/contracts/
- * evalsApi`, which they lack whole). A package import is followed the way bun
+ * commits lack parts of; today's index reads `@codecast/evals-api/evalsApi`, which they lack whole). A package import is followed the way bun
  * resolves it in the tree, so it needs the tree's node_modules in place
  * (borrowNodeModules): an installed package is this checkout's install either
  * way and stays, a workspace package is the commit's copy and is held to the

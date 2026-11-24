@@ -52,7 +52,7 @@ function result(sessions: any[], counts: Record<string, number> = {}) {
 // word from its device was "I am working", with no heartbeat behind it now, is
 // unverifiable: its daemon stopped answering and nobody watched the agent end.
 // Printing it as an ordinary settled row is the rounding-down that
-// @codecast/shared/contracts liveness.ts exists to stop (ct-49557).
+// @codecast/sessions/liveness exists to stop (ct-49557).
 describe("formatMonitor marks unverifiable liveness", () => {
   const badgeLine = (s: Record<string, any>) =>
     strip(formatMonitor(result([session(s)]), { all: true }))

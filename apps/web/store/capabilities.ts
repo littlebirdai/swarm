@@ -57,11 +57,6 @@
 // does it in the reader, where nobody thinks to look.
 
 import { makeCollectionSig, rowSigExcluding } from "./wakeSig";
-// Type-only, and relative on purpose: `packages/shared/contracts/index.ts` does
-// not re-export `./capabilities` yet, and `@codecast/shared` publishes no
-// wildcard subpath, so the barrel spelling does not resolve today. The import is
-// erased at build time, so this costs nothing at runtime. Change the two words
-// to `@codecast/shared/contracts` the moment the barrel exports the module.
 import type {
   Capability,
   InstalledEntry,
@@ -640,12 +635,7 @@ export function parseCapabilityEntries(
  *
  * WHY THIS FOLD LOOKS LIKE THE SERVER'S
  *
- * `apps/cli/src/capabilities/fleetDiff.ts` is the canonical fleet fold, and
- * `foldFleet` in `apps/server/convex/capabilities.ts` is already a second
- * copy of it — with a note at the top saying the fix is to move `fleetDiff.ts`
- * into `packages/shared/contracts/` and delete the copy. This slice cannot
- * import either one today: the web package does not depend on the CLI package,
- * and the shared contracts barrel does not export the module yet.
+ * The canonical fleet fold is in `@codecast/capabilities/fleetDiff`.
  *
  * So every name and every rule below is deliberately the canonical one —
  * `capabilityIdentity`, `pinOf`, `modal`, the case-folded key, the four row

@@ -29,7 +29,7 @@ import {
 } from "@codecast/usage/usageLimits";
 import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 
-// The usage snapshot type and its predicates live in @codecast/shared/contracts
+// The usage snapshot type and its predicates live in @codecast/usage/usageLimits
 // (the CLI reads them too); re-exported here so existing web/convex imports keep
 // one path.
 export {

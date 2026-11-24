@@ -1,4 +1,4 @@
-// The device half of managed policy (shared/contracts/managedPolicy.ts): what
+// The device half of managed policy (packages/policy/src/managedPolicy.ts): what
 // an organization locks on this machine, from its MDM configuration profile and
 // from the team policy the daemon caches off the heartbeat (`team_policy` in
 // config.json). One resolver, so the config readers, the sync scope, the

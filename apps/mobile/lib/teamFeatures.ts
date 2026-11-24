@@ -1,5 +1,5 @@
 // Per-team opt-in features (chat, calls) on mobile. Same contract as web:
-// @codecast/shared/contracts/teamFeatures — a feature is off unless the team
+// @codecast/policy/teamFeatures — a feature is off unless the team
 // turned it on, and an off feature has no UI. Screens reached by deep link
 // (a channel, a thread) ask here before subscribing, because the server
 // refuses chat queries for an off team and a thrown query takes the screen

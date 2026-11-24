@@ -128,7 +128,7 @@ import {
   orgLogSubjectValidator,
 } from "./lib/orgLogValidators";
 
-// Derived from the single source of truth in @codecast/shared/contracts so the
+// Derived from the single source of truth in the workspace libraries so the
 // schema, validators, the CLI daemon, and the browser store can never drift.
 // Each accepts exactly the same set as the old hand-written unions.
 const agentStatusFieldValidator = v.union(
@@ -143,7 +143,7 @@ const taskStatusCategoryValidator = v.union(
 );
 // A team's editable task statuses (Linear-style): named statuses within the
 // six fixed categories, in display order. Absent = the shared defaults, one
-// per category. See @codecast/tasks/statuses.ts for the contract.
+// per category. See @codecast/tasks/statuses for the contract.
 const teamTaskStatusesValidator = v.array(
   v.object({
     id: v.string(),
@@ -482,7 +482,7 @@ export default defineSchema(
         }),
       ),
       // Settings → Agents "Claude sessions run in": the backend new Claude
-      // sessions start on. Unset = DEFAULT_CLAUDE_BACKEND (shared/contracts).
+      // sessions start on. Unset = DEFAULT_CLAUDE_BACKEND (@codecast/agent-clients/claudeBackend).
       // Mirrored into the daemon's config.claude_backend by the heartbeat.
       claude_backend: v.optional(v.union(v.literal("sdk"), v.literal("tmux"))),
       agent_default_params: v.optional(
@@ -578,7 +578,7 @@ export default defineSchema(
       // Opt-in features; default off. Enforced server-side at each feature's
       // access chokepoint (teamFeatures.requireTeamFeature), hidden client-side.
       features: v.optional(teamFeaturesValidator),
-      // Managed policy (shared/contracts/managedPolicy.ts), set by an admin in
+      // Managed policy (packages/policy/src/managedPolicy.ts), set by an admin in
       // Team settings > Managed devices. Enforced server side for the team's
       // workspace and for every device enrolled in the team (lib/teamPolicyGuard),
       // and sent to those devices on the heartbeat.
@@ -1236,7 +1236,7 @@ export default defineSchema(
       last_turn_by: v.optional(v.id("users")),
       is_subagent: v.optional(v.boolean()),
       // Started with nobody watching (`cast spawn --unattended`, a role's hand).
-      // Read through isUnattendedConversation (@codecast/shared), which also
+      // Read through isUnattendedConversation (@codecast/sessions/unattended), which also
       // counts workers, workflow stations, trigger runs and standing sessions.
       unattended: v.optional(v.boolean()),
       cli_flags: v.optional(v.string()),
@@ -1333,7 +1333,7 @@ export default defineSchema(
         v.union(v.literal("rebuild"), v.literal("brief")),
       ),
       // A hosted assistant conversation whose last turn ended on a stop notice:
-      // the notice's kind (NOTICE_KINDS in contracts/assistant). Written by
+      // the notice's kind (NOTICE_KINDS in packages/hosted-assistant/src/assistant). Written by
       // assistant/turns.ts tellStopped and cleared when the next turn starts,
       // so the inbox files a failed turn under "Couldn't finish" from the row
       // alone, without its transcript loaded.
@@ -1377,7 +1377,7 @@ export default defineSchema(
         }),
       ),
       // Where the placement stands while the laptop's child prepares the host:
-      // the host, the step and its log lines (contracts/cloudPlacementProgress).
+      // the host, the step and its log lines (packages/cloud-hosts/src/cloudPlacementProgress).
       // Kept after a failure (failed_at) so the strip names the step that broke;
       // cleared by placeConversation and by a fresh park.
       cloud_placement_progress: v.optional(cloudPlacementProgressValidator),
@@ -1397,7 +1397,7 @@ export default defineSchema(
       // The host main checkout a SHARED row has claimed (cloud.claimSharedCheckout,
       // or the parked insert of `cast spawn --shared`), kept through placement.
       // The occupancy key: one checkout holds one alive shared row
-      // (@codecast/shared sharedCheckoutOccupant).
+      // (@codecast/cloud-hosts/cloudWorkspace sharedCheckoutOccupant).
       cloud_checkout_path: v.optional(v.string()),
       // The launch choice for an isolated cloud worktree: the preparing laptop's
       // checkout (absent = checkout; its branch, HEAD and uncommitted changes)
@@ -4313,7 +4313,7 @@ export default defineSchema(
       // armed by an earlier one, which died with it and are never notified.
       agent_started_at: v.optional(v.number()),
       // The background work the harness still holds for this session, as the
-      // daemon last verified it (shared/contracts/openTasks). Reported with every
+      // daemon last verified it (packages/sessions/src/openTasks). Reported with every
       // settle verdict and refreshed by the heartbeat reconcile while the session
       // is parked; `open_tasks_at` is when. Drives the inbox's "↳ Background …"
       // row without the conversation's messages, and vouches for a "waiting"
@@ -5455,7 +5455,7 @@ export default defineSchema(
       .index("by_user_day", ["user_id", "day_start"])
       .index("by_user_team_day", ["user_id", "team_id", "day_start"]),
 
-    // A person's week with coding agents (shared contracts/weeklyCard): one row
+    // A person's week with coding agents (@codecast/usage/weeklyCard): one row
     // per (user, local Monday). `stats` is built by weeklyCards.generate and
     // never holds a title, prompt, path or teammate; project names ride in it
     // but reach the public page only with show_projects. share_token is the
@@ -5610,7 +5610,7 @@ export default defineSchema(
       themes: v.array(v.string()),
       confidence: v.optional(v.number()),
       // Where the human redirected the agent, and the choices the session took:
-      // the raw material project_memory consolidates (shared/contracts/projectMemory).
+      // the raw material project memory consolidates.
       corrections: v.optional(
         v.array(v.object({ said: v.string(), instead: v.string() })),
       ),
@@ -6242,8 +6242,8 @@ export default defineSchema(
       // delete as the daemon read the disk when the prompt opened.
       intent: v.optional(v.string()),
       removals: v.optional(v.array(permissionRemovalValidator)),
-      // What the call asks for in codecast's own rule terms (shared/contracts
-      // permissionRules.ts): the permission, the patterns it touches, and the
+      // What the call asks for in codecast's own rule terms
+      // (@codecast/policy/permissionRules): the permission, the patterns it touches, and the
       // rules "always" would keep. An answer re-checks the session's other
       // pending rows against the rules it saved.
       rule_request: v.optional(ruleRequestValidator),
@@ -6398,7 +6398,7 @@ export default defineSchema(
       trial: v.optional(v.boolean()),
       default_option: v.optional(v.number()),
       // How much getting it answered matters, 1-5, as the asker judged it, and
-      // its one-line why (shared/contracts/decisionImpact.ts). Orders the lists
+      // its one-line why (packages/decisions/src/decisionImpact.ts). Orders the lists
       // inside the blocking tiers; unset counts as the middle.
       impact: v.optional(v.number()),
       impact_reason: v.optional(v.string()),
@@ -7068,7 +7068,7 @@ export default defineSchema(
       // trigger; anything else records a skipped run and spends no session.
       // Event triggers ignore it — the webhook already IS the evidence.
       precheck: v.optional(v.string()),
-      // How the precheck is read (contracts/triggerPrecheck TriggerPrecheckMode):
+      // How the precheck is read (packages/triggers/src/triggerPrecheck TriggerPrecheckMode):
       // absent is by exit code; `changes` wakes when its stdout changed since the
       // last firing; `state` reads a {wake, state, message} verdict it prints.
       precheck_mode: v.optional(
@@ -9892,7 +9892,7 @@ export default defineSchema(
     ...callTables,
 
     // A repository's own flows (`.codecast/flows`), as the viewer's checkouts of
-    // it report them (repoFlows.ts, shared/contracts/repoFlows.ts): the flows
+    // it report them (repoFlows.ts, packages/flows/src/repoFlows.ts): the flows
     // `cast flow run` takes there ahead of the shipped and published ones. One
     // row per person and checkout (`root`, its git top level): a repository's
     // worktrees hold different flows. The owner alone reads it. `flows` holds

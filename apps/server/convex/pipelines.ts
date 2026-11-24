@@ -165,7 +165,7 @@ const rowOut = (r: Doc<"pipelines">) => ({
   release: r.release,
 });
 
-/** A team's pipelines, one per repository, as contracts/pipeline Pipeline rows. */
+/** A team's pipelines, one per repository, as packages/deploys/src/pipeline Pipeline rows. */
 export const forTeam = query({
   args: {
     api_token: v.optional(v.string()),

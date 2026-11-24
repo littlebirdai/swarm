@@ -1,6 +1,6 @@
 /**
  * The web page that explains `cast browser` / `cast computer` and walks a
- * person through their setup (contracts/agentToolSetup.ts agentSetupPagePath).
+ * person through their setup (packages/capabilities/src/agentToolSetup.ts agentSetupPagePath).
  * The link names this machine, so a signed-in page shows where setup stands
  * here and starts each step here.
  */

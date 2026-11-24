@@ -54,7 +54,7 @@ export const mainRedPayloadValidator = v.object({
 
 export const deployTables = {
   // One repository's deploy targets as its checkout declares them
-  // (contracts/deployTargets), published from the machine that holds the
+  // (packages/deploys/src/deployTargets), published from the machine that holds the
   // checkout, which is where a target that runs `here` is sent from.
   deploy_targets: defineTable({
     workspace: v.string(),

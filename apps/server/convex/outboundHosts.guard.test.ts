@@ -9,7 +9,7 @@ import { VENDORS, type Vendor } from "@codecast/policy/vendorCoverage";
 // fetches to a literal https host and fails on one not listed here. A host
 // joins the list with what it receives; a vendor that sees content needs a BAA
 // first (task ct-87100), and names its vendor in the same union as
-// BAA_COVERED_VENDORS (contracts/vendorCoverage), so the two lists stay in
+// BAA_COVERED_VENDORS (packages/policy/src/vendorCoverage), so the two lists stay in
 // step. Fetches to a computed URL (connectors reading a
 // team's own sources, presigned storage URLs) are out of this test's reach.
 const ALLOWED: Record<string, { vendor: Vendor; receives: string }> = {

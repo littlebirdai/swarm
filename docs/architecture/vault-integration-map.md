@@ -157,7 +157,7 @@ decryptRefreshToken(enc: string, secret: string, info: string = REFRESH_TOKEN_HK
 
 **Device sealing (ECDH), web side**
 
-- `web/lib/providerKeyCrypto.ts:36-63`: `encryptProviderKey(devicePublicKeyB64, provider, apiKey)` makes an ephemeral P-256 key, derives an AES-256-GCM key with HKDF, and returns `{provider, epk, iv, ct}`. Parameters are shared via `@codecast/shared/contracts` (`PROVIDER_KEY_HKDF_INFO`).
+- `web/lib/providerKeyCrypto.ts:36-63`: `encryptProviderKey(devicePublicKeyB64, provider, apiKey)` makes an ephemeral P-256 key, derives an AES-256-GCM key with HKDF, and returns `{provider, epk, iv, ct}`. Parameters are shared via `@codecast/provider-keys/providerKeyCrypto` (`PROVIDER_KEY_HKDF_INFO`).
 - Callers:
   - `web/lib/useProviderKeyCommand.ts:46-59`: `setKey` seals, then calls store `setProviderKey`.
   - `web/hooks/useTemplateHire.ts:75-78`: `sealSecret` for template secret inputs.
@@ -289,7 +289,7 @@ File: `cli/src/browser/credentials.ts` (rationale in the header at :1-39).
 
 **Team gating**
 
-- `shared/contracts/teamFeatures.ts:36-50`: `TEAM_FEATURES[].snippets`, e.g. chat gates `["chat"]`.
+- `packages/policy/src/teamFeatures.ts:36-50`: `TEAM_FEATURES[].snippets`, e.g. chat gates `["chat"]`.
 - Server: `convex/convex/lib/teamFeatureGuard.ts:109` `gatedSnippetAvailability()`, sent in the heartbeat response (`users.ts:812`).
 - Daemon: `cli/src/gatedSnippets.ts` `planGatedSnippets(prev, avail, config)` is pure. `daemon.ts:5561-5575` `reconcileGatedSnippets` runs `cast install` or `--disable` only when availability changes.
 
@@ -332,9 +332,8 @@ One dynamic route, `mobile/app/settings/[section].tsx`, renders `SETTINGS_PAGES[
 
 ## Constraints added after the first waves (2026-10-22)
 
-- Import Vault contracts from `@codecast/secrets/secrets`, never the
-  `@codecast/shared/contracts` barrel: the barrel no longer re-exports them,
-  so secrets.ts stays off the CLI's and the daemon's boot graphs.
+- Import Vault contracts from `@codecast/secrets/secrets` in the code that uses them.
+  Keep that module off the CLI and daemon startup graphs.
 - `formatVaultReady` takes `vars: string[]` (the caller passes
   `envFor(row).map((b) => b.var)`); machineMessages imports no runtime code
   from secrets.

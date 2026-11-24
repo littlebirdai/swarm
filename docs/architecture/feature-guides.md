@@ -16,7 +16,7 @@ not turned on, and how a feature guide is built. Sections are FG1 onward.
 
 ## FG2. On, offer, off
 
-`workspaceFeatureState` (`shared/contracts/teamFeatures.ts`) reads a feature
+`workspaceFeatureState` (`packages/policy/src/teamFeatures.ts`) reads a feature
 in a workspace as one of three:
 
 - **on**: the feature shows.

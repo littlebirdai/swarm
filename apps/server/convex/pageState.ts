@@ -1,6 +1,6 @@
 // Page state: collections a published page reads and writes, live. A page
 // declares them under "state" in cast-data.json (the shared contract in
-// @codecast/shared/contracts/pageData); a publish stores the declaration on
+// @codecast/pages/pageData); a publish stores the declaration on
 // page_state_config (pageData.applySet), and the rows live in page_state.
 //
 // The page's runtime (lib/castData.ts) subscribes to `list` and `get` over

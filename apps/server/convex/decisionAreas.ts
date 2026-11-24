@@ -1,4 +1,4 @@
-// Who decides for which areas (contracts/decisionAreas). Each member of a
+// Who decides for which areas (packages/decisions/src/decisionAreas). Each member of a
 // team has takes-decisions and the projects they decide for, on
 // team_memberships; decisionRouting.ts shares decisions out by them.
 //

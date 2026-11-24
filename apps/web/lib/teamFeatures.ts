@@ -5,7 +5,7 @@
  * OFF unless the ACTIVE team turned it on, and an off feature has no UI at
  * all — no nav row, no palette entry, no shortcut, no dock. The server
  * enforces the same flag at each feature's access chokepoint; this hook only
- * decides what to render. Contract: @codecast/shared/contracts/teamFeatures.
+ * decides what to render. Contract: @codecast/policy/teamFeatures.
  *
  * The resolver comes from @platform/flags, so the web, mobile, the CLI and the
  * Convex guard all read a stored bag by the same rule. The package's hook

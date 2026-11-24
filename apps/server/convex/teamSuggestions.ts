@@ -386,7 +386,7 @@ export async function openAsk(
   return null;
 }
 
-// shared/render toolKinds ASK_TOOL_IDS: the question tool in every harness.
+// @codecast/render/toolKinds ASK_TOOL_IDS: the question tool in every harness.
 const ASK_TOOLS = new Set(["AskUserQuestion", "ask_user_question"]);
 
 const optionLabel = (label: string | undefined) =>

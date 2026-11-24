@@ -516,7 +516,7 @@ const LOCAL_KINDS = new Set([
 ]);
 
 /**
- * A checkout's worktrees row (@codecast/shared/contracts worktrees.ts). Every
+ * A checkout's worktrees row (@codecast/machines/worktrees). Every
  * other kind is a fact about the repository, so checkouts agree and share one
  * row. This one is a fact about a machine, so the server keys it: `ref` is the
  * publisher and `path` the checkout root, and two checkouts never overwrite

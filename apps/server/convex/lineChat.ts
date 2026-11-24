@@ -7,7 +7,7 @@
 // was killed gets a successor at the next message.
 //
 // A person's words travel the ordinary pending message rail in a <line-chat>
-// frame (shared contracts/lineChat). The first message an answering session
+// frame (@codecast/line/lineChat). The first message an answering session
 // receives from a chat carries the brief: what the line is, where its record
 // lives, and the `line` fence a reply draws widgets with. The asks are kept
 // on the person's row (line_chats); each reply is the last thing the answering

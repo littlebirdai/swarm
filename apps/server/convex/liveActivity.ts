@@ -9,7 +9,7 @@
 // notifications.deriveConversationVerdict, so the phone can never file a
 // session differently from the web — and pushes it whenever the picture
 // changes. The wire shape and the merge itself are the shared contract
-// (@codecast/shared/contracts/liveActivity).
+// (@codecast/sessions/liveActivity).
 //
 // How a picture reaches the phone is one decision (resolveLiveActivityPush,
 // pure and tested): START through the push-to-start token when nothing runs

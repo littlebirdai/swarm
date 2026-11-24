@@ -48,7 +48,7 @@ typed entries (`{kind: "task", ref}` or the wait itself). Readiness, the
 CLI's "blocked by" lines, the row tooltip and the task page all render from
 that one list; `blockerEntriesOf` is the whole Blocked by, cleared and
 missing entries included, for a surface that lists history. A plan's tasks
-are judged together by `planVerdicts` (`@codecast/tasks/planVerdicts.ts`),
+are judged together by `planVerdicts` (`@codecast/tasks/planVerdicts`),
 which the CLI's plan commands and the plan's fenced task list share.
 
 "Ready" in the CLI matches `cast task ready`. The web says **unblocked**,

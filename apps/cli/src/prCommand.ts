@@ -8,8 +8,8 @@
 // Every subcommand takes the same reference: a number, an owner and name with a
 // number, a GitHub or codecast URL, or nothing at all. Nothing means "the PR
 // this session is bound to", and failing that "the PR for the branch I am
-// standing on". The parsing is shared with the server (@codecast/shared
-// prRefs); the resolution is the server's, so one rule decides what a bare 123
+// standing on". The parsing is shared with the server
+// (@codecast/pull-requests/prRefs); the resolution is the server's, so one rule decides what a bare 123
 // means no matter who asks.
 //
 // Same deps pattern as stateCommand.ts / publish.ts: index.ts hands in config

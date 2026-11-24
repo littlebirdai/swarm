@@ -1,6 +1,6 @@
 // The event filter `cast trigger add --on` and `cast trigger update --on` arm,
 // built from the flag and its narrowing flags (--repo, --pr, --source). The
-// `--on <event>` vocabulary lives in @codecast/shared/contracts so the CLI and
+// `--on <event>` vocabulary lives in @codecast/triggers/triggerEvents so the CLI and
 // the web trigger pages cannot drift apart; `cast trigger add -h` generates its
 // list from it.
 //

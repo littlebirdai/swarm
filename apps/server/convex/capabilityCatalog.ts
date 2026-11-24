@@ -311,7 +311,7 @@ const MAX_REGISTRY_PAGES = 10;
 /**
  * Walk the MCP registry and upsert every browsable server into the catalog.
  *
- * Uses the SAME parser the CLI uses (shared/contracts/mcpRegistry) — the file
+ * Uses the SAME parser the CLI uses (packages/capabilities/src/mcpRegistry) — the file
  * split that made this possible was planned in that module's header. Total by
  * construction: a slow or malformed registry yields fewer entries and a
  * logged reason, never a thrown crawl that leaves the cache half-written.

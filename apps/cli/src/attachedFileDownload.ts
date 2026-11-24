@@ -6,7 +6,7 @@ import {
 
 export const ATTACHED_FILES_DIR = "/tmp/codecast/files";
 
-/** A file attached in the web composer (shared/contracts/fileAttachment),
+/** A file attached in the web composer (packages/daemon/src/fileAttachment),
  *  saved under its own name in a folder per upload so the agent sees the name
  *  the person picked. Null when the server reports it gone; a failed fetch
  *  throws so delivery re-pends rather than sending the text without it. */

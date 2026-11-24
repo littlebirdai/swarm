@@ -1,6 +1,6 @@
 // The web adapter around the shared fleet diff.
 //
-// `contracts/fleetDiff.test.ts` already proves the fold, the pin-kind
+// `packages/capabilities/src/fleetDiff.test.ts` already proves the fold, the pin-kind
 // discipline and the verdicts. NONE of it touches this file: the adapter is a
 // separate module with its own inputs (`CapabilityDevice` plus a per-device
 // report map, not `DeviceReport[]`), and every bug this suite is here for lived

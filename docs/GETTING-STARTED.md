@@ -6,17 +6,17 @@ A CLI daemon watches the history files coding agents write (Claude Code, Codex, 
 
 ![Local development: dev.sh runs Vite and the gated Convex pusher, cast start runs the daemon, and both talk to the Convex deployment named in apps/server/.env.local](diagrams/dev-setup.svg)
 
-| Package                  | What it does                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| `apps/cli`               | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages     |
-| `apps/server`            | Backend: schema, queries, mutations, auth, HTTP routes                         |
-| `apps/web`               | React + Vite web app                                                           |
-| `packages/shared`        | Contracts and utilities shared by every package (agent registry, render, diff) |
-| `apps/desktop`           | Desktop app (Electron wrapper around the web app)                              |
-| `apps/mobile`            | iOS app (Expo / React Native)                                                  |
-| `apps/browser-extension` | Chrome extension behind `cast browser`                                         |
-| `apps/vscode-extension`  | VS Code / Cursor extension for `cast blame`                                    |
-| `apps/evals`             | Prompt evals against frozen moments (`./evals`)                                |
+| Package                  | What it does                                                               |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `apps/cli`               | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages |
+| `apps/server`            | Backend: schema, queries, mutations, auth, HTTP routes                     |
+| `apps/web`               | React + Vite web app                                                       |
+| `packages/*`             | Workspace libraries for contracts, rendering, and utilities                |
+| `apps/desktop`           | Desktop app (Electron wrapper around the web app)                          |
+| `apps/mobile`            | iOS app (Expo / React Native)                                              |
+| `apps/browser-extension` | Chrome extension behind `cast browser`                                     |
+| `apps/vscode-extension`  | VS Code / Cursor extension for `cast blame`                                |
+| `apps/evals`             | Prompt evals against frozen moments (`./evals`)                            |
 
 ---
 
@@ -222,7 +222,7 @@ Install [Codecast for Chrome](https://chromewebstore.google.com/detail/codecast/
 
 `as-user` mints a real token pair through `apps/server/run.sh verification:mintSession` (admin key, so only from the codecast checkout), parks every app window on a blank page, swaps the pair into localStorage and reloads. Parking matters: any live document on the origin holds an auth client that rotates a fresh refresh token the moment it sees it, and the reloaded page then boots signed out. The identity that was there is saved on the page; `as-user --restore` puts it back. It never changes the signed-in account in your own Chrome; use `--desktop` for an authorized account change in the desktop app. The user must own this machine's daemon for daemon-backed surfaces (terminal, vault, device commands) to read as online; doctor says when they do not.
 
-The surface list lives in `@codecast/shared/contracts/appSurfaces.ts`. A test in `routes.manifest.test.ts` fails when a param-free signed-in route is missing from it, or when it names a route the router no longer serves.
+The surface list lives in `@codecast/entities/appSurfaces`. A test in `routes.manifest.test.ts` fails when a param-free signed-in route is missing from it, or when it names a route the router no longer serves.
 
 ### Convex test scripts
 

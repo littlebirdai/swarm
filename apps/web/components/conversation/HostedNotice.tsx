@@ -1,5 +1,5 @@
 // Why a hosted turn stopped short of an answer (plan pl-840): the engine's
-// typed notice (NOTICE_KINDS in contracts/assistant) drawn as one calm block
+// typed notice (NOTICE_KINDS in packages/hosted-assistant/src/assistant) drawn as one calm block
 // with the one thing the person can do about it. The sentence is the
 // engine's own; the action comes from its kind. Only the conversation's last
 // notice offers an action: once anything follows it, the moment has passed.

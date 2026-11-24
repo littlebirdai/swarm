@@ -23,7 +23,7 @@
 //           worth reading, but it is never urgent.
 //
 // WITHIN a tier: HIGHEST IMPACT, then OLDEST. Impact is the 1-5 score the
-// asking agent gave (`cast decide --impact`, shared/contracts/decisionImpact.ts),
+// asking agent gave (`cast decide --impact`, packages/decisions/src/decisionImpact.ts),
 // with its one-line why on the card so the order explains itself; a row with
 // no score (an AskUserQuestion, a permission, an unscored ask) counts as 3.
 // The tiers stay above it: an agent parked on you is idle machine time

@@ -45,7 +45,7 @@ export const ownerId = (owner: InitiativeOwner | undefined): string | null =>
   !owner ? null : owner.kind === "role" ? owner.role_id : owner.user_id;
 
 /** Tasks done over tasks in the initiative's projects, counting exactly the
- *  rows those projects' boards would show (@codecast/shared/tasks
+ *  rows those projects' boards would show (@codecast/tasks
  *  projectTaskCounts): the one rule the page, the list, the owner's opening
  *  line, the server and the CLI all read, so the number a person is promised
  *  is the number the board shows when they click through. */

@@ -511,7 +511,7 @@ export function isWatchHostDead(
 
 // ---- The daemon's report, merged with the message-derived rows -------------
 // The daemon publishes the open tasks it VERIFIED (matched to a live child
-// shell of the agent — see shared/contracts/openTasks) as `open_tasks`, stamped
+// shell of the agent — see packages/sessions/src/openTasks) as `open_tasks`, stamped
 // `open_tasks_at`. Two things it gives a surface that the messages cannot:
 //   - rows for a conversation whose messages are not loaded (a Dormant card
 //     the user never opened, or whose arming turn fell out of the warm window)

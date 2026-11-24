@@ -334,7 +334,7 @@ export const HEARTBEAT_ALIVE_MS =
 // `verifiedWaiting`: the daemon has CHECKED the open background work behind a
 // "waiting" — matched each task to a live child shell of the agent process and
 // re-reported it recently (open_tasks / open_tasks_at on the managed row, see
-// shared/contracts/openTasks). A checked "waiting" is not a transcript guess, so
+// packages/sessions/src/openTasks). A checked "waiting" is not a transcript guess, so
 // it skips the quiet-time decay like a declared verdict: a poll on a five-hour
 // build stays parked with its bar instead of resurfacing at the hour. The
 // dead-daemon leg still applies — nobody is watching the shell any more.

@@ -50,17 +50,17 @@ Without either, use `http://localhost:3200`.
 
 Codecast is a Bun monorepo with these packages:
 
-| Package                  | Description                                                                                |
-| ------------------------ | ------------------------------------------------------------------------------------------ |
-| `apps/cli`               | `cast` CLI and daemon that watches coding sessions and syncs to Convex                     |
-| `apps/server`            | Convex backend: schema, queries, mutations, auth                                           |
-| `apps/web`               | React + Vite web app                                                                       |
-| `apps/desktop`           | Electron desktop app                                                                       |
-| `apps/mobile`            | Expo/React Native iOS app                                                                  |
-| `packages/shared`        | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
-| `apps/browser-extension` | Chrome extension behind `cast browser`                                                     |
-| `apps/vscode-extension`  | VS Code / Cursor extension for `cast blame`                                                |
-| `apps/evals`             | Prompt evals against frozen moments                                                        |
+| Package                  | Description                                                            |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `apps/cli`               | `cast` CLI and daemon that watches coding sessions and syncs to Convex |
+| `apps/server`            | Convex backend: schema, queries, mutations, auth                       |
+| `apps/web`               | React + Vite web app                                                   |
+| `apps/desktop`           | Electron desktop app                                                   |
+| `apps/mobile`            | Expo/React Native iOS app                                              |
+| `packages/*`             | Workspace libraries for contracts, rendering, and utilities            |
+| `apps/browser-extension` | Chrome extension behind `cast browser`                                 |
+| `apps/vscode-extension`  | VS Code / Cursor extension for `cast blame`                            |
+| `apps/evals`             | Prompt evals against frozen moments                                    |
 
 `platform/packages/` is a generated mirror of shared `@platform/*` packages. Never edit it by hand; see [AGENTS.md](AGENTS.md).
 

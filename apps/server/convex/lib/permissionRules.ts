@@ -1,5 +1,4 @@
-// The server half of codecast's permission rules (shared/contracts
-// permissionRules.ts has the parsing and matching). A rule belongs to the
+// The server half of codecast's permission rules (@codecast/policy/permissionRules has the parsing and matching). A rule belongs to the
 // person whose sessions it settles, and applies inside one project (the
 // repository, so its worktrees and clones share it) and one workspace (the
 // team the session works in, or the person's own: a rule kept in a team's

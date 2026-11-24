@@ -731,7 +731,7 @@ export function pendingEdits(
 }
 
 /** The repo's checkout on the machine that publishes its pipeline, and the last changes on its default branch with
- *  their files (contracts/pipeline `root`, `recent`). Rows published before them read no checkout and no changes. */
+ *  their files (packages/deploys/src/pipeline `root`, `recent`). Rows published before them read no checkout and no changes. */
 export function pipelineCheckout(p: Pipeline): {
   root: string | null;
   device: string | null;

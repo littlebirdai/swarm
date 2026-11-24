@@ -1,6 +1,6 @@
 // Settings > Agents > New sessions: where and how a new session starts when
 // the person has not said otherwise in the composer. Each value is a stamped
-// client_state.ui key (@codecast/shared/contracts newSessionDefaults), so it
+// client_state.ui key (@codecast/sessions/newSessionDefaults), so it
 // follows them to every device; "Last used" clears it.
 import { Bot, FolderGit2, Monitor, Sparkles } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";

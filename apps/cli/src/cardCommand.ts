@@ -7,7 +7,7 @@
 // card.json beside card.html, and with --publish publishes the page through
 // the same path as `cast publish --task`, so it lands on the task as evidence.
 //
-// The assembly, validation and rendering live in @codecast/shared so a
+// The assembly, validation and rendering live in @codecast/line so a
 // workflow node and the web build the same card.
 import * as fs from "fs";
 import * as path from "path";

@@ -17,7 +17,7 @@ type Grant = {
   expires_at?: number;
 };
 
-/** The role's line changes as regret.md R3 counts them (contracts/regretRates roleLineRate). */
+/** The role's line changes as regret.md R3 counts them (packages/line/src/regretRates roleLineRate). */
 export type MeasuredRate = {
   settled: number;
   regretted: number;

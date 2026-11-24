@@ -2,7 +2,7 @@
 // FL6): the flows the CLI ships (a generated snapshot, shippedFlows.generated.ts)
 // and the workflows pushed to the store (the viewer's own, and the flows
 // teammates published to the workspace's pool, workflows.webPool). Each reads through the one fold
-// (shared/contracts/flowPool.ts) the CLI's `cast flow ls` uses, so both say
+// (packages/flows/src/flowPool.ts) the CLI's `cast flow ls` uses, so both say
 // the same stations in the same order. Pure: no store, no React.
 import {
   flowBase,

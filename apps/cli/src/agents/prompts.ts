@@ -4,7 +4,7 @@
  * Every field a plan or task carries was written by a person, and for a task
  * imported from GitHub or Linear that person is anyone who can open an issue.
  * These builders hand that text to a spawned agent, so it goes through the one
- * fence (@codecast/shared): the plan as reference, the task as the assignment,
+ * fence (@codecast/fence/fence): the plan as reference, the task as the assignment,
  * and every title escaped where it sits on a line of ours (ct-49593).
  */
 import { inlineForeignText } from "@codecast/fence/fence";

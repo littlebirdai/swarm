@@ -11,7 +11,7 @@
 //
 //   <room>                 the LiveKit room name. A huddle's is its room key,
 //                          e.g. session:<conversationId>, dm:<userA>,<userB> or
-//                          channel:<channelId> (packages/shared/contracts/
+//                          channel:<channelId> (packages/calls/src/
 //                          callRoomKeys.ts). Any other name is a scratch room
 //                          nobody's app will show, which is what a smoke test
 //                          wants.

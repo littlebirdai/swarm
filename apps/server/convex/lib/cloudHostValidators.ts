@@ -1,6 +1,6 @@
 /**
  * Validators for a cloud host's readiness, its laptop's report, and a
- * session's live mirror (contracts/cloudHostReport.ts, localMirror.ts). A
+ * session's live mirror (packages/cloud-hosts/src/cloudHostReport.ts, localMirror.ts). A
  * leaf: schema.ts, the heartbeat (users.ts) and cloud.ts all import it, and
  * it imports nothing of theirs.
  */
@@ -17,7 +17,7 @@ import {
 } from "@codecast/cloud-hosts/localMirror";
 
 // A cloud host's own readiness (its heartbeat) and its managing laptop's report
-// (AWS state, cost, images, held logins, last action): contracts/cloudHostReport.ts.
+// (AWS state, cost, images, held logins, last action): packages/cloud-hosts/src/cloudHostReport.ts.
 export const hostReadinessValidator = v.object({
   mirror: v.optional(
     v.object({
@@ -99,7 +99,7 @@ export const cloudHostReportValidator = v.object({
   at: v.number(),
 });
 
-// Autoscale set on a template host (contracts/cloudHostReport.ts CloudAutoscale).
+// Autoscale set on a template host (packages/cloud-hosts/src/cloudHostReport.ts CloudAutoscale).
 export const cloudAutoscaleValidator = v.object({
   enabled: v.boolean(),
   max_extra: v.number(),
@@ -138,7 +138,7 @@ export const localMirrorValidator = v.object({
   at: v.number(),
 });
 
-// Where a cloud placement stands (contracts/cloudPlacementProgress.ts),
+// Where a cloud placement stands (packages/cloud-hosts/src/cloudPlacementProgress.ts),
 // written by the preparing laptop's child onto the conversation.
 export const cloudPlacementStepValidator = v.union(
   ...CLOUD_PLACEMENT_STEPS.map((s) => v.literal(s)),
