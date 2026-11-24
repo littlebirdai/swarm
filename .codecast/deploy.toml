@@ -27,10 +27,13 @@
 # These live apart from workspace.toml because every released CLI validates that
 # file strictly and refuses keys it does not know.
 
+# Swarm's backend deploys separately (scripts/deploy-backend.sh) and no ship sends
+# it; Codecast's deploy.sh named here refuses in Swarm and says so.
 [[target]]
 name = "backend"
-ship = "convex"
-live = "marker"                       # deploy.sh and the ship record each deploy
+when = ["packages/convex/**", "packages/shared/**", "platform/**"]
+run = "packages/convex/deploy.sh --typecheck=disable"
+live = "marker"                       # deploy.sh records each deploy
 policy = "release"
 
 # Railway builds every push to main and posts a commit status per deploy.

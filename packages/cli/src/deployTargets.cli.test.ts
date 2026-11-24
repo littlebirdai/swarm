@@ -84,11 +84,11 @@ describe("targets in .codecast/deploy.toml", () => {
     expect(() => parseManifestText(`[ship]\n[[ship.deploy]]\nrun = "a"\nstage = "press"\n`)).toThrow(/stage/);
   });
 
-  test("codecast's own files declare its five targets, and a ship sends only the backend", () => {
+  test("this checkout's files declare its five targets, and a ship sends none of them", () => {
     const m = parseManifest(path.join(REPO, ".codecast/workspace.toml"))!;
     const targets = readDeployTargets(REPO, m.ship!.deploy);
     expect(targets.map((t) => t.name)).toEqual(["backend", "web", "cli", "mobile", "desktop"]);
-    expect(deploysFor(shipSpec(REPO).deploy, ["packages/cli/src/index.ts", "packages/mobile/app.tsx", "packages/convex/convex/x.ts"]).map((s) => [s.name, s.target ?? null])).toEqual([["convex", "backend"]]);
+    expect(deploysFor(shipSpec(REPO).deploy, ["packages/cli/src/index.ts", "packages/mobile/app.tsx", "packages/convex/convex/x.ts"]).map((s) => [s.name, s.target ?? null])).toEqual([]);
   });
 });
 
