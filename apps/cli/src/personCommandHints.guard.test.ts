@@ -9,6 +9,10 @@ import * as path from "node:path";
 // fails on that wording in agent-facing source.
 
 const ROOT = path.resolve(import.meta.dir, "../../..");
+const PACKAGE_SOURCES = fs
+  .readdirSync(path.join(ROOT, "packages"))
+  .map((name) => `packages/${name}/src`)
+  .filter((dir) => fs.existsSync(path.join(ROOT, dir)));
 const SCANNED = [
   "apps/cli/src",
   "packages/machines/src",
@@ -20,6 +24,7 @@ const SCANNED = [
   "packages/entities/src",
   "packages/ingest/src",
   "packages/shared/contracts",
+  ...PACKAGE_SOURCES,
   "apps/server/convex",
 ];
 
