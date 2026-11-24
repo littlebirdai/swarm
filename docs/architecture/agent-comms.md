@@ -10,11 +10,11 @@ The org does three jobs for communication, and none is routing every message.
 - **A person is asked only for what a person must give.** That is intent the record does not settle, something that cannot be undone, or what a written rule reserves. A fact is verified, and the rest is done and reported. A request that runs against a written rule or another person's recorded decision goes back to the person who asked, with what stands in the way.
 - **Leads synthesize by reading.** Inside an area, sessions write progress, findings and blockers where their lead reads them (the task, the pinned state). The lead reads the whole area each time it runs and sends each session only what changes its next step. Anything that involves a session outside the area goes straight to that session or its area's owner. A conflict with another area starts with that owner and goes up only when the two cannot settle it.
 
-The wording is `ORG_CONTEXT_GUIDANCE` (`packages/shared/contracts/orgWhere.ts`), injected at session start inside `<org-context>` and printed by `cast org where`. A lead's routine (`ROLE_CHECK_PROMPT`, `convex/lib/orgRoutine.ts`) carries the synthesis duty on every run; `armRoleRoutines` brings hired roles up to a changed prompt.
+The wording is `ORG_CONTEXT_GUIDANCE` (`packages/messages/src/orgWhere.ts`), injected at session start inside `<org-context>` and printed by `cast org where`. A lead's routine (`ROLE_CHECK_PROMPT`, `convex/lib/orgRoutine.ts`) carries the synthesis duty on every run; `armRoleRoutines` brings hired roles up to a changed prompt.
 
 ### Messaging policies
 
-A messaging policy is one named unit: the guidance an agent is told and the delivery that carries findings (`MESSAGING_POLICIES`, `packages/shared/contracts/messagingPolicy.ts`). There are two.
+A messaging policy is one named unit: the guidance an agent is told and the delivery that carries findings (`MESSAGING_POLICIES`, `packages/messages/src/messagingPolicy.ts`). There are two.
 
 | Policy           | Guidance                                                        | Delivery                                                                 |
 | ---------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |

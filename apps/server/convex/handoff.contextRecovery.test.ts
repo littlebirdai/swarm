@@ -14,7 +14,7 @@ import {
   composeContextRecoveryPrompt,
   CONTEXT_RECOVERY_COOLDOWN_MS,
   CONTEXT_RECOVERY_DELAY_MS,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/handoffPrompt";
 
 const USER = "users_owner";
 const CONV = "conversations_full";

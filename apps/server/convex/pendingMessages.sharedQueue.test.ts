@@ -11,7 +11,7 @@ import { queueAtBefore } from "./lib/sessionQueue";
 import {
   formatJointMessage,
   parseJointMessage,
-} from "@codecast/shared/contracts/jointMessage";
+} from "@codecast/messages/jointMessage";
 
 // In-memory db in the shape pendingMessages.collabGrant.test.ts uses: index
 // names ignored, eq constraints matched.

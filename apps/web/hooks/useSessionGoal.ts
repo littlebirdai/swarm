@@ -2,7 +2,7 @@
 // open, read from the store. The newest row is the session's goal.
 import { useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type { SessionGoal } from "@codecast/shared/contracts/sessionGoal";
+import type { SessionGoal } from "@codecast/messages/sessionGoal";
 import { entityIdArgs, useSyncCollection } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";
 

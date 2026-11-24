@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { ArrowDown, ArrowUp, Combine, X, Zap } from "lucide-react";
-import { jointAuthors } from "@codecast/shared/contracts/jointMessage";
+import { jointAuthors } from "@codecast/messages/jointMessage";
 import { useInboxStore } from "../../store/inboxStore";
 import { heldQueueRowsOf, partsOf, type QueueRow } from "../../lib/sharedQueue";
 import { PresenceAvatar } from "../PresenceFacepile";

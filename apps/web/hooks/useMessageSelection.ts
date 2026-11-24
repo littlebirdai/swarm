@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { isCompactionSummaryMessage } from "@codecast/shared/contracts";
+import { isCompactionSummaryMessage } from "@codecast/messages/machineMessages";
 import { useForkNavigationStore } from "../store/forkNavigationStore";
 import { usePaneShortcutAction } from "../shortcuts";
 import { useInboxStore } from "../store/inboxStore";

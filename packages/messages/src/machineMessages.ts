@@ -1048,7 +1048,7 @@ export function isBootstrapPrompt(
   return BOOTSTRAP_PROMPT_RE.test(stripInjectionNoise(rawContent));
 }
 
-// A session goal's round (contracts/sessionGoal.ts): the loop's own message
+// A session goal's round (packages/messages/src/sessionGoal.ts): the loop's own message
 // into the session, the start, a next step or a resume.
 export function isGoalMessage(rawContent: string | null | undefined): boolean {
   return (

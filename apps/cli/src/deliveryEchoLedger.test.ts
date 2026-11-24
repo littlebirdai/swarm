@@ -15,7 +15,7 @@ import {
   formatUserMessage,
   stampDeliveryId,
   withoutDeliveryId,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { pickLaunchPrompt } from "./launchPrompt.js";
 import { parseTranscriptFor } from "./parser.js";
 

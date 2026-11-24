@@ -24,7 +24,7 @@ import {
 } from "../components/chat/chatTypes";
 import { botHandle } from "@codecast/convex/convex/chatText";
 import { chatRoomKey } from "@codecast/calls/callRoomKeys";
-import { titleLine } from "@codecast/shared/contracts";
+import { titleLine } from "@codecast/messages/machineMessages";
 import {
   dmOtherIds,
   isClosedAgentPlaceholder,

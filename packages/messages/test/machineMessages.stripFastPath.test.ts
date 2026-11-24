@@ -6,7 +6,7 @@ import {
   stripInjectionNoise,
   stripMentionContext,
   stripPastedContent,
-} from "./machineMessages";
+} from "../src/machineMessages";
 
 const LEGACY_MENTION_CONTEXT_RE =
   /\n\n---\n(?=### (?:Task|Plan|Doc|Session|Trigger|Label): |[\s\S]{0,800}?<untrusted-[0-9a-f]+ source=)[\s\S]*?\n> `cast (?:task context|plan show|read|trigger log|doc read|sessions)[^\n]*\n---(?=\n|$)\n?/g;

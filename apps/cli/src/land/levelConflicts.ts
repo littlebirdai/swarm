@@ -25,7 +25,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { formatSessionMessage } from "@codecast/shared/contracts";
+import { formatSessionMessage } from "@codecast/messages/machineMessages";
 import {
   LEVEL_FORBID,
   levelAskWords,

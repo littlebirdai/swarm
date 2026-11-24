@@ -48,10 +48,7 @@ import {
   type MetricTrend,
 } from "@codecast/goals/initiative";
 import { memberHandle } from "@codecast/chat";
-import {
-  stripMachineText,
-  stripMarkdown,
-} from "@codecast/shared/contracts/plainText";
+import { stripMachineText, stripMarkdown } from "@codecast/messages/plainText";
 import {
   formatShortDate,
   formatTargetDay,

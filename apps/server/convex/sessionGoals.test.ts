@@ -21,7 +21,7 @@ import {
   formatGoalMessage,
   parseGoalMessage,
   GOAL_IDLE_LIMIT_MS,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 
 setDefaultTimeout(60_000);
 

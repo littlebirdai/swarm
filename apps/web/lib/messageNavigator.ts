@@ -4,7 +4,7 @@
 // the iOS session screen, so it must stay free of DOM and React imports. The
 // session title lookup is injected because each platform has its own store.
 
-import { isTurnInterruptionNotice } from "@codecast/shared/contracts";
+import { isTurnInterruptionNotice } from "@codecast/messages/machineMessages";
 import { isCommandMessage, cleanContent } from "./conversationProcessor";
 import {
   isStickyEligible,

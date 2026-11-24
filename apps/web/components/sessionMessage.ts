@@ -32,7 +32,6 @@ import {
   isMachineDeliveredMessage,
   isPollResponsePayload,
   parseUnwrappedSessionReport,
-  parseVaultReady,
   parseWorkflowHarnessFrame,
   CHAT_WAKE_HEADER,
   isCompactionSummaryMessage,
@@ -40,7 +39,8 @@ import {
   sessionMessageIntentOf,
   SESSION_MESSAGE_RE,
   type SessionMessageIntent,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
+import { parseVaultReady } from "@codecast/shared/contracts";
 import { LRUCache } from "../lib/lruCache";
 export type { HuddleSummaryTag } from "@codecast/calls/huddleDigest";
 
@@ -68,7 +68,7 @@ export {
   parseUnwrappedSessionReport,
   isUnwrappedSessionReport,
   isToolResultCarrier,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 const SESSION_MESSAGE_NAME_RE =
   /<session-message\s+from="[^"]*"\s+name="([^"]*)"/;
@@ -128,7 +128,7 @@ export function parseInboundSessionMessage(
 }
 
 // The one writer, re-exported for clients and round-trip tests.
-export { formatSessionMessage } from "@codecast/shared/contracts";
+export { formatSessionMessage } from "@codecast/messages/machineMessages";
 
 // The two envelopes an agent's words arrive in: `cast send` between sessions
 // (<session-message>) and a subagent reporting to its parent (<agent-message>).

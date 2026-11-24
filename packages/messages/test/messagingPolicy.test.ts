@@ -8,8 +8,8 @@ import {
   MESSAGING_POLICY_NAMES,
   isMessagingPolicyName,
   resolveMessagingPolicy,
-} from "./messagingPolicy";
-import { ORG_CONTEXT_GUIDANCE } from "./orgWhere";
+} from "../src/messagingPolicy";
+import { ORG_CONTEXT_GUIDANCE } from "../src/orgWhere";
 
 const variant = (name: string) =>
   readFileSync(

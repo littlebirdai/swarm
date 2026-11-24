@@ -18,7 +18,7 @@
 // injected context block is skipped. Delivered-with-less-context beats
 // never-delivered, every time.
 
-import { wrapMentionContext } from "@codecast/shared/contracts";
+import { wrapMentionContext } from "@codecast/messages/machineMessages";
 import { entityMentionRegex, entityTypeFromId } from "./entityLinks";
 
 export interface ParsedMention {

@@ -15,7 +15,7 @@ export const meta: SurfaceMeta = {
     "apps/server/convex/lib/anthropic.ts",
     "packages/fence/src/fence.ts",
     "platform/packages/fence/src/index.ts",
-    "packages/shared/contracts/machineMessages.ts",
+    "packages/messages/src/machineMessages.ts",
     "apps/server/convex/idleSummary.ts",
   ),
   reps: { check: 5 },

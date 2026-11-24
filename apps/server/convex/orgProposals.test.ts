@@ -2817,7 +2817,8 @@ describe("orgProposals asks (S19)", () => {
   });
 
   test("a reply from an ask's card carries the ask: the index decideAsk takes in the tag, the card's number and title in the header, parsed back", async () => {
-    const { parseProposalMessage } = await import("@codecast/shared/contracts");
+    const { parseProposalMessage } =
+      await import("@codecast/messages/machineMessages");
     const db = fixtures();
     const r = await performCreateProposal(ctxOf(db), ME as any, {
       team_id: TEAM,

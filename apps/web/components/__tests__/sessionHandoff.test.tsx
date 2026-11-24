@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { JSDOM } from "jsdom";
 import { MemoryRouter, useLocation } from "react-router";
-import { composeHandoffPrompt } from "@codecast/shared/contracts";
+import { composeHandoffPrompt } from "@codecast/messages/handoffPrompt";
 import { parseSessionHandoff } from "../../lib/sessionHandoff";
 import {
   HandoffLinkChip,

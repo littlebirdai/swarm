@@ -11,7 +11,7 @@ import {
   renderGuidanceFile,
   stubSectionBody,
 } from "./snippets";
-import { MESSAGING_POLICIES } from "./messagingPolicy";
+import { MESSAGING_POLICIES } from "@codecast/messages/messagingPolicy";
 
 describe("snippet catalog", () => {
   it("has unique slugs", () => {

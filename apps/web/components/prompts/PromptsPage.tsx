@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { memo, useMemo, useRef, useState } from "react";
 import { addDays } from "@codecast/convex/convex/lib/teamDay";
-import { stripPastedContent } from "@codecast/shared/contracts";
+import { stripPastedContent } from "@codecast/messages/machineMessages";
 import { localDay, parseDay } from "../../lib/changesDay";
 import { activeTeamIdOf } from "../../lib/activeTeam";
 import { useInboxStore } from "../../store/inboxStore";

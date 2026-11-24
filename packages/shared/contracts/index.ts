@@ -24,10 +24,6 @@ export * from "./capabilityResolver";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.
-// Machine-delivered message detection: web/mobile previews and the convex
-// send classifier must agree on what a human-typed message is.
-export * from "./machineMessages";
-export * from "./sessionEscalation";
 export * from "./vaultMessages";
 export * from "./decisionAnswers";
 // The cross-entity review queue row — one shape for "what is waiting on a
@@ -42,5 +38,4 @@ export * from "./triggerLifecycle";
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static
 // graph, so a re-export here is paid by `cast --help`.
 
-export * from "./handoffPrompt";
 // Codecast for outside agents (MCP): the address, the read tools, what a connection can do.

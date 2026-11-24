@@ -53,7 +53,7 @@ import {
   formatDecisionDiscussion,
   isToolResultCarrier,
   parseDecisionDiscussion,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 type Ctx = { db: any; scheduler?: any };
 type DecisionRow = Doc<"session_decisions">;

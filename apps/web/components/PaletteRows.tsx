@@ -29,7 +29,7 @@ import { useLabelColor } from "../lib/labelColors";
 import { itemClass } from "./paletteStyles";
 import { ShortId } from "./ShortId";
 import { parseSessionQuery } from "@codecast/search/sessionQuery";
-import { stripMarkdown } from "@codecast/shared/contracts/plainText";
+import { stripMarkdown } from "@codecast/messages/plainText";
 import { highlightMatch, getSnippet } from "../lib/searchHighlight";
 import { SearchOrigin } from "./search/SearchOrigin";
 import { StampTime } from "./StampTime";

@@ -2,7 +2,7 @@ import { ingestReceiptSignature } from "./ingestReceipt.js";
 import type { ParsedMessage, TranscriptEmission } from "../parser.js";
 import { detectPermissionPrompt } from "../permissionDetector.js";
 import { generateTitleFromMessage } from "./ingestMetadata.js";
-import { withoutDeliveryId } from "@codecast/shared/contracts";
+import { withoutDeliveryId } from "@codecast/messages/machineMessages";
 import { handoffParentSessionId } from "../planHandoff.js";
 import fs from "node:fs";
 import path from "node:path";

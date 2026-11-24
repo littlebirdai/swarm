@@ -13,6 +13,7 @@
     "@codecast/evals-api": "workspace:*",
     "@codecast/fence": "workspace:*",
     "@codecast/goals": "workspace:*",
+    "@codecast/messages": "workspace:*",
     "@codecast/org": "workspace:*",
     "@codecast/org-templates": "workspace:*",
     "@codecast/policy": "workspace:*",

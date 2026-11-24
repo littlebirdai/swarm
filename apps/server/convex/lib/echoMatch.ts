@@ -3,7 +3,7 @@
 
 import type { Id } from "../_generated/dataModel";
 import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
-import { stripPastedContent } from "@codecast/shared/contracts";
+import { stripPastedContent } from "@codecast/messages/machineMessages";
 import { redactSecrets } from "../redact";
 import { ATTACHMENT_FILE_RE } from "../sessionImages";
 

@@ -4,9 +4,9 @@ import { join } from "node:path";
 import {
   formatSessionMessage,
   parseScheduledTask,
-  triggerRunFrame,
   type WaitingSession,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
+import { triggerRunFrame } from "@codecast/shared/contracts";
 import { type RoleCard } from "@codecast/org/roleCard";
 import {
   parseStandingSection,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cleanNotificationBody, plainAgentLine } from "./plainText";
+import { cleanNotificationBody, plainAgentLine } from "../src/plainText";
 
 describe("plainAgentLine", () => {
   test("markup and code leave; the words stay", () => {

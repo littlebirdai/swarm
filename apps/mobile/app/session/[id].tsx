@@ -275,13 +275,15 @@ import {
   parseDecisionAnswer,
   DECISION_ANSWER_TAG_RE,
   SAFETY_BLOCK_HINT,
+  type VaultReadyMessage,
+} from "@codecast/shared/contracts";
+import {
   parseScheduledTask,
-  sessionEscalationCaption,
   stripPastedContent,
   stripCompactionProvenance,
   isPollResponsePayload,
-  type VaultReadyMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
+import { sessionEscalationCaption } from "@codecast/messages/sessionEscalation";
 import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { policyTeamOf } from "@codecast/policy/managedPolicy";
@@ -314,11 +316,8 @@ import {
   useScrollProgressBar,
 } from "@/components/session/ScrollProgressTrack";
 import { goToTab } from "@/lib/tabNavigation";
-import { parseJointMessage } from "@codecast/shared/contracts/jointMessage";
-import {
-  goalFrameLine,
-  goalMessageBody,
-} from "@codecast/shared/contracts/sessionGoal";
+import { parseJointMessage } from "@codecast/messages/jointMessage";
+import { goalFrameLine, goalMessageBody } from "@codecast/messages/sessionGoal";
 import {
   parseCommandInvocation,
   cleanCommandExpansion,

@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { computeOrgWhere } from "./orgWhere";
 import { sessionProject } from "./projectContext";
-import { orgContextBlock } from "@codecast/shared/contracts/orgWhere";
+import { orgContextBlock } from "@codecast/messages/orgWhere";
 
 const ME = "u".repeat(31) + "m";
 const SAM = "u".repeat(31) + "s";

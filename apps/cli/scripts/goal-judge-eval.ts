@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Grades the session goal judge (shared/contracts/sessionGoal.ts buildGoalJudgePrompt)
+// Grades the session goal judge (messages/src/sessionGoal.ts buildGoalJudgePrompt)
 // over the fixtures in goal-judge-fixtures.ts: each fixture's prompt is sent
 // --samples times through prompt-dry-run.ts --call (the isolated harness, never
 // a bare `claude -p`), and the verdicts are tallied against what a careful
@@ -17,7 +17,7 @@ import {
   buildGoalJudgePrompt,
   parseGoalVerdict,
   renderGoalEvidence,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
 import { GOAL_JUDGE_FIXTURES } from "./goal-judge-fixtures";
 

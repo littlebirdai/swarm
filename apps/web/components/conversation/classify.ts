@@ -1,4 +1,4 @@
-import { parseGoalMessage } from "@codecast/shared/contracts/sessionGoal";
+import { parseGoalMessage } from "@codecast/messages/sessionGoal";
 import {
   isCommandMessage,
   isStrippedCommand,
@@ -17,7 +17,7 @@ import {
   isPollResponsePayload,
   parseWorkflowHarnessFrame,
   sessionMessageIntentOf,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { parseScreenRecordingMessage } from "@codecast/calls/screenRecording";
 import {
   classifyApiErrorBanner,
@@ -25,14 +25,14 @@ import {
   CLIENT_ERROR_BANNER_PREFIX,
   parseDecisionAnswer,
   parseVaultReady,
-  isSessionEscalationMessage,
-  parseSessionEscalation,
   isAgentSwitchNotice,
   parseAgentSwitchNotice,
   isModelSwitchCommandName,
   isModelSwitchStdout,
   modelSwitchStdoutLabel,
 } from "@codecast/shared/contracts";
+import { isSessionEscalationMessage } from "@codecast/messages/machineMessages";
+import { parseSessionEscalation } from "@codecast/messages/sessionEscalation";
 import {
   isMachineSwitchNotice,
   parseMachineSwitchNotice,
@@ -47,11 +47,11 @@ import {
   isCompactionSummaryMessage,
   stripMentionContext,
   stripPastedContent,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import {
   jointAuthors,
   parseJointMessage,
-} from "@codecast/shared/contracts/jointMessage";
+} from "@codecast/messages/jointMessage";
 import { parseLineChat } from "@codecast/shared/contracts/lineChat";
 import {
   parseInboundSessionMessage,

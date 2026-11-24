@@ -54,16 +54,14 @@ import {
 } from "./pendingMessageWrites";
 import {
   formatUserMessage,
-  isReviveClientId,
-  isStashHidden,
   formatSessionMessage,
-  sendArrival,
   sessionMessageIntentOf,
   restoreFrameTags,
   SESSION_MESSAGE_OPEN_TAG,
-  type SendArrival,
   type SessionMessageIntent,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
+import { isReviveClientId, isStashHidden } from "@codecast/shared/contracts";
+import { sendArrival, type SendArrival } from "@codecast/messages/sendArrival";
 import {
   answeredThreadStateFields,
   hasThreadState,
@@ -107,7 +105,7 @@ import {
   formatJointMessage,
   jointPartsOf,
   parseJointMessage,
-} from "@codecast/shared/contracts/jointMessage";
+} from "@codecast/messages/jointMessage";
 import { quotesWaiting, stampQuotesSent } from "./quoteDrafts";
 
 export {
@@ -1931,7 +1929,7 @@ export async function reorderQueuedForUser(
 
 /**
  * Fold two waiting messages into one turn whose parts name each author
- * (shared/contracts/jointMessage). The earlier row keeps its place and takes
+ * (packages/messages/src/jointMessage.ts). The earlier row keeps its place and takes
  * the joint text and both rows' images; the later one is cancelled with
  * merged_into pointing at it.
  */

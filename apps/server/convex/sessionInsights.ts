@@ -19,7 +19,7 @@ import {
   replyText,
   type SurfaceRequest,
 } from "./lib/anthropic";
-import { REDIRECT_PATTERN } from "@codecast/shared/contracts/redirectWords";
+import { REDIRECT_PATTERN } from "@codecast/messages/redirectWords";
 
 type OutcomeType = "shipped" | "progress" | "blocked" | "unknown";
 type InsightGenStatus = {

@@ -33,9 +33,11 @@ import {
   huddleChatLineHeader,
   isAskDelivery,
   isHuddlePass,
+} from "@codecast/shared/contracts";
+import {
   isToolResultCarrier,
   reportedWorkIds,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import {
   isMeetRoomKey,
   isRecRoomKey,

@@ -15,7 +15,7 @@ import { checkConversationAccess } from "./privacy";
 import {
   SESSION_MESSAGE_RE,
   stripInjectionNoise,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 // Pulls the sender short_id and the human body out of the wire wrapper,
 // tolerating the injection noise the daemon can prepend (the shared

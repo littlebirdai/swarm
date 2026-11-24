@@ -21,11 +21,11 @@
 import type { Doc } from "../_generated/dataModel";
 import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
+import { parseDecisionAnswer } from "@codecast/shared/contracts";
 import {
-  parseDecisionAnswer,
   stripMentionContext,
   stripPastedContent,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { stickyPromptContent } from "../../../../apps/web/lib/stickyPrompt";
 import {
   cleanUserMessage,

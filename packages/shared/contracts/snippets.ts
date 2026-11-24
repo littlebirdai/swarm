@@ -34,7 +34,7 @@ import { manifestHash } from "@codecast/capabilities/capabilities";
 import { ASSIGNEE_MEANS } from "@codecast/org/orgAssignee";
 import { agentSetupPageUrl } from "@codecast/capabilities/agentToolSetup";
 import { BROWSER_EXTENSION_STORE_URL } from "@codecast/browser/browserExtension";
-import { MESSAGING_POLICIES } from "./messagingPolicy";
+import { MESSAGING_POLICIES } from "@codecast/messages/messagingPolicy";
 
 export type SnippetCategory =
   | "context"

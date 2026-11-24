@@ -4,7 +4,7 @@
 
 import { parseQueryTerms } from "@codecast/search/terms";
 import { INVISIBLE_RE, oneLine, plainPreview } from "@codecast/chat";
-import { titleLine } from "@codecast/shared/contracts";
+import { titleLine } from "@codecast/messages/machineMessages";
 
 // Chat rows sync to every team member's browser and land in IndexedDB on every
 // one of their devices, so the content cap is much tighter than the search

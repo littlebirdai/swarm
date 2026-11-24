@@ -7,7 +7,7 @@ import {
   GOAL_MAX_ROUNDS,
   GOAL_MAX_STALLS,
   goalObjectiveProblem,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 
 export function sessionGoalLedger(r: {
   objective: string;

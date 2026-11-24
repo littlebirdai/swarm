@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { bootstrapMessage } from "./anchors";
-import { isBootstrapPrompt } from "@codecast/shared/contracts";
+import { isBootstrapPrompt } from "@codecast/messages/machineMessages";
 
 // A role's opening message (org-roles-standing.md T1): who it is and whom it
 // reports to, what it looks after, how it wakes, that its sessions stay out of the

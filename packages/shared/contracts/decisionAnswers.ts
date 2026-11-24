@@ -2,7 +2,7 @@ import {
   escapeTagAttr,
   stripInjectionNoise,
   unescapeTagAttr,
-} from "./machineMessages";
+} from "@codecast/messages/machineMessages";
 
 // --- Decision answers (cast decide) ------------------------------------------------
 // The human's answer to a `cast decide` question enters the session as a user

@@ -11,7 +11,7 @@ import { UNPLACED_CAPS } from "./lib/orgCoverage";
 import {
   formatScheduledTask,
   parseScheduledTask,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { ORG_AREA_CHANGE_EVENT } from "@codecast/triggers/triggerEvents";
 import { HEAD_AREA_CHANGE_TITLE } from "./lib/orgRoutine";
 

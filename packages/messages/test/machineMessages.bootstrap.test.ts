@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   isBootstrapPrompt,
   isMachineDeliveredMessage,
-} from "./machineMessages";
+} from "../src/machineMessages";
 
 // The prompt that seats a standing agent is the host's message, never the
 // person's words. One recogniser serves the scope page's cut, the inbox card's

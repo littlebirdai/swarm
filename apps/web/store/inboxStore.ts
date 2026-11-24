@@ -13,7 +13,7 @@ import {
   goalCanPause,
   goalCanResume,
   sessionGoalOf,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { pinnableAgentIds } from "@codecast/agent-clients/agentPins";
 import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
@@ -79,7 +79,7 @@ import {
   rehold,
   reorderQueueRows,
 } from "../lib/sharedQueue";
-import { parseJointMessage } from "@codecast/shared/contracts/jointMessage";
+import { parseJointMessage } from "@codecast/messages/jointMessage";
 import {
   isSessionDismissed,
   isSessionKilled,

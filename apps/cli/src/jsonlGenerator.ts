@@ -11,7 +11,7 @@ import * as crypto from "crypto";
 import {
   isCompactionSummaryMessage,
   isMachineDeliveredMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { CODECAST_IMPORT_NOTICE_PREFIX } from "./parser";
 import {
   claudeProjectDirName,

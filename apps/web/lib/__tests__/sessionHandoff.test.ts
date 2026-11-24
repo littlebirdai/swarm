@@ -3,7 +3,7 @@ import {
   composeContextRecoveryPrompt,
   composeContextRebuildPrompt,
   composeHandoffPrompt,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/handoffPrompt";
 import {
   isHandoffFrom,
   parseContextRecovery,

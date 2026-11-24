@@ -2,7 +2,7 @@
 // the messages from a cut on, and where that cut falls. Pure, so the rules
 // test without React.
 
-import { isBootstrapPrompt } from "@codecast/shared/contracts";
+import { isBootstrapPrompt } from "@codecast/messages/machineMessages";
 
 export type WindowedConversation = {
   messages?: Array<{ timestamp: number; role?: string; content?: unknown }>;

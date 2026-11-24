@@ -8,7 +8,7 @@
  * and every title escaped where it sits on a line of ours (ct-49593).
  */
 import { inlineForeignText } from "@codecast/fence/fence";
-import { resolveMessagingPolicy } from "@codecast/shared/contracts/messagingPolicy";
+import { resolveMessagingPolicy } from "@codecast/messages/messagingPolicy";
 import {
   renderFencedPlanRecord,
   renderFencedTaskRecord,

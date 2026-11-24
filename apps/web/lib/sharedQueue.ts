@@ -9,7 +9,7 @@ import {
   formatJointMessage,
   jointPartsOf,
   type JointPart,
-} from "@codecast/shared/contracts/jointMessage";
+} from "@codecast/messages/jointMessage";
 import {
   isWaitingInQueue,
   queueAtBefore,
