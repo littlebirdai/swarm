@@ -18,12 +18,14 @@ import {
   deviceDisplayName,
   fromConvexAgentType,
   isHostedAgentType,
-  normalizeSubagentCaps,
   resolveAgentLaunch,
   toConvexAgentType,
   type AgentDefinitionSpec,
-  type SubagentCaps,
 } from "@codecast/shared/contracts";
+import {
+  normalizeSubagentCaps,
+  type SubagentCaps,
+} from "@codecast/agent-clients/subagentFleet";
 import {
   checkoutInUseMessage,
   type CloudWorkspaceMode,

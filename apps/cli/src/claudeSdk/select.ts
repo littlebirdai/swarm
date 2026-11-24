@@ -10,7 +10,7 @@ import {
   asClaudeBackend,
   DEFAULT_CLAUDE_BACKEND,
   type ClaudeBackend,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/claudeBackend";
 import { MINIMUM_CLAUDE_VERSION, versionAtLeast } from "./session.js";
 
 export type { ClaudeBackend };

@@ -265,11 +265,8 @@ import {
   triggerPrecheckMode,
   type TriggerPrecheckMode,
 } from "@codecast/triggers/triggerPrecheck";
-import {
-  agentDisplayName,
-  CHEAP_MODEL,
-  normalizeSubagentCaps,
-} from "@codecast/shared/contracts";
+import { agentDisplayName, CHEAP_MODEL } from "@codecast/shared/contracts";
+import { normalizeSubagentCaps } from "@codecast/agent-clients/subagentFleet";
 /** Parallel agents for plan orchestrate and autopilot when no --max is given and no subagent cap is configured (0 = no limit is not a wave size). */
 const ORCHESTRATE_DEFAULT_MAX = 3;
 import type { CumulativeChange } from "@codecast/diff";
@@ -8203,7 +8200,7 @@ program
     // account too (the heartbeat would otherwise put the account's choice back).
     if (key === "claude_backend") {
       const { asClaudeBackend, DEFAULT_CLAUDE_BACKEND } =
-        await import("@codecast/shared/contracts");
+        await import("@codecast/agent-clients/claudeBackend");
       if (value === undefined) {
         console.log(
           `claude_backend: ${config?.claude_backend ?? `(not set: ${DEFAULT_CLAUDE_BACKEND})`}`,

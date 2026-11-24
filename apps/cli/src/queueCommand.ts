@@ -15,7 +15,7 @@ import {
   queueAhead,
   queuedLabel,
   type SlotRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/subagentFleet";
 
 type WorkerRow = SlotRow & { title: string | null };
 

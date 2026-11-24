@@ -34,7 +34,7 @@ import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncOn,
   cloudSessionSyncSettings,
-} from "./cloudSessionSync";
+} from "@codecast/agent-clients/cloudSessionSync";
 import { CURSOR_MODEL_OPTIONS } from "./modelOptions";
 
 describe("cloud agent providers", () => {

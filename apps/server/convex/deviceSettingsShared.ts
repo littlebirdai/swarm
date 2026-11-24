@@ -10,11 +10,11 @@
 // migration to start reporting.
 
 import { v } from "convex/values";
+import { CLOUD_AGENT_SETUP_KINDS } from "@codecast/shared/contracts";
 import {
-  CLOUD_AGENT_SETUP_KINDS,
   CLOUD_SESSION_SOURCES,
   type CloudSessionSyncField,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudSessionSync";
 
 const optionalBoolean = v.optional(v.boolean());
 

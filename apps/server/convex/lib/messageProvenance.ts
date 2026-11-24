@@ -19,8 +19,8 @@
 // context and attachments the composer folded in, and blocks pasted at the
 // terminal, are not.
 import type { Doc } from "../_generated/dataModel";
+import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
 import {
-  canonicalSlashCommand,
   isHostedAgentType,
   parseDecisionAnswer,
   stripMentionContext,

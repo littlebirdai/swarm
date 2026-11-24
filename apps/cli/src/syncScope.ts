@@ -22,7 +22,7 @@ import {
 import {
   TEST_SCRATCH_DIRNAME,
   isTestArtifactPath,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/testArtifacts";
 
 export { TEST_SCRATCH_DIRNAME, isTestArtifactPath };
 

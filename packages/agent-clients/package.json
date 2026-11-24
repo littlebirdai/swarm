@@ -1,0 +1,22 @@
+{
+  "name": "@codecast/agent-clients",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./claudeBackend": "./src/claudeBackend.ts",
+    "./cloudSessionSync": "./src/cloudSessionSync.ts",
+    "./harnessHooks": "./src/harnessHooks.ts",
+    "./slashCommand": "./src/slashCommand.ts",
+    "./subagentFleet": "./src/subagentFleet.ts",
+    "./testArtifacts": "./src/testArtifacts.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  }
+}

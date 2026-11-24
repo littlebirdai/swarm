@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { DeviceSnippetChange } from "@codecast/shared/contracts";
+import type { DeviceSnippetChange } from "@codecast/agent-clients/harnessHooks";
 import { useInboxStore } from "../../store/inboxStore";
 import { toast } from "sonner";
 import { useDevices } from "../DeviceBadge";

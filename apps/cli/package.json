@@ -20,6 +20,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.319",
     "@anthropic-ai/sdk": "^0.71.2",
+    "@codecast/agent-clients": "workspace:*",
     "@codecast/agents": "workspace:*",
     "@codecast/artifacts": "workspace:*",
     "@codecast/async": "workspace:*",

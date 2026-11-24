@@ -27,7 +27,7 @@ import { answerCore } from "./sessionDecisions";
 import { roleOfRun } from "./lib/actor";
 import { roleMergeAllowance } from "./lib/regretRead";
 import { repositoryFromRemote } from "@codecast/capabilities/capabilityScopes";
-import { normalizeSubagentCaps } from "@codecast/shared/contracts";
+import { normalizeSubagentCaps } from "@codecast/agent-clients/subagentFleet";
 import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
 import {
   SHIP_DEFAULT_MERGE,

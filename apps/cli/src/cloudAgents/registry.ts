@@ -12,15 +12,17 @@ import {
   CLIENT_ERROR_BANNER_PREFIX,
   CLOUD_AGENT_ACTION_SUBTYPE,
   CLOUD_AGENT_ACTIONS,
-  CLOUD_SESSION_SOURCES,
   cloudAgentPageUrl,
-  cloudSessionSyncOn,
   cloudAgentProviderForKey,
   cloudAgentProviderForLaunch,
   type CloudAgentActionName,
   type CloudAgentProviderSpec,
   type CloudAgentSetupBlock,
 } from "@codecast/shared/contracts";
+import {
+  CLOUD_SESSION_SOURCES,
+  cloudSessionSyncOn,
+} from "@codecast/agent-clients/cloudSessionSync";
 import {
   doublingDelay,
   isCloudMirrorPlaceholder,

@@ -8,7 +8,7 @@ import {
   queueAhead,
   queuedLabel,
   type SlotRow,
-} from "./subagentFleet";
+} from "../src/subagentFleet";
 
 const caps = (per_session: number, per_machine: number) => ({
   per_session,

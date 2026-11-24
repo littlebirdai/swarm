@@ -136,6 +136,7 @@
     "./contracts/theme": "./contracts/theme.ts"
   },
   "dependencies": {
+    "@codecast/agent-clients": "workspace:*",
     "@codecast/browser": "workspace:*",
     "@codecast/calls": "workspace:*",
     "@codecast/capabilities": "workspace:*",

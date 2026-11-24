@@ -50,11 +50,8 @@ import {
   TmuxDeliveryUncertainError,
 } from "./tmuxDeliveryJournal";
 import { DeliveryEchoLedger } from "./deliveryEchoLedger";
-import {
-  canonicalSlashCommand,
-  stampDeliveryId,
-  withoutDeliveryId,
-} from "@codecast/shared/contracts";
+import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
+import { stampDeliveryId, withoutDeliveryId } from "@codecast/shared/contracts";
 import { parseTranscriptFor } from "./parser";
 import {
   DELIVERY_FAILED_SUBTYPE,

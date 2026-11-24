@@ -19,7 +19,7 @@ import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncSettings,
   type CloudSessionSource,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudSessionSync";
 import {
   GitBranch,
   Folder,

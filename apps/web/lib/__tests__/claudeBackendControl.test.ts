@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { GROK_DIRECT_BACKEND } from "@codecast/shared/contracts";
+import { GROK_DIRECT_BACKEND } from "@codecast/agent-clients/claudeBackend";
 import { backendRows, canSwitchClaudeBackend } from "../claudeBackendControl";
 import {
   backendSwitchState,

@@ -6,7 +6,7 @@ import {
   MACHINE_SETTINGS,
   type HarnessHook,
   type MachineSetting,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/harnessHooks";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useRouter } from "next/navigation";
 import {

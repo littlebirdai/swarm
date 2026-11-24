@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { HARNESS_HOOKS } from "@codecast/shared/contracts";
+import { HARNESS_HOOKS } from "@codecast/agent-clients/harnessHooks";
 import {
   CODECAST_HOOK_SCRIPTS,
   STATUSLINE_HOOK_SCRIPT,

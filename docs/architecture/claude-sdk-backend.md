@@ -19,7 +19,7 @@ version, account and models.
 1. `backend: "sdk" | "tmux"` on the start_session command.
 2. `CODECAST_CLAUDE_BACKEND=sdk` in the daemon's environment.
 3. `claude_backend` in `~/.codecast/config.json`: the person's Settings → Agents choice ("Claude sessions run in"), stored as `users.claude_backend` and mirrored into the config by the heartbeat, or set with `cast config claude_backend sdk|tmux` (which writes both).
-4. Otherwise `DEFAULT_CLAUDE_BACKEND` (`packages/shared/contracts/claudeBackend.ts`), tmux today. Flipping the product default to the SDK is that one constant.
+4. Otherwise `DEFAULT_CLAUDE_BACKEND` (`packages/agent-clients/src/claudeBackend.ts`), tmux today. Flipping the product default to the SDK is that one constant.
 
 ## Switching a live session
 
@@ -331,7 +331,7 @@ A Grok session can run in the same host instead of a tmux pane: the host drives
 with `ClaudeSdkSession`'s events and methods), chosen by `agent: "grok"` on the
 launch spec. Socket, protocol, client, backend, bindings, reattach and the
 daemon's delivery and status wiring are the ones above. It is offered in the
-"Runs in" control once `GROK_DIRECT_BACKEND` (`shared/contracts/claudeBackend.ts`)
+"Runs in" control once `GROK_DIRECT_BACKEND` (`packages/agent-clients/src/claudeBackend.ts`)
 is on; the same predicate gates Convex's `switchBackend`.
 
 |                             | Claude                                 | Grok                                                                                                                               |

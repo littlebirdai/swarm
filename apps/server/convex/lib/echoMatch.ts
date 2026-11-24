@@ -2,10 +2,8 @@
 // and the images that echo carries (messages.ts writes the paired row).
 
 import type { Id } from "../_generated/dataModel";
-import {
-  canonicalSlashCommand,
-  stripPastedContent,
-} from "@codecast/shared/contracts";
+import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
+import { stripPastedContent } from "@codecast/shared/contracts";
 import { redactSecrets } from "../redact";
 import { ATTACHMENT_FILE_RE } from "../sessionImages";
 

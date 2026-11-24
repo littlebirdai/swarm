@@ -23,8 +23,8 @@ import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
 import {
-  canonicalSlashCommand,
   deliveryIdsOf,
   stripPastedContent,
   withoutDeliveryFrames,

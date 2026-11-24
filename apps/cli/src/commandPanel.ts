@@ -24,7 +24,7 @@
 // the session printed "Kept model as Fable 5.2", hit the Fable limit again, and
 // five presses later was still parked (jx72zdg, 2026-11-22).
 
-import { canonicalSlashCommand } from "@codecast/shared/contracts";
+import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
 import { parseInteractivePrompt } from "./interactivePrompt.js";
 
 /** A one-line slash command: the only payload whose Enter may open a panel. */

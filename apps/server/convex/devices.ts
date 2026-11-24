@@ -11,14 +11,16 @@ import type {
 } from "@codecast/shared/contracts";
 import {
   isClosedSession,
-  settingsAfterSnippet,
-  stableModeOf,
-  type DeviceSnippetChange,
   cloudAgentProviderOfSession,
   isCloudAgentActionName,
   isCloudAgentLoginState,
   type CloudAgentLoginStateName,
 } from "@codecast/shared/contracts";
+import {
+  settingsAfterSnippet,
+  stableModeOf,
+  type DeviceSnippetChange,
+} from "@codecast/agent-clients/harnessHooks";
 import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   managedIdsAfter,

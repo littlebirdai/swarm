@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { settingsAfterSnippet, stableModeOf } from "./harnessHooks";
+import { settingsAfterSnippet, stableModeOf } from "../src/harnessHooks";
 
 // The server mirrors this onto the device row and the web paints it before the
 // daemon reports, so the two can never disagree about one switch.

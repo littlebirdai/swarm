@@ -6,12 +6,12 @@ import {
   huddleExcerptNote,
   isHuddleFeedNotice,
   isMachineDeliveredMessage,
-  isTestArtifactPath,
   parseTaskCommentMessage,
   parseDecisionAnswer,
   parseUserMessage,
   stripMentionContext,
 } from "@codecast/shared/contracts";
+import { isTestArtifactPath } from "@codecast/agent-clients/testArtifacts";
 import {
   isStickyEligible,
   stickyPromptContent,

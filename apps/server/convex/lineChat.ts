@@ -23,7 +23,7 @@ import { resolveActor } from "./lib/actor";
 import { leadRoleOf } from "./lineCause";
 import { reachableRole, enqueuePendingMessage } from "./pendingMessages";
 import { spawnSessionCore } from "./spawn";
-import { normalizeSubagentCaps } from "@codecast/shared/contracts";
+import { normalizeSubagentCaps } from "@codecast/agent-clients/subagentFleet";
 import {
   DISCUSSION_MAX_CHARS,
   ownerName,

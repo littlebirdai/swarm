@@ -28516,6 +28516,27 @@
   "infra/replay-player/src/worker.ts": {
     "swarm/no-comments": 51
   },
+  "packages/agent-clients/src/claudeBackend.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/agent-clients/src/cloudSessionSync.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/agent-clients/src/harnessHooks.ts": {
+    "swarm/no-comments": 28
+  },
+  "packages/agent-clients/src/slashCommand.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/agent-clients/src/subagentFleet.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/agent-clients/src/testArtifacts.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/agent-clients/test/harnessHooks.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/agents/src/index.ts": {
     "swarm/no-comments": 41
   },
@@ -29326,9 +29347,6 @@
   "packages/shared/contracts/ciFailures.ts": {
     "swarm/no-comments": 15
   },
-  "packages/shared/contracts/claudeBackend.ts": {
-    "swarm/no-comments": 6
-  },
   "packages/shared/contracts/climb.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29343,9 +29361,6 @@
   },
   "packages/shared/contracts/cloudAgents.ts": {
     "swarm/no-comments": 97
-  },
-  "packages/shared/contracts/cloudSessionSync.ts": {
-    "swarm/no-comments": 3
   },
   "packages/shared/contracts/codecastConfig.ts": {
     "swarm/no-comments": 32
@@ -29472,12 +29487,6 @@
   },
   "packages/shared/contracts/handoffPrompt.ts": {
     "swarm/no-comments": 34
-  },
-  "packages/shared/contracts/harnessHooks.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/harnessHooks.ts": {
-    "swarm/no-comments": 28
   },
   "packages/shared/contracts/headOfPeoplePrompt.test.ts": {
     "swarm/no-comments": 6
@@ -29920,9 +29929,6 @@
   "packages/shared/contracts/signalFingerprint.ts": {
     "swarm/no-comments": 38
   },
-  "packages/shared/contracts/slashCommand.ts": {
-    "swarm/no-comments": 10
-  },
   "packages/shared/contracts/snippets.test.ts": {
     "swarm/no-comments": 16
   },
@@ -29935,9 +29941,6 @@
   "packages/shared/contracts/stableContext.ts": {
     "swarm/no-comments": 20
   },
-  "packages/shared/contracts/subagentFleet.ts": {
-    "swarm/no-comments": 15
-  },
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
   },
@@ -29949,9 +29952,6 @@
   },
   "packages/shared/contracts/teamHosts.ts": {
     "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/testArtifacts.ts": {
-    "swarm/no-comments": 17
   },
   "packages/shared/contracts/theme.ts": {
     "swarm/no-comments": 16

@@ -5,9 +5,9 @@
 import {
   HARNESS_HOOKS,
   harnessHookWanted,
-  snippetBySlug,
   type HarnessHook,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/harnessHooks";
+import { snippetBySlug } from "@codecast/shared/contracts";
 import type { Device } from "../components/DeviceBadge";
 
 export function deviceFeatureOn(d: Device, feature: string): boolean {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { HARNESS_HOOKS } from "@codecast/shared/contracts";
+import { HARNESS_HOOKS } from "@codecast/agent-clients/harnessHooks";
 import { BUNDLED_SKILLS } from "./bundledSkills";
 import {
   CODECAST_HOOK_SCRIPTS,

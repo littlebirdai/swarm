@@ -14,6 +14,7 @@
     "sim": "bun scripts/sim.ts"
   },
   "dependencies": {
+    "@codecast/agent-clients": "workspace:*",
     "@codecast/agents": "workspace:*",
     "@codecast/analytics": "workspace:*",
     "@codecast/artifacts": "workspace:*",

@@ -5,9 +5,9 @@
 import {
   CLAUDE_BACKEND_LABELS,
   hasDirectBackend,
-  isHostedAgentType,
   type ClaudeBackend,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/claudeBackend";
+import { isHostedAgentType } from "@codecast/shared/contracts";
 import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 
 export type BackendSwitching =

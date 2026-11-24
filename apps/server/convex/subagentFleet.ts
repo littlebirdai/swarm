@@ -23,16 +23,18 @@ import { enqueueStartSession } from "./devices";
 import { enqueuePendingMessage, formatSessionMessage } from "./pendingMessages";
 import { NEEDS_INPUT_IDLE_CHECK_DELAY_MS } from "./inboxFilters";
 import {
+  type AgentClientId,
+  type AgentDefinitionSpec,
+} from "@codecast/shared/contracts";
+import {
   drainQueue,
   mergeBackNote,
   normalizeSubagentCaps,
-  type AgentClientId,
-  type AgentDefinitionSpec,
   type MergeBackStatus,
   type SlotRow,
   type SubagentCaps,
   type SubagentOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/subagentFleet";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 
 /** Everything a queued row needs to start later exactly as it would have now. */
