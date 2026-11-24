@@ -10,7 +10,7 @@ import {
   type RewindFilesArgs,
   type RewindFilesReply,
   type RewindFilesStaged,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/rewindFiles";
 import {
   RewindRefused,
   diffRewind,

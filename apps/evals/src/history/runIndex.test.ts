@@ -18,10 +18,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  runRowProblems,
-  type RunRow,
-} from "@codecast/shared/contracts/evalsApi";
+import { runRowProblems, type RunRow } from "@codecast/evals-api/evalsApi";
 
 import {
   guardCounts,

@@ -10,7 +10,7 @@ import {
   type EvalsBridgeResponse,
   type EvalsRouteKey,
   type EvalsRoutes,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import type { EvalsViewRouteKey } from "@platform/evals/contract";
 import {
   answer,

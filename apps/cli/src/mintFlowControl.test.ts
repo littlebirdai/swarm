@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { oauthApprovalCode as mintApprovalCode } from "@codecast/shared/contracts";
+import { oauthApprovalCode as mintApprovalCode } from "@codecast/provider-keys/oauthCodePaste";
 import { MintFlowControl } from "./mintFlowControl";
 
 test("late verification cannot store a token or finish a newer mint", async () => {

@@ -88,11 +88,11 @@ import {
   type SigninPayload,
 } from "@codecast/shared/contracts/secrets";
 import {
-  DAEMON_COMMAND_TTL_MS,
   formatVaultDeclined,
   formatVaultReady,
   isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 
 type SecretRow = Doc<"secrets">;
 

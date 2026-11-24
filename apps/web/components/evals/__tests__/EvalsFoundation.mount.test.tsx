@@ -18,7 +18,7 @@ import {
   matchEvalsRoute,
   runRowProblems,
   type EvalsRouteKey,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import { evalsFixtureWorld, fixtureWorldNow } from "../__fixtures__/world";
@@ -331,7 +331,7 @@ describe("the store", () => {
   it("caches an answer by its request and moves the area when the child crashes mid-session", async () => {
     // The wiring the area's provider (CodecastEvalsProvider) hands its client: the store's cache and its failure rule.
     const client = createEvalsClient<
-      import("@codecast/shared/contracts/evalsApi").EvalsRoutes
+      import("@codecast/evals-api/evalsApi").EvalsRoutes
     >({
       transport: () => useEvalsStore.getState().transport,
       cache: evalsResourceCache,

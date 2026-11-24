@@ -6,7 +6,7 @@ import type {
   Epoch,
   FootingMarker,
   PromptFilePair,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import {
   epochPromptDiffs as diffsWith,
   epochsOf as epochsWith,

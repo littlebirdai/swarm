@@ -77,8 +77,6 @@ import {
   isRecoveryContinueClientId,
   type ApiErrorBannerKind,
   isMachineDeliveredMessage,
-  isValidPaneTarget,
-  isValidBrowserStreamKey,
   isMachineSetting,
   MACHINE_SETTINGS,
   machineSettingValues,
@@ -88,23 +86,25 @@ import {
   localAgentClient,
   isHostedAgentType,
 } from "@codecast/shared/contracts";
+import { isValidPaneTarget } from "@codecast/daemon/terminalStream";
+import { isValidBrowserStreamKey } from "@codecast/browser/browserStream";
 import {
   CLOUD_START_RUN_MS,
   canonicalSlashCommand,
-  codePasteSignInUrl,
-  deviceCodePrompt,
   isHomeDirectoryPath,
   stampDeliveryId,
   withoutDeliveryId,
 } from "@codecast/shared/contracts";
 import {
+  codePasteSignInUrl,
+  deviceCodePrompt,
+} from "@codecast/provider-keys/oauthCodePaste";
+import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,
 } from "@codecast/shared/contracts/deliveryFailed";
-import {
-  isClosedSession,
-  materializeFileTags,
-} from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/shared/contracts";
+import { materializeFileTags } from "@codecast/daemon/fileAttachment";
 import { downloadAttachedFile } from "./attachedFileDownload.js";
 import { mapLimit } from "@codecast/async";
 import {
@@ -14838,7 +14838,8 @@ async function executeRemoteCommand(
       case "rewind_files": {
         // "Rewind to here" (rewindTree.ts, rewindFilesDaemon.ts), routed to the owning device.
         const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const { REWIND_FILES_OPS } = await import("@codecast/shared/contracts");
+        const { REWIND_FILES_OPS } =
+          await import("@codecast/daemon/rewindFiles");
         if (
           typeof parsed.conversation_id !== "string" ||
           !(REWIND_FILES_OPS as readonly string[]).includes(parsed.op)

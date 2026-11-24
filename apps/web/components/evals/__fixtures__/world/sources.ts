@@ -13,7 +13,7 @@ import type {
   RunDiffEntry,
   RunRow,
   SimFailureMoved,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { bisectResponseOf, bisectSummaryOf } from "@platform/evals/analysis";
 import type { EvalsSources } from "@platform/evals/query";
 import { fixtureGit } from "./git";

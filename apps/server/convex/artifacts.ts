@@ -57,9 +57,9 @@ import { performSessionSend } from "./pendingMessages";
 import { classifyNamedWorkState } from "./conversations";
 import {
   describePageAnchor,
-  pageAgentChip,
   parsePageAnchor,
-} from "@codecast/shared/contracts";
+} from "@codecast/pages/pageAnchor";
+import { pageAgentChip } from "@codecast/pages/pageAgent";
 import {
   deliveredOutcome,
   failedOutcome,

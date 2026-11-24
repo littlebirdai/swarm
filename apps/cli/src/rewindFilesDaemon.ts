@@ -11,7 +11,7 @@ import {
   REWIND_ROWS_CAP,
   type RewindFilesArgs,
   type RewindFilesReply,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/rewindFiles";
 import { hashPath } from "./hash.js";
 import { deviceId } from "./remote/device.js";
 import { runRewindFilesCommand } from "./rewindFilesCommand.js";

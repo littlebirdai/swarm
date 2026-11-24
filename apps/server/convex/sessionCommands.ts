@@ -1,4 +1,5 @@
-import { REWIND_FILES_OPS, hasDirectBackend } from "@codecast/shared/contracts";
+import { hasDirectBackend } from "@codecast/shared/contracts";
+import { REWIND_FILES_OPS } from "@codecast/daemon/rewindFiles";
 import { mutation, query } from "./functions";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";

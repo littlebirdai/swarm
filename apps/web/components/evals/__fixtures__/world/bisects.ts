@@ -8,7 +8,7 @@ import type {
   BisectPlan,
   BisectPlanRequest,
   Candidate,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { attribute, planFrom } from "@platform/evals/analysis";
 import { BadRequest } from "@platform/evals/query";
 import { fixtureBisect, type FixtureBisectKind } from "../bisect";

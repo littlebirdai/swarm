@@ -15,7 +15,7 @@ import type {
   BisectStep,
   Candidate,
   RenderClass,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { candidateSha, orderCandidates } from "@platform/evals/client";
 
 export type FixtureBisectKind =

@@ -1,7 +1,7 @@
 // Motion pages on the serve path: which documents get the HyperFrames runtime
 // and the motion player, in what order, and how a media asset downloads.
 import { expect, test } from "bun:test";
-import { HYPERFRAMES_RUNTIME } from "@codecast/shared/contracts";
+import { HYPERFRAMES_RUNTIME } from "@codecast/pages/castMotion";
 import { injectMotion, mediaDownloadName } from "./artifactsHttp";
 
 const API = "https://api.test";

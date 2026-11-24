@@ -7,9 +7,6 @@ export * from "./liveness";
 export * from "./hibernation";
 export * from "./openTasks";
 export * from "./pendingStatus";
-export * from "./daemonCommands";
-export * from "./rewindFiles";
-export * from "./sshAttach";
 export * from "./agentClients";
 export * from "./agentPins";
 export * from "./executionBinding";
@@ -43,19 +40,11 @@ export * from "./localMirror";
 export * from "./cloudHostReport";
 export * from "./worktrees";
 export * from "./deviceName";
-export * from "./providerKeys";
 export * from "./cloudSessionSync";
 export * from "./cloudAgents";
-export * from "./providerKeyCrypto";
-export * from "./oauthCodePaste";
 export * from "./orgTemplateBind";
 export * from "./snippets";
 export * from "./featureExplainers";
-export * from "./castPlayer";
-export * from "./pageEdge";
-export * from "./pageAnchor";
-export * from "./pageAgent";
-export * from "./castMotion";
 export * from "./harnessHooks";
 export * from "./agentSwitch";
 export * from "./claudeBackend";
@@ -65,8 +54,6 @@ export * from "./forkSeed";
 export * from "./stableContext";
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
-export * from "./terminalStream";
-export * from "./browserStream";
 export * from "./callRoomKeys";
 export * from "./recordingAudio";
 export * from "./transcribeLanguage";
@@ -83,7 +70,6 @@ export * from "./callGuests";
 // for the digest markdown and the <huddle-summary> wire tag, one parser back.
 export * from "./huddleDigest";
 export * from "./screenRecording";
-export * from "./fileAttachment";
 // Without these two lines every consumer reinvents the capability vocabulary:
 // convex copied the constants, the web store reached in by relative path, and
 // the web UI and the CLI each declared their own scope and kind unions. Four
@@ -122,8 +108,7 @@ export * from "./fence";
 export * from "./triggerPrecheck";
 export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
-// `cast org init` decisions carry) and browserPaneOffer (an agent offering a
-// page as a pane). Both sit off the CLI boot graph on purpose
+// `cast org init` decisions carry). It sits off the CLI boot graph on purpose
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static
 // graph, so a re-export here is paid by `cast --help`.
 
@@ -134,7 +119,6 @@ export {
 } from "./sessionSnooze";
 export * from "./unattended";
 export * from "./handoffPrompt";
-export * from "./browserExtension";
 export type { AskResult, SideAnswerRow } from "./sessionAsk";
 export { SIDE_ANSWER_EXPIRE_MS, explainAskFailure } from "./sessionAsk";
 export * from "./systemResources";

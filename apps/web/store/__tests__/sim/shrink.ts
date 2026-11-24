@@ -16,7 +16,7 @@
 // Candidates are memoized, so a repeated candidate costs no attempt. A cap on
 // attempts or time stops the search with the best order found so far.
 
-import type { SimShrinkProgress } from "@codecast/shared/contracts/evalsApi";
+import type { SimShrinkProgress } from "@codecast/evals-api/evalsApi";
 
 /**
  * Leads the --order line of a scripted run. A scripted run drains after each

@@ -26,7 +26,7 @@ import {
   type EvalsBridgeResponse,
   type EvalsRouteKey,
   type RunRow,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 import { harnessExit, harnessTookMs, thenFiles, unitDirs } from "../layout";
 import { REPO_ROOT } from "../paths";

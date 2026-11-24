@@ -33,7 +33,7 @@ import {
 import { manifestHash } from "@codecast/capabilities/capabilities";
 import { ASSIGNEE_MEANS } from "./orgAssignee";
 import { agentSetupPageUrl } from "@codecast/capabilities/agentToolSetup";
-import { BROWSER_EXTENSION_STORE_URL } from "./browserExtension";
+import { BROWSER_EXTENSION_STORE_URL } from "@codecast/browser/browserExtension";
 import { MESSAGING_POLICIES } from "./messagingPolicy";
 
 export type SnippetCategory =

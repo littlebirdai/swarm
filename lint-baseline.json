@@ -28690,6 +28690,12 @@
   "packages/blame/test/sessionTrailer.test.ts": {
     "swarm/no-comments": 7
   },
+  "packages/browser/src/browserPaneOffer.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/browser/src/browserStream.ts": {
+    "swarm/no-comments": 44
+  },
   "packages/capabilities/src/agentAccess.ts": {
     "swarm/no-comments": 22
   },
@@ -28795,6 +28801,24 @@
   "packages/convex-errors/test/convexErrors.test.ts": {
     "swarm/no-comments": 7
   },
+  "packages/daemon/src/daemonCommands.ts": {
+    "swarm/no-comments": 244
+  },
+  "packages/daemon/src/fileAttachment.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/daemon/src/rewindFiles.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/daemon/src/shellWords.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/daemon/src/sshAttach.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/daemon/src/terminalStream.ts": {
+    "swarm/no-comments": 59
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -28821,6 +28845,27 @@
   },
   "packages/docs/test/drafting.test.ts": {
     "swarm/no-comments": 1
+  },
+  "packages/evals-api/src/evalsApi.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/evals-api/src/evalsApi/bisect.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/evals-api/src/evalsApi/core.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/evals-api/src/evalsApi/endpoints.ts": {
+    "swarm/no-comments": 39
+  },
+  "packages/evals-api/src/evalsApi/routes.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/evals-api/src/evalsApi/sim.ts": {
+    "swarm/no-comments": 40
+  },
+  "packages/evals-api/test/evalsApi.test.ts": {
+    "swarm/no-comments": 2
   },
   "packages/files/src/index.ts": {
     "swarm/no-comments": 19
@@ -28858,6 +28903,24 @@
   "packages/network/src/internalHost.ts": {
     "swarm/no-comments": 22
   },
+  "packages/pages/src/castMotion.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/pages/src/castPlayer.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/pages/src/pageAgent.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/pages/src/pageAnchor.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/pages/src/pageData.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/pages/src/pageEdge.ts": {
+    "swarm/no-comments": 8
+  },
   "packages/policy/src/managedPolicy.ts": {
     "swarm/no-comments": 68
   },
@@ -28877,6 +28940,21 @@
     "swarm/no-comments": 4
   },
   "packages/policy/test/vendorCoverage.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/provider-keys/src/oauthCodePaste.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/provider-keys/src/providerKeyCrypto.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/provider-keys/src/providerKeys.ts": {
+    "swarm/no-comments": 25
+  },
+  "packages/provider-keys/test/oauthCodePaste.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/provider-keys/test/providerKeyCrypto.test.ts": {
     "swarm/no-comments": 1
   },
   "packages/pull-requests/src/commitDiffs.ts": {
@@ -29047,12 +29125,6 @@
   "packages/shared/contracts/briefStanding.ts": {
     "swarm/no-comments": 37
   },
-  "packages/shared/contracts/browserPaneOffer.ts": {
-    "swarm/no-comments": 22
-  },
-  "packages/shared/contracts/browserStream.ts": {
-    "swarm/no-comments": 44
-  },
   "packages/shared/contracts/callGuests.test.ts": {
     "swarm/no-comments": 9
   },
@@ -29091,12 +29163,6 @@
   },
   "packages/shared/contracts/capabilitySlug.test.ts": {
     "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/castMotion.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/contracts/castPlayer.ts": {
-    "swarm/no-comments": 8
   },
   "packages/shared/contracts/causeHistory.ts": {
     "swarm/no-comments": 146
@@ -29179,9 +29245,6 @@
   "packages/shared/contracts/conversationFields.ts": {
     "swarm/no-comments": 62
   },
-  "packages/shared/contracts/daemonCommands.ts": {
-    "swarm/no-comments": 244
-  },
   "packages/shared/contracts/dataSync.ts": {
     "swarm/no-comments": 12
   },
@@ -29248,27 +29311,6 @@
   "packages/shared/contracts/evalResult.ts": {
     "swarm/no-comments": 8
   },
-  "packages/shared/contracts/evalsApi.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/evalsApi.ts": {
-    "swarm/no-comments": 21
-  },
-  "packages/shared/contracts/evalsApi/bisect.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/evalsApi/core.ts": {
-    "swarm/no-comments": 17
-  },
-  "packages/shared/contracts/evalsApi/endpoints.ts": {
-    "swarm/no-comments": 39
-  },
-  "packages/shared/contracts/evalsApi/routes.ts": {
-    "swarm/no-comments": 17
-  },
-  "packages/shared/contracts/evalsApi/sim.ts": {
-    "swarm/no-comments": 40
-  },
   "packages/shared/contracts/executionBinding.ts": {
     "swarm/no-comments": 6
   },
@@ -29292,9 +29334,6 @@
   },
   "packages/shared/contracts/fence.ts": {
     "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/fileAttachment.ts": {
-    "swarm/no-comments": 7
   },
   "packages/shared/contracts/flowEdit.ts": {
     "swarm/no-comments": 29
@@ -29536,12 +29575,6 @@
   "packages/shared/contracts/newSessionDefaults.ts": {
     "swarm/no-comments": 12
   },
-  "packages/shared/contracts/oauthCodePaste.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/oauthCodePaste.ts": {
-    "swarm/no-comments": 13
-  },
   "packages/shared/contracts/openPlans.ts": {
     "swarm/no-comments": 7
   },
@@ -29647,18 +29680,6 @@
   "packages/shared/contracts/orgWhere.ts": {
     "swarm/no-comments": 12
   },
-  "packages/shared/contracts/pageAgent.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/pageAnchor.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/pageData.ts": {
-    "swarm/no-comments": 29
-  },
-  "packages/shared/contracts/pageEdge.ts": {
-    "swarm/no-comments": 8
-  },
   "packages/shared/contracts/peerTransport.ts": {
     "swarm/no-comments": 16
   },
@@ -29710,15 +29731,6 @@
   "packages/shared/contracts/proposalCard.ts": {
     "swarm/no-comments": 49
   },
-  "packages/shared/contracts/providerKeyCrypto.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/providerKeyCrypto.ts": {
-    "swarm/no-comments": 29
-  },
-  "packages/shared/contracts/providerKeys.ts": {
-    "swarm/no-comments": 25
-  },
   "packages/shared/contracts/recordingAudio.test.ts": {
     "swarm/no-comments": 20
   },
@@ -29751,9 +29763,6 @@
   },
   "packages/shared/contracts/resourceOffloadPolicy.ts": {
     "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/rewindFiles.ts": {
-    "swarm/no-comments": 31
   },
   "packages/shared/contracts/roleAutonomy.ts": {
     "swarm/no-comments": 17
@@ -29845,9 +29854,6 @@
   "packages/shared/contracts/sessionRead.ts": {
     "swarm/no-comments": 43
   },
-  "packages/shared/contracts/shellWords.ts": {
-    "swarm/no-comments": 6
-  },
   "packages/shared/contracts/signalFingerprint.test.ts": {
     "swarm/no-comments": 5
   },
@@ -29865,9 +29871,6 @@
   },
   "packages/shared/contracts/snippetsWorkflow.ts": {
     "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/sshAttach.ts": {
-    "swarm/no-comments": 3
   },
   "packages/shared/contracts/stableContext.ts": {
     "swarm/no-comments": 20
@@ -29889,9 +29892,6 @@
   },
   "packages/shared/contracts/teamHosts.ts": {
     "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/terminalStream.ts": {
-    "swarm/no-comments": 59
   },
   "packages/shared/contracts/testArtifacts.ts": {
     "swarm/no-comments": 17

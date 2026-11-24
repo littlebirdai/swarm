@@ -1,5 +1,8 @@
 import * as fs from "node:fs";
-import { safeFileName, type AttachedFileRef } from "@codecast/shared/contracts";
+import {
+  safeFileName,
+  type AttachedFileRef,
+} from "@codecast/daemon/fileAttachment";
 
 export const ATTACHED_FILES_DIR = "/tmp/codecast/files";
 

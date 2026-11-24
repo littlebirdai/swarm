@@ -150,7 +150,7 @@ import {
   stopAndSendForUser,
   insertEscapeCommand,
 } from "./daemonCommandUtils";
-import { normalizePaneUrl } from "@codecast/shared/contracts/browserPaneOffer";
+import { normalizePaneUrl } from "@codecast/browser/browserPaneOffer";
 import {
   AGENT_MODEL_CONFIG,
   AGENT_CLIENTS,

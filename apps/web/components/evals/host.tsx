@@ -18,7 +18,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FolderOpen, RotateCcw } from "lucide-react";
-import type { RunResponse } from "@codecast/shared/contracts/evalsApi";
+import type { RunResponse } from "@codecast/evals-api/evalsApi";
 import { runCommands } from "@platform/evals/client";
 import {
   EvalsProvider,

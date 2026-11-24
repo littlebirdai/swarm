@@ -4,7 +4,7 @@ import type {
   HealthResponse,
   RunRow,
   SimFailureMoved,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { BadRequest, type EvalsSources } from "@platform/evals/query";
 
 import { listBisects } from "../bisect/state";

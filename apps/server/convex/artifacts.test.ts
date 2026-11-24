@@ -18,10 +18,7 @@ import {
 } from "./artifacts";
 import { kTokenFor, eTokenFor } from "./lib/artifactGates";
 import { brandArtifactHtml } from "./artifactPages";
-import {
-  pageAgentChip,
-  PAGE_AGENT_PICKUP_MS,
-} from "@codecast/shared/contracts";
+import { pageAgentChip, PAGE_AGENT_PICKUP_MS } from "@codecast/pages/pageAgent";
 import { normalizeAssetPath } from "./artifactsHttp";
 
 // Minimal hand-rolled ctx in the style of docs.test.ts: enough db surface for

@@ -22,7 +22,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { TMUX_SESSION_SOCKET_PREFIX } from "@codecast/shared/contracts";
+import { TMUX_SESSION_SOCKET_PREFIX } from "@codecast/daemon/sshAttach";
 import { readLocalConfig } from "./config/readLocalConfig.js";
 import {
   snapshotProcessTable,

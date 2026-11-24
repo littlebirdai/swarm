@@ -83,10 +83,8 @@ import {
 import { cancelBot, requestBot } from "./meetingBots";
 import { disconnectCore } from "./mcpAuth";
 import { setJoinAllFor, setMeetingChoiceFor } from "./lib/meetingCalendarCore";
-import type {
-  DeviceSnippetChange,
-  ProviderKeyCommand,
-} from "@codecast/shared/contracts";
+import type { DeviceSnippetChange } from "@codecast/shared/contracts";
+import type { ProviderKeyCommand } from "@codecast/provider-keys/providerKeyCrypto";
 import { upsertBinding } from "./capabilityBindings";
 import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./rateLimit";

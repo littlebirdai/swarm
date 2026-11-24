@@ -17,7 +17,7 @@ import type { ConvexReactClient } from "convex/react";
 import type {
   EvalsRoutes,
   EvalsUnavailableReason,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import {
   evalsCalls,
   EvalsRequestError,

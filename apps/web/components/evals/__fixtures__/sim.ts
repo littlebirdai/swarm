@@ -18,7 +18,7 @@ import type {
   SimSession,
   SimShrinkProgress,
   SimWorld,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import {
   bisectCommand,
   formatOrder,

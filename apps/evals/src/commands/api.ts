@@ -5,7 +5,7 @@ import type { Command } from "commander";
 import type {
   EvalsBridgeRequest,
   EvalsBridgeResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 // `./evals api --stdio`: the process the daemon's /evals bridge talks to
 // (evals-ui.md sections 2 and 3.5). One EvalsBridgeRequest JSON line in per

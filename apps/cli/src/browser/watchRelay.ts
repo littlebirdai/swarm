@@ -25,7 +25,7 @@ import {
   type BrowserRelayEnd,
   SIM_RELAY_KEY_PREFIX,
   type StreamBrowserArgs,
-} from "@codecast/shared/contracts";
+} from "@codecast/browser/browserStream";
 import type {
   WatchSessionHandle,
   WatchSessionOptions,

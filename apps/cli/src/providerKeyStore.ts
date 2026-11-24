@@ -10,7 +10,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import type { ProviderKeyStore } from "@codecast/shared/contracts";
+import type { ProviderKeyStore } from "@codecast/provider-keys/providerKeys";
 import { atomicWriteFile } from "./atomicWrite.js";
 import { readJsonForUpdate } from "./readForUpdate.js";
 

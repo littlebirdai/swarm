@@ -21,7 +21,7 @@
 // dead-code-eliminated the Convex origin from the trust set — which gated
 // every image in our own storage behind click-to-load.
 
-import { MEDIA_ORIGIN } from "@codecast/shared/contracts/castPlayer";
+import { MEDIA_ORIGIN } from "@codecast/pages/castPlayer";
 import { getConvexUrl } from "./convexUrl";
 
 let trustedOrigins: Set<string> | null = null;

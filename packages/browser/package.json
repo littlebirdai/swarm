@@ -1,0 +1,19 @@
+{
+  "name": "@codecast/browser",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./browserExtension": "./src/browserExtension.ts",
+    "./browserPaneOffer": "./src/browserPaneOffer.ts",
+    "./browserStream": "./src/browserStream.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  }
+}

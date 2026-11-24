@@ -5,7 +5,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { toast } from "sonner";
-import { appendFileTags } from "@codecast/shared/contracts";
+import { appendFileTags } from "@codecast/daemon/fileAttachment";
 import { uploadBlobToStorage } from "../lib/uploadBlob";
 
 export type AttachedFile = {

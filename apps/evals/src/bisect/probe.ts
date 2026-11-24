@@ -10,7 +10,7 @@ import type {
   Candidate,
   RenderClass,
   RunRow,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import {
   renderBatch as renderBatchAt,
   renderClasses as renderClassesWith,

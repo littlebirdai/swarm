@@ -17,7 +17,7 @@ import {
   type GuardStatus,
   type RunRow,
   runRowProblems,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { parseRunId, summarizeRunFolder } from "@platform/evals/fs";
 
 import { judgeRuler } from "../adapters/judge";

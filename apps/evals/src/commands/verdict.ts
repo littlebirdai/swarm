@@ -1,8 +1,5 @@
 import { InvalidArgumentError } from "commander";
-import type {
-  BatchVerdict,
-  SkippedBatch,
-} from "@codecast/shared/contracts/evalsApi";
+import type { BatchVerdict, SkippedBatch } from "@codecast/evals-api/evalsApi";
 import { fmt } from "@platform/cli-kit/colors";
 import { formatCost } from "@platform/cli-kit/format";
 import {

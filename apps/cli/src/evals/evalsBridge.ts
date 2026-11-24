@@ -22,7 +22,7 @@ import type {
   EvalsBridgeResponse,
   EvalsErrorBody,
   EvalsUnavailableReason,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { agentSpawnPath } from "../agentSpawnPath.js";
 import {
   execFileAsync,

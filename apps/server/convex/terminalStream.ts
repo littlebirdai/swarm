@@ -54,7 +54,7 @@ import {
   PANE_STREAMER_STALE_MS,
   hexToBytes,
   isValidPaneTarget,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/terminalStream";
 
 /**
  * Whose daemon queue and frame rows a pane lives under. Your own device: you.

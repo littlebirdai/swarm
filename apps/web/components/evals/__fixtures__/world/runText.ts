@@ -11,7 +11,7 @@ import type {
   RunFileEntry,
   RunResponse,
   RunRow,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { flipOf, gradedSet, type PromptReader } from "@platform/evals/analysis";
 import {
   DAY,

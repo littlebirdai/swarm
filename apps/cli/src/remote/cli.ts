@@ -41,7 +41,7 @@ import {
   readHosts as readCloudHosts,
   toRemoteHost,
 } from "../browser/cloudHost.js";
-import { sshTmuxAttachCommand } from "@codecast/shared/contracts";
+import { sshTmuxAttachCommand } from "@codecast/daemon/sshAttach";
 import { learnHostDeviceId } from "../cloud/prepare.js";
 import { commandGroup } from "../commandGroups.js";
 import { defaultConfigDir } from "../config/configDir.js";

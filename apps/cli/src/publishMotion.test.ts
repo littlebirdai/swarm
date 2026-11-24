@@ -5,7 +5,7 @@ import * as path from "node:path";
 import {
   HYPERFRAMES_RUNTIME,
   MOTION_RENDER_MANIFEST,
-} from "@codecast/shared/contracts";
+} from "@codecast/pages/castMotion";
 import {
   motionEntry,
   motionRenderArgs,

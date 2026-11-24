@@ -34,7 +34,7 @@ import {
   type RunFileResponse,
   type RunRow,
   type RunRowStatus,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { makeRng } from "@platform/evals/analysis";
 import {
   evalsCalls,

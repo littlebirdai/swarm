@@ -19,7 +19,7 @@ import type { Command } from "commander";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import { fmt, icons } from "../colors.js";
 import { commandGroup } from "../commandGroups.js";
-import { normalizePaneUrl } from "@codecast/shared/contracts/browserPaneOffer";
+import { normalizePaneUrl } from "@codecast/browser/browserPaneOffer";
 
 /** What the backend answered, as the printer needs it. */
 export interface PaneOfferResponse {

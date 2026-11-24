@@ -13,7 +13,7 @@
 //   the recorded channels without the mark, so index i of the order is
 //   delivery i.
 
-import type { SimEvent, SimWorld } from "@codecast/shared/contracts/evalsApi";
+import type { SimEvent, SimWorld } from "@codecast/evals-api/evalsApi";
 import { traceMatches, type SimLabels } from "../../store/__tests__/sim/labels";
 
 export type ParsedChannel =

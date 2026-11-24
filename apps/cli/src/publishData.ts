@@ -7,7 +7,7 @@ import * as path from "node:path";
 import {
   PAGE_DATA_FILE,
   parsePageDataDeclaration,
-} from "@codecast/shared/contracts/pageData";
+} from "@codecast/pages/pageData";
 import { fmt } from "./colors.js";
 import { callerSession } from "./publishWatch.js";
 import { apiPost, type PublishDeps } from "./castApi.js";

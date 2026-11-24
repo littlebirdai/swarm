@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { isVideoSrc } from "./castPlayer";
+import { isVideoSrc } from "../src/castPlayer";
 
 test("a video file in image markdown is told apart from an image by its extension", () => {
   expect(isVideoSrc("https://media.codecast.sh/media/abc.mp4")).toBe(true);

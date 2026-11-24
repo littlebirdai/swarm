@@ -26,11 +26,11 @@ import {
 import type { InitiativeMetric } from "@codecast/shared/contracts/initiative";
 import { captureError } from "../lib/analytics";
 import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
+import type { CloudPlacementProgress } from "@codecast/shared/contracts";
 import type {
-  CloudPlacementProgress,
   RewindFilesOp,
   RewindStagedMark,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/rewindFiles";
 import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
 import {
   cleanSecretEdit,
@@ -258,9 +258,11 @@ import {
   isInboxRowField,
   settingsAfterSnippet,
   type DeviceSnippetChange,
+} from "@codecast/shared/contracts";
+import {
   managedIdsAfter,
   type ProviderKeyCommand,
-} from "@codecast/shared/contracts";
+} from "@codecast/provider-keys/providerKeyCrypto";
 import { DEFAULT_TEAM_FEATURES } from "@codecast/policy/teamFeatures";
 import { formatCapabilitySlug } from "@codecast/capabilities/capabilities";
 import { agentStatusAt, liveFactsOf } from "../lib/liveness";
@@ -364,7 +366,7 @@ import {
   cascadeFromAnswer,
   permissionRuleKey,
 } from "@codecast/policy/permissionRules";
-import type { BrowserPaneOffer } from "@codecast/shared/contracts/browserPaneOffer";
+import type { BrowserPaneOffer } from "@codecast/browser/browserPaneOffer";
 import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
 import { escalationTargetIds } from "@codecast/shared/contracts/decisionEscalation";
 import {

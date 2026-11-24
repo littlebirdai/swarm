@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { pageHasHyperframesRuntime, pageIsMotion } from "./castMotion";
+import { pageHasHyperframesRuntime, pageIsMotion } from "../src/castMotion";
 
 test("a composition root with its canvas size is a motion page", () => {
   expect(

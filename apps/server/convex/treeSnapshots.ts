@@ -8,7 +8,7 @@ import { v } from "convex/values";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { requireUserOrToken } from "./lib/auth";
 import { canAccessConversation } from "./lib/access";
-import { REWIND_ROWS_CAP } from "@codecast/shared/contracts";
+import { REWIND_ROWS_CAP } from "@codecast/daemon/rewindFiles";
 import type { Doc, Id } from "./_generated/dataModel";
 
 const CHANGED_PATHS_CAP = 200;

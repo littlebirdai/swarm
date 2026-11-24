@@ -20,7 +20,7 @@ import {
   bytesToHex,
   hexToBytes,
   isValidPaneTarget,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/terminalStream";
 
 function snap(frame: string): PaneSnapshot {
   return { frame, cols: 80, rows: 24, cursorX: 3, cursorY: 5 };

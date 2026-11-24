@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PageAgentChip } from "@codecast/shared/contracts";
+import type { PageAgentChip } from "@codecast/pages/pageAgent";
 import { useWatchEffect } from "./useWatchEffect";
 import { whileWindowVisible } from "../lib/windowVisibleWork";
 import { pageMetaUrl } from "../lib/publishedPageUrls";

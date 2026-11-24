@@ -5,7 +5,7 @@ import {
   materializeFileTags,
   parseFileTags,
   safeFileName,
-} from "./fileAttachment";
+} from "../src/fileAttachment";
 
 const ID = "kg2abcdefghijklmnop";
 

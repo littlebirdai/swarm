@@ -15,7 +15,7 @@ import {
   type CommitRef,
   type CommitResponse,
   type PatchResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 import {
   git,

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { attachCommand, attachCopy, tailnetSshHost } from "./tmuxAttach";
-import { REMOTE_TMUX_PATH } from "@codecast/shared/contracts";
+import { REMOTE_TMUX_PATH } from "@codecast/daemon/sshAttach";
 
 const mine = (ssh_host: string | null) => ({
   device_id: "d1",

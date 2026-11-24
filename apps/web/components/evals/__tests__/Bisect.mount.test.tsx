@@ -47,7 +47,7 @@ const { ConvexProvider } = await import("convex/react");
 // Session pills resolve through Convex; the marketing stub answers every query with nothing.
 const { heroConvexStub } =
   await import("../../../app/(marketing)/heroFly/convexStub");
-const { matchEvalsRoute } = await import("@codecast/shared/contracts/evalsApi");
+const { matchEvalsRoute } = await import("@codecast/evals-api/evalsApi");
 const { useEvalsStore } = await import("../../../store/evalsStore");
 const { evalsFixtureWorld } = await import("../__fixtures__/world");
 const { attributionPairs, fixtureBisect } =
@@ -69,18 +69,16 @@ const { BisectListView } = await import("@platform/evals/react");
 const { CommitPanelView } = await import("@platform/evals/react");
 const { codecastEvalsHost, CodecastEvalsProvider } = await import("../host");
 type EvalsHost = import("@platform/evals/react").EvalsHost;
-type CommitResponse =
-  import("@codecast/shared/contracts/evalsApi").CommitResponse;
+type CommitResponse = import("@codecast/evals-api/evalsApi").CommitResponse;
 const { BisectPlanPanel } = await import("@platform/evals/react");
 const { BisectNewPage } = await import("@platform/evals/react");
 const { BisectPage } = await import("@platform/evals/react");
 const { BisectListPage } = await import("@platform/evals/react");
-type Attribution = import("@codecast/shared/contracts/evalsApi").Attribution;
-type BisectResponse =
-  import("@codecast/shared/contracts/evalsApi").BisectResponse;
-type BisectPlan = import("@codecast/shared/contracts/evalsApi").BisectPlan;
+type Attribution = import("@codecast/evals-api/evalsApi").Attribution;
+type BisectResponse = import("@codecast/evals-api/evalsApi").BisectResponse;
+type BisectPlan = import("@codecast/evals-api/evalsApi").BisectPlan;
 type BisectListResponse =
-  import("@codecast/shared/contracts/evalsApi").BisectListResponse;
+  import("@codecast/evals-api/evalsApi").BisectListResponse;
 
 // A loaded machine renders a DiffView in seconds, and the case search walks the world.
 setDefaultTimeout(120_000);
@@ -117,9 +115,7 @@ beforeAll(() => {
   const answers = localTransport(world.handle, "fixture");
   const transport = {
     kind: "fixture" as const,
-    async send(
-      req: import("@codecast/shared/contracts/evalsApi").EvalsBridgeRequest,
-    ) {
+    async send(req: import("@codecast/evals-api/evalsApi").EvalsBridgeRequest) {
       if (req.method === "POST") posts.push({ path: req.path, body: req.body });
       else gets.push({ path: req.path, query: req.query });
       const route = matchEvalsRoute(req.method, req.path);

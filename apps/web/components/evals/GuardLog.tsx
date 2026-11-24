@@ -9,7 +9,7 @@ import {
   type GuardCounts,
   type GuardEntry,
   type GuardStatus,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 const GUARD_WORDS: Record<GuardStatus, string> = {
   SERVED: "answered from the frozen world",

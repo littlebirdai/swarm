@@ -5,7 +5,7 @@
 
 import { useCallback, useState } from "react";
 import { useConvex } from "convex/react";
-import type { EvalsRoutes } from "@codecast/shared/contracts/evalsApi";
+import type { EvalsRoutes } from "@codecast/evals-api/evalsApi";
 import { evalsHooks } from "@platform/evals/react";
 import { useEvalsStore } from "../../store/evalsStore";
 import { useWatchEffect } from "../../hooks/useWatchEffect";

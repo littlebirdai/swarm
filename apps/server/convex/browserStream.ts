@@ -4,7 +4,7 @@
 // (apps/cli/src/browser/watchServer.ts): only a viewer on the agent's own
 // machine reaches it. This is the second transport, the terminal relay's lease
 // protocol (terminalStream.ts) carrying browser frames. The contract and its
-// numbers are in packages/shared/contracts/browserStream.ts.
+// numbers are in packages/browser/src/browserStream.ts.
 //
 // OWNERSHIP is the terminal relay's rule (resolveQueueUser): your own devices,
 // and an agent box running a session you own. Never a teammate's machine.
@@ -26,7 +26,7 @@ import {
   BROWSER_RELAY_STREAMER_STALE_MS,
   isValidBrowserStreamKey,
   type StreamBrowserArgs,
-} from "@codecast/shared/contracts";
+} from "@codecast/browser/browserStream";
 
 async function findRow(ctx: any, userId: any, device_id: string, key: string) {
   return await ctx.db

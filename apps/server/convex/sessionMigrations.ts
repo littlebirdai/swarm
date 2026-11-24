@@ -63,10 +63,8 @@ import {
   isDaemonManagedRow,
   listLiveManagedSessions,
 } from "./lib/liveSessions";
-import {
-  DAEMON_COMMAND_TTL_MS,
-  isClosedSession,
-} from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/shared/contracts";
+import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 import { invalidBringPaths } from "@codecast/shared/contracts/moveRehearsal";
 import {
   type MigrationDirection,

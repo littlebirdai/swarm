@@ -7,7 +7,7 @@ import {
   runRowProblems,
   type CommitRef,
   type RunRow,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { separate } from "@platform/evals/analysis";
 
 import {

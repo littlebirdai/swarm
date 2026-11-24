@@ -1,4 +1,4 @@
-import { oauthApprovalCode } from "@codecast/shared/contracts";
+import { oauthApprovalCode } from "@codecast/provider-keys/oauthCodePaste";
 import { pasteTextIntoPane, type TmuxExec } from "./tmuxPaste.js";
 
 export class MintFlowControl {

@@ -27,7 +27,7 @@ import { MD_THEME_CSS } from "./artifactMarkdown";
 import {
   PAGE_AGENT_LABELS,
   PAGE_AGENT_PICKUP_MS,
-} from "@codecast/shared/contracts";
+} from "@codecast/pages/pageAgent";
 import { PAGE_GATE_SIGNAL } from "@codecast/shared/render";
 export { escAttr, escHtml };
 

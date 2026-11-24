@@ -12,7 +12,7 @@ import type {
   SimGridCell,
   SimRunResponse,
   SimSessionsResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import { evalsFixtureWorld } from "../__fixtures__/world";

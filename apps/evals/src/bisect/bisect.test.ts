@@ -15,7 +15,7 @@ import {
   type BisectState,
   type CommitRef,
   type RunRow,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 import type { AttributionGit } from "../history/attribution";
 import type { PromptReader } from "../history/epochs";

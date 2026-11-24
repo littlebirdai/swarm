@@ -7,7 +7,7 @@
 // deliver), the daemon (run) and the apps (render, gate the Run press).
 
 import { approvesSecretRead } from "./secrets";
-import { shellArg, shellWords } from "./shellWords";
+import { shellArg, shellWords } from "@codecast/daemon/shellWords";
 import { APPROVAL_ANSWERS } from "./approvalAnswers";
 
 /** The answers are an approval's, so every surface draws the card as one. */

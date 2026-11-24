@@ -4,7 +4,7 @@
 // for the one the page started, so a failed sweep keeps its reason and tail.
 
 import { useCallback, useRef, useState } from "react";
-import type { ChangesResponse } from "@codecast/shared/contracts/evalsApi";
+import type { ChangesResponse } from "@codecast/evals-api/evalsApi";
 import {
   useEvalsChanges,
   useEvalsClient,

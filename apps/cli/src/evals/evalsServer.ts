@@ -13,7 +13,7 @@ import {
   matchEvalsRoute,
   type EvalsBridgeRequest,
   type EvalsErrorBody,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import {
   authorizeLocalRequest,
   corsHeaders,

@@ -38,7 +38,7 @@ import { useLineFloor } from "../useLineFloor";
 import { LineFinders } from "./LineFinders";
 import { ProfileFieldRow } from "./ProfileFieldRow";
 import { useLineProfileEditor } from "./useLineProfileEdits";
-import { DAEMON_COMMAND_TTL_MS } from "@codecast/shared/contracts";
+import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 import { LineStations } from "./LineStations";
 import "../line.css";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";

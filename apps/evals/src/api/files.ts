@@ -24,7 +24,7 @@ import {
   type ScoreJson,
   type ScoreVersion,
   type TokenUsage,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 
 import { readAgentRun, readCallRun } from "../adapters/dryRun";
 import { harnessExit, harnessTookMs, thenFiles, unitDirs } from "../layout";

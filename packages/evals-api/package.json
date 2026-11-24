@@ -1,0 +1,25 @@
+{
+  "name": "@codecast/evals-api",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./evalsApi": "./src/evalsApi.ts",
+    "./evalsApi/bisect": "./src/evalsApi/bisect.ts",
+    "./evalsApi/core": "./src/evalsApi/core.ts",
+    "./evalsApi/endpoints": "./src/evalsApi/endpoints.ts",
+    "./evalsApi/routes": "./src/evalsApi/routes.ts",
+    "./evalsApi/sim": "./src/evalsApi/sim.ts"
+  },
+  "dependencies": {
+    "@platform/evals": "file:../../platform/packages/evals"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  }
+}

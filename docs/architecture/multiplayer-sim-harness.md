@@ -517,7 +517,7 @@ export function scenario(
 - `--red` sets `SIM_RED=1`: the DSL runs only scenarios with a red marker or a known invariant
 - `--list` prints the scenario catalog from a static scan: name, red markers, known invariants, modes
 - `--invariants` prints the catalog
-- `--json`, with `--list` or `--invariants`, prints the rows as JSON (`SimScenario[]` and `SimInvariant[]` of `packages/shared/contracts/evalsApi.ts`; an invariant's `keys` are its `keys:` string literals, empty when it names them through a constant)
+- `--json`, with `--list` or `--invariants`, prints the rows as JSON (`SimScenario[]` and `SimInvariant[]` of `packages/evals-api/src/evalsApi.ts`; an invariant's `keys` are its `keys:` string literals, empty when it names them through a constant)
 - `--keep` sets `SIM_KEEP=1`
 - `--out dir` sets `SIM_OUT` (resolved to an absolute path)
 - `--order="<channels>"` sets `SIM_ORDER`. The value goes in the flag's own word: `bun run` drops an empty argument, so `--order ""` reaches the script as a bare flag, and an empty order is written `--order=`.
@@ -588,7 +588,7 @@ It is used only for real OCC, real scheduler timing, HTTP routes, the prod error
 
 ### 3.12 Run history and shrink (evals-ui.md U11)
 
-The Evals UI's Multiplayer sim pages (docs/architecture/evals-ui.md, sections 3.7, 4.6 and 4.7) read this history. Their shapes are the `Sim*` types in `packages/shared/contracts/evalsApi.ts`.
+The Evals UI's Multiplayer sim pages (docs/architecture/evals-ui.md, sections 3.7, 4.6 and 4.7) read this history. Their shapes are the `Sim*` types in `packages/evals-api/src/evalsApi.ts`.
 
 **`sim/history.ts`** is a leaf (no store import, so `--list` stays instant). Every `bun run sim` that runs tests writes one session folder; `--list`, `--invariants`, `--help` and `--shrink` write none.
 

@@ -25,7 +25,7 @@ const GUARDED = [
 
 /** Module specifiers that carry eval data or its types. */
 const EVALS_MODULE =
-  /(?:contracts\/evalsApi|\/evals\/|evalsStore|lib\/evals\b|components\/evals\b)/;
+  /(?:evals-api|\/evals\/|evalsStore|lib\/evals\b|components\/evals\b)/;
 
 /** Every import or export-from whose specifier is an evals module, as `line: text`. */
 export function evalsImports(source: string): string[] {
@@ -52,10 +52,8 @@ describe("evals data stays out of the persisted store layer", () => {
   }
 
   it("catches an evals type imported into inboxStore", () => {
-    const planted = `import type { RunRow } from "@codecast/shared/contracts/evalsApi";\n${read("inboxStore.ts")}`;
-    expect(evalsImports(planted)).toEqual([
-      "1: @codecast/shared/contracts/evalsApi",
-    ]);
+    const planted = `import type { RunRow } from "@codecast/evals-api/evalsApi";\n${read("inboxStore.ts")}`;
+    expect(evalsImports(planted)).toEqual(["1: @codecast/evals-api/evalsApi"]);
   });
 
   it("catches the evals store, client and components however they are reached", () => {

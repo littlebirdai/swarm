@@ -6,7 +6,7 @@ import { File, Folder } from "lucide-react";
 import type {
   RunFileEntry,
   RunFileResponse,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { CodeBlock } from "../CodeBlock";
 
 const LANGUAGES: Record<string, string> = {

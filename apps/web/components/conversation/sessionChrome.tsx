@@ -7,11 +7,13 @@ import { isSupersededBanner } from "../../lib/limitRecovery";
 import {
   withSafetyBlock,
   SAFETY_BLOCK_HINT,
-  PROVIDER_KEYS,
-  getProviderKeySpec,
   isHostedAgentType,
   isSessionActivityFresh,
 } from "@codecast/shared/contracts";
+import {
+  PROVIDER_KEYS,
+  getProviderKeySpec,
+} from "@codecast/provider-keys/providerKeys";
 import { LimitParkCard } from "../LimitParkCard";
 import { KeyCap, ShortcutTooltip } from "../KeyboardShortcutsHelp";
 import { toast } from "sonner";

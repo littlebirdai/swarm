@@ -5,7 +5,7 @@
  * same steps; each surface only decides how they look.
  */
 
-import { BROWSER_EXTENSION_STORE_URL } from "@codecast/shared/contracts";
+import { BROWSER_EXTENSION_STORE_URL } from "@codecast/browser/browserExtension";
 import {
   type AgentSetupTool,
   type AgentToolSetupStatus,

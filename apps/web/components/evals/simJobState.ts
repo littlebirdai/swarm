@@ -3,7 +3,7 @@
 // started in memory; after a reload it has only the api's newest job of that
 // kind, and both paths go through jobState so they read the same.
 
-import type { SimJob } from "@codecast/shared/contracts/evalsApi";
+import type { SimJob } from "@codecast/evals-api/evalsApi";
 import { quietTooLong } from "@platform/evals/client";
 
 export type JobState =

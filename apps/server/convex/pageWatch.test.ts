@@ -7,7 +7,7 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import { allModules } from "./testModules.testkit";
-import { parsePageDataDeclaration } from "@codecast/shared/contracts/pageData";
+import { parsePageDataDeclaration } from "@codecast/pages/pageData";
 import { storedEventFilter } from "./agentTasks";
 
 const SLUG = "watchslug1";

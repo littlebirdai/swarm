@@ -21,7 +21,7 @@
 
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { PANE_RENEW_MS, bytesToHex } from "@codecast/shared/contracts";
+import { PANE_RENEW_MS, bytesToHex } from "@codecast/daemon/terminalStream";
 
 export interface RemotePaneSource {
   convex: ConvexReactClient;

@@ -7,7 +7,7 @@ import type {
   BisectPlan,
   BisectState,
   Candidate,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { fmt } from "@platform/cli-kit/colors";
 import { formatCost } from "@platform/cli-kit/format";
 import { isBisectLive } from "@platform/evals/analysis";

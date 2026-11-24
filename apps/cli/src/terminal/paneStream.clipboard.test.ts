@@ -13,7 +13,7 @@ import {
   PANE_CLIPBOARD_WINDOW_MS,
   PANE_MAX_CLIPBOARD_CHARS,
   bytesToHex,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/terminalStream";
 
 function clock() {
   let t = 0;

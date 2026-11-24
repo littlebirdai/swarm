@@ -518,9 +518,9 @@ describe("the connected page", () => {
     // The transport's world runs on today's clock, so its run ids are its own: read the answers it gave.
     const res = useEvalsStore.getState().resources;
     const freeze = res[`GET /freeze/${id}`]
-      ?.data as import("@codecast/shared/contracts/evalsApi").FreezeResponse;
+      ?.data as import("@codecast/evals-api/evalsApi").FreezeResponse;
     const surface = res["GET /surface/settle"]
-      ?.data as import("@codecast/shared/contracts/evalsApi").SurfaceResponse;
+      ?.data as import("@codecast/evals-api/evalsApi").SurfaceResponse;
     expect(freeze && surface).toBeTruthy();
     const pick = defaultFreezePair(
       freeze.runs,

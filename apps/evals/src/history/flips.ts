@@ -1,7 +1,4 @@
-import type {
-  EvalFlip,
-  FlipsResult,
-} from "@codecast/shared/contracts/evalsApi";
+import type { EvalFlip, FlipsResult } from "@codecast/evals-api/evalsApi";
 import { flipOf, flipsBetween as flipsWith } from "@platform/evals/analysis";
 
 import { codecastFreezeStore } from "../adapters/freezes";

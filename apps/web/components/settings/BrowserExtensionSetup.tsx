@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Chrome, ExternalLink } from "lucide-react";
-import { BROWSER_EXTENSION_STORE_URL } from "@codecast/shared/contracts";
+import { BROWSER_EXTENSION_STORE_URL } from "@codecast/browser/browserExtension";
 import { agentFeatureHref } from "../../lib/agentFeatureHref";
 import { Button } from "../ui/button";
 import { SettingsSection } from "./ui";

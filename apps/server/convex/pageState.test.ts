@@ -10,7 +10,7 @@ import { kTokenFor, passwordHash } from "./lib/artifactGates";
 import {
   PAGE_STATE_LIMITS,
   parsePageDataDeclaration,
-} from "@codecast/shared/contracts/pageData";
+} from "@codecast/pages/pageData";
 
 const SLUG = "stateslug1";
 

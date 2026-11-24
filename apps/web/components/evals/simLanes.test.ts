@@ -3,7 +3,7 @@
 // events.jsonl (u11ShrinkProbe interleave 968891), whose ids are synthetic.
 
 import { describe, expect, it } from "bun:test";
-import type { SimEvent } from "@codecast/shared/contracts/evalsApi";
+import type { SimEvent } from "@codecast/evals-api/evalsApi";
 import {
   buildTimeline,
   failIndex,

@@ -143,9 +143,6 @@ import {
   callDisplayTitle,
   callLength,
   LOCAL_AGENT_CLIENTS,
-  PROVIDER_KEYS,
-  getProviderKeySpec,
-  maskProviderKey,
   type VaultInfo,
   TRIGGER_EVENT_NAMES,
   describeEventScope,
@@ -165,6 +162,11 @@ import {
 } from "@codecast/policy/teamFeatures";
 import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
 import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
+import {
+  PROVIDER_KEYS,
+  getProviderKeySpec,
+  maskProviderKey,
+} from "@codecast/provider-keys/providerKeys";
 import type {
   ExcludedSelf,
   SearchPartial,

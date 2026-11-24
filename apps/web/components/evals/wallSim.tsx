@@ -8,7 +8,7 @@ import type {
   OverviewResponse,
   SimFailureMoved,
   SimSessionSummary,
-} from "@codecast/shared/contracts/evalsApi";
+} from "@codecast/evals-api/evalsApi";
 import { evalsHref } from "./evalsPaths";
 import { plural, shortSha } from "@platform/evals/client";
 import { EvalsLink, useEvalsHost, VerdictGlyph } from "@platform/evals/react";

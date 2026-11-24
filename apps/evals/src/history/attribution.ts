@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { Attribution } from "@codecast/shared/contracts/evalsApi";
+import type { Attribution } from "@codecast/evals-api/evalsApi";
 import {
   attribute as attributeWith,
   type AttributionGit,

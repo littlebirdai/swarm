@@ -13,7 +13,7 @@
 
 import * as path from "node:path";
 import { RUN_ON_LAPTOP, askToRun } from "@codecast/shared/contracts/commandRun";
-import { shellArg } from "@codecast/shared/contracts/shellWords";
+import { shellArg } from "@codecast/daemon/shellWords";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import { OWN_LOGIN_REASON } from "../browser/credentials.js";
 import { refuseNavigation } from "../browser/siteGuard.js";

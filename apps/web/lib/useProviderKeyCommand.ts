@@ -15,10 +15,10 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import {
   CLOUD_AGENT_ACTIONS,
   cloudAgentPageUrl,
-  getProviderKeySpec,
   type CloudAgentActionName,
   type CloudAgentLoginStateName,
 } from "@codecast/shared/contracts";
+import { getProviderKeySpec } from "@codecast/provider-keys/providerKeys";
 import { encryptProviderKey } from "./providerKeyCrypto";
 import { useInboxStore } from "../store/inboxStore";
 /** The fields of a machine these hooks read (listDevices' row is one); kept structural so the phone can call them without the web's device badge. */
