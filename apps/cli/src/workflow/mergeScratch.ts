@@ -261,6 +261,7 @@ export async function shutDown(
 export async function acquiredTree(
   repo: string,
   at: string,
+  afterStop?: () => void | Promise<void>,
 ): Promise<ScratchTree> {
   const { acquireWorkspace, healWorkspace, releaseWorkspace } =
     await import("../workspace/lifecycle.js");
@@ -295,13 +296,15 @@ export async function acquiredTree(
       console.log(
         `stopped while ${restoring}: production may run a backend the default branch lacks until the next merge or deploy`,
       );
-    stopping = shutDown(release).finally(() => {
-      if (landedAs) {
-        console.log(landedAs);
-        process.exit(0);
-      }
-      process.exit(sig === "SIGINT" ? 130 : 143);
-    });
+    stopping = shutDown(release)
+      .finally(afterStop)
+      .finally(() => {
+        if (landedAs) {
+          console.log(landedAs);
+          process.exit(0);
+        }
+        process.exit(sig === "SIGINT" ? 130 : 143);
+      });
   }
   for (const sig of ["SIGTERM", "SIGINT"] as const) process.once(sig, onSignal);
   let setUp = false;
