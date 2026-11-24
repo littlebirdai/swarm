@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import {
   parseSessionQuery,
   sessionQuerySearches,
-} from "@codecast/shared/search";
+} from "@codecast/search/sessionQuery";
 import { useWatchEffect } from "./useWatchEffect";
 import { useRemoteSearch } from "./useRemoteSearch";
 import { useObjectSearch, type ObjectGroup } from "./useObjectSearch";

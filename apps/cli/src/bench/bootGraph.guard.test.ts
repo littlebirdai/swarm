@@ -243,7 +243,7 @@ describe("command groups stay off the boot graph", () => {
       // and `cast sharing` read too.
       // 262 after the 2026-09-30 cloud agents landing, which had pushed it to 280.
       // Its new leaves stay: the `cast sync` verb registrar cloud/syncCli.ts
-      // (bodies load inside each action), shared/search for the operator help
+      // (bodies load inside each action), packages/search/src for the operator help
       // text, cloudAgents/transcript.ts under parser.ts, cloud/gitOrigin.ts under
       // gitPlane.ts, cloud/mirror/bundle.ts and seven contracts through the
       // barrel. What left: ccAccounts.ts read the Claude login through
@@ -255,7 +255,7 @@ describe("command groups stay off the boot graph", () => {
       // harness ledger share, so the worker runtime no longer loads the updater.
       // Plus cloudAgents/apiError.ts, the provider error reader transcript.ts
       // uses; it is a leaf so the HTTP client stays off this graph.
-      // Plus shared/contracts/levenshtein.ts, the edit distance commandSuggestion.ts
+      // Plus packages/search/src/levenshtein.ts, the edit distance commandSuggestion.ts
       // shares with the convex sim backend. It is a subpath import, not part of
       // the contracts barrel, so the daemon graph does not carry it.
       // Plus the `cast doc` drafting verbs: docDraftingCommand.ts, a registrar

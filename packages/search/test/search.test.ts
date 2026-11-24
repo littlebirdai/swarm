@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { countMatches, parseSearchTerms } from "./index";
+import { countMatches, parseSearchTerms } from "../src/index";
 
 describe("parseSearchTerms", () => {
   test("lowercases words and keeps a quoted phrase whole", () => {

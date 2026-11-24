@@ -160,7 +160,7 @@ import {
   applySessionQueryCompletion,
   parseSessionQuery,
   sessionQuerySearches,
-} from "@codecast/shared/search";
+} from "@codecast/search/sessionQuery";
 import { useCollectionRows } from "../hooks/useCollectionRows";
 import { triggerSig, useSyncTriggers } from "../hooks/useSyncTriggers";
 import {

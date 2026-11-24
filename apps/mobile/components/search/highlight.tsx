@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import type { StyleProp, TextStyle } from "react-native";
-import { parseQueryTerms, termSpans } from "@codecast/shared/search";
+import { parseQueryTerms, termSpans } from "@codecast/search/terms";
 import { Text as RNText } from "@/components/Themed";
 import { Theme } from "@/constants/Theme";
 

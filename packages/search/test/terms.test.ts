@@ -12,7 +12,7 @@ import {
   snippetAround,
   stripWrapperTags,
   contentMatchesAnyTerm,
-} from "./terms";
+} from "../src/terms";
 
 // The search that started this: "k pop warm intro video" could not find the
 // session where the K-pop warm intro video was made. It had drifted to the

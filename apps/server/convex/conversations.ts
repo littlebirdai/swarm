@@ -281,13 +281,15 @@ import {
 import {
   addEvidence,
   emptyEvidence,
-  parseSearchTerms as parseFindTerms,
-  parseSessionQuery,
   relevanceTier,
   snippetAround,
   stripWrapperTags,
+} from "@codecast/search/terms";
+import { parseSearchTerms as parseFindTerms } from "@codecast/search";
+import {
+  parseSessionQuery,
   type SessionQuery,
-} from "@codecast/shared/search";
+} from "@codecast/search/sessionQuery";
 import {
   narrowByOperators,
   type OperatorCandidate,

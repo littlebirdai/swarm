@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseSessionQuery } from "@codecast/shared/search";
+import { parseSessionQuery } from "@codecast/search/sessionQuery";
 import { commitPath, prPath } from "../externalEvents";
 import {
   fileSessionsLink,

@@ -2,13 +2,13 @@
 // snippet around it looks like, and how a match is marked. The header search,
 // the /search page and chat search all render from these, so a hit looks the
 // same wherever it is shown.
+import { parseSearchTerms } from "@codecast/search";
 import {
-  parseSearchTerms,
   parseQueryTerms,
   termSpans,
   snippetAround,
   stripWrapperTags,
-} from "@codecast/shared/search";
+} from "@codecast/search/terms";
 
 export { parseSearchTerms };
 

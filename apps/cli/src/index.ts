@@ -202,7 +202,7 @@ import {
   parseRelativeDate,
   wasEdited,
 } from "@codecast/time";
-import { SESSION_QUERY_OPERATORS } from "@codecast/shared/search/sessionQuery";
+import { SESSION_QUERY_OPERATORS } from "@codecast/search/sessionQuery";
 import {
   describeShareSpan,
   formatDateRange,
@@ -9435,7 +9435,8 @@ program
       }
       const { formatSearchResults, formatSearchSessions } =
         await import("./formatter.js");
-      const { parseSessionQuery } = await import("@codecast/shared/search");
+      const { parseSessionQuery } =
+        await import("@codecast/search/sessionQuery");
       const text = parseSessionQuery(query).text;
       console.log(
         options.sessions
@@ -12169,7 +12170,7 @@ program
           end_line: endLine,
         });
         const { countMatches, parseSearchTerms } =
-          await import("@codecast/shared/search");
+          await import("@codecast/search");
         const terms = parseSearchTerms(grep);
         const has = (t: unknown) =>
           typeof t === "string" && countMatches(t, terms) > 0;

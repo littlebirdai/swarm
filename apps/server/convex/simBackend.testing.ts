@@ -26,7 +26,7 @@
 import { getFunctionName } from "convex/server";
 import { convexToJson, jsonToConvex } from "convex/values";
 import { inboxEpoch } from "@codecast/shared/contracts";
-import { levenshtein } from "@codecast/shared/contracts/levenshtein";
+import { levenshtein } from "@codecast/search/levenshtein";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import schema from "./schema";
 import { validateArgs, type ValidatorJson } from "./simValidate.testing";

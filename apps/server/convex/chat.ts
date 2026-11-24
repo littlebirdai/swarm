@@ -147,7 +147,7 @@ import {
   sessionLineTitle,
 } from "./chatText";
 import { peopleOf } from "@codecast/team/memberKind";
-import { parseQueryTerms } from "@codecast/shared/search";
+import { parseQueryTerms } from "@codecast/search/terms";
 import {
   chatMentionClientId,
   chatRelayClientId,

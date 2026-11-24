@@ -29386,6 +29386,27 @@
   "packages/render/test/typeScale.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/search/src/index.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/search/src/levenshtein.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/search/src/sessionQuery.ts": {
+    "swarm/no-comments": 40
+  },
+  "packages/search/src/terms.ts": {
+    "swarm/no-comments": 54
+  },
+  "packages/search/src/tokenize.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/search/test/sessionQuery.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/search/test/terms.test.ts": {
+    "swarm/no-comments": 4
+  },
   "packages/sessions/src/agentStatus.ts": {
     "swarm/no-comments": 231
   },
@@ -29673,9 +29694,6 @@
   },
   "packages/shared/contracts/judges.ts": {
     "swarm/no-comments": 59
-  },
-  "packages/shared/contracts/levenshtein.ts": {
-    "swarm/no-comments": 4
   },
   "packages/shared/contracts/lineChat.ts": {
     "swarm/no-comments": 19
@@ -30045,24 +30063,6 @@
   },
   "packages/shared/replay/timeline.ts": {
     "swarm/no-comments": 18
-  },
-  "packages/shared/search/index.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/search/sessionQuery.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/search/sessionQuery.ts": {
-    "swarm/no-comments": 40
-  },
-  "packages/shared/search/terms.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/search/terms.ts": {
-    "swarm/no-comments": 54
-  },
-  "packages/shared/search/tokenize.ts": {
-    "swarm/no-comments": 10
   },
   "packages/shared/tasks/foreignText.test.ts": {
     "swarm/no-comments": 10

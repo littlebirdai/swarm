@@ -10,7 +10,7 @@ import {
   applySessionQueryCompletion,
   sessionQueryCompletion,
   type SessionQueryCompletion,
-} from "@codecast/shared/search";
+} from "@codecast/search/sessionQuery";
 import { useInboxStore } from "../store/inboxStore";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { teamMembersOf } from "../lib/activeTeam";

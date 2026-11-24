@@ -7,7 +7,7 @@ import { memo } from "react";
 import { Pressable, StyleSheet, View as RNView } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { SessionSearchRow } from "@codecast/web/lib/instantSessionSearch";
-import { stripWrapperTags } from "@codecast/shared/search";
+import { stripWrapperTags } from "@codecast/search/terms";
 import { Text as RNText } from "@/components/Themed";
 import {
   MobileIdentityFace,
