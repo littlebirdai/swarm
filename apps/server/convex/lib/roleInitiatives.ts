@@ -17,7 +17,7 @@ import {
   type MetricReading,
   type MetricSeries,
   type MetricTrend,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { seriesLookup } from "./metricSeries";
 import { goalHitRate } from "./goalPredictions";
 

@@ -765,10 +765,10 @@ export type EnvDeclaration = {
   predicts?: string;
   /** How long one run may take before it is stopped, in seconds. */
   timeout_s?: number;
-  /** Path globs this env's grader, cases, held data and checks live in: a climb candidate may not change them (contracts/climb.ts). */
+  /** Path globs this env's grader, cases, held data and checks live in: a climb candidate may not change them (packages/goals/src/climb.ts). */
   protects?: string[];
   /**
-   * What a climb does with the env (contracts/climb.ts): "score", the default, is a level a climb may climb; "check"
+   * What a climb does with the env (packages/goals/src/climb.ts): "score", the default, is a level a climb may climb; "check"
    * is a level no candidate may make worse past `tolerance` (an absolute change in the mean score, in `direction`),
    * which Guard runs on every survivor and Frame never climbs. An L0 env is a check whatever it says.
    */
@@ -844,7 +844,7 @@ export type EnvStanding = {
     finished_at: number;
   };
   link?: EnvLink;
-  /** The env's case sets kept by codecast (contracts/envCases.ts): size, version, fetches, last attempt per split; never a case. */
+  /** The env's case sets kept by codecast (packages/goals/src/envCases.ts): size, version, fetches, last attempt per split; never a case. */
   dev?: EnvCaseSetStanding;
   held?: EnvCaseSetStanding;
 };

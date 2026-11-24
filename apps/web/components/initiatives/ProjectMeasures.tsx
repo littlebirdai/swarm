@@ -3,10 +3,7 @@
 // with the goal's editor. The lead role reads the same lines in its brief.
 import { useState } from "react";
 import { Hash, Pencil } from "lucide-react";
-import {
-  metricReadings,
-  metricTrends,
-} from "@codecast/shared/contracts/initiative";
+import { metricReadings, metricTrends } from "@codecast/goals/initiative";
 import { useInboxStore, type ProjectItem } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useMetricSeries } from "../../hooks/useMetricSeries";

@@ -14,7 +14,7 @@
 // passes it in; the map keeps nothing but its own selection.
 import { useCallback, useMemo, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { useSyncOrgHealth } from "../../hooks/useSyncOrgHealth";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { cn } from "../../lib/utils";

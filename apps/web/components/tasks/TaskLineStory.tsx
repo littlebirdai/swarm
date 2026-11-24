@@ -26,7 +26,7 @@ import {
   lineRunOutcome,
 } from "@codecast/shared/contracts/changeCard";
 import { isExpectationId } from "@codecast/shared/contracts/expectations";
-import { needsWords } from "@codecast/shared/contracts/goalsBrief";
+import { needsWords } from "@codecast/goals/goalsBrief";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { expectationsHref } from "../../lib/expectations/view";

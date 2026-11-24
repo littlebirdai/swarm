@@ -5,10 +5,10 @@ import {
   seriesLookup,
   type MetricArg,
 } from "./lib/metricSeries";
-import { openPlansOf } from "@codecast/shared/contracts/openPlans";
+import { openPlansOf } from "@codecast/goals/openPlans";
 import { openPlanLine } from "./lib/orgCoverage";
 import { planDriver, sessionRefs } from "./lib/planDriver";
-import { metricDenominatorRef } from "@codecast/shared/contracts/metricStanding";
+import { metricDenominatorRef } from "@codecast/goals/metricStanding";
 import { goalPredictions } from "./lib/goalPredictions";
 import {
   labelsOf,
@@ -39,7 +39,7 @@ import {
   type InitiativeStatus,
   type InitiativeUpdateHealth,
   type RecordOpResult,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { recordScores } from "@codecast/shared/contracts/orgTemplateState";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./functions";
@@ -60,10 +60,7 @@ import {
 } from "./lib/access";
 import { findInitiative, requireInitiative } from "./lib/initiativeRef";
 import { goalEnvValidator } from "./envSchema";
-import {
-  normalizeGoalEnvs,
-  type GoalEnv,
-} from "@codecast/shared/contracts/envs";
+import { normalizeGoalEnvs, type GoalEnv } from "@codecast/goals/envs";
 import { projectProgress } from "./lib/projectWork";
 
 // Initiatives (docs/architecture/initiatives-projects-role-page.md I1): a goal
@@ -80,7 +77,7 @@ import { projectProgress } from "./lib/projectWork";
 //
 // One mutation serves the browser and the CLI: each takes an optional
 // `api_token`, and the web's dispatch side effects call the same functions
-// with the browser's identity. The row is raw (shared/contracts/initiative);
+// with the browser's identity. The row is raw (@codecast/goals/initiative);
 // the web derives progress, leads and sub initiatives at render. Only the CLI
 // reads (`list`, `get`) join names and counts, because a terminal has no store.
 
@@ -432,7 +429,7 @@ const fieldArgs = {
 // copy of it. A milestone, a question and a decision carry a stored `key`; a
 // source has none, and is named by its address (intentSourceKey).
 
-// The rules are one reducer (shared/contracts/initiative applyRecordOp), the
+// The rules are one reducer (@codecast/goals/initiative applyRecordOp), the
 // same one the web paints with; this module only supplies the clock and who
 // signs an entry that names nobody.
 

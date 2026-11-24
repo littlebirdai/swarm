@@ -23,7 +23,7 @@ import {
   type OrgSpecChange,
 } from "@codecast/shared/contracts/orgProposal";
 import { formatRelative } from "@codecast/time";
-import { metricLine } from "@codecast/shared/contracts/initiative";
+import { metricLine } from "@codecast/goals/initiative";
 import {
   reachedBreakdown,
   reachedTotal,

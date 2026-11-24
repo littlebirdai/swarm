@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import type {
   InitiativeRow,
   InitiativeUpdateRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { restoreInboxStoreAfterAll } from "../../../__tests__/mockInboxStore";
 import { closeDomWindow } from "../../../../test-helpers/domGlobals";
 

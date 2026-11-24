@@ -675,7 +675,7 @@ function HostFeeders() {
   // The workspace's metric series: the live numbers goals and projects read
   // wherever they are drawn (hooks/useMetricSeries), one subscription for all.
   useSyncMetricSeries();
-  // And the 30 days a goal read over a window needs (contracts/metricStanding).
+  // And the 30 days a goal read over a window needs (@codecast/goals/metricStanding).
   useSyncMetricWindows();
   // The workspace's Ops sources (a handful of rows): the sidebar's Ops count
   // reads their health beside the alerting watches above, in every window.

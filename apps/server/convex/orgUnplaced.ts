@@ -27,7 +27,7 @@ import {
   type SessionRef,
   type UnplacedInputs,
 } from "./lib/orgCoverage";
-import { isOpenPlan, openPlansOf } from "@codecast/shared/contracts/openPlans";
+import { isOpenPlan, openPlansOf } from "@codecast/goals/openPlans";
 import { isActiveTask, isOnProjectBoard } from "@codecast/shared/tasks";
 import { planDriver, sessionRefs, taskSession } from "./lib/planDriver";
 import { canAccessPlan, canAccessTask } from "./lib/access";

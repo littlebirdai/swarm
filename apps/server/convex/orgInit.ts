@@ -145,11 +145,8 @@ import {
   mergeIntentSources,
   parseIntentSource,
   type IntentSource,
-} from "@codecast/shared/contracts/initiative";
-import {
-  keepMetricReads,
-  metricShape,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/initiative";
+import { keepMetricReads, metricShape } from "@codecast/goals/metricStanding";
 import {
   performAddProjects,
   performCreateInitiative,

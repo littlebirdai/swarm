@@ -6,13 +6,13 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "../proc.js";
-import type { EnvDeclaration } from "@codecast/shared/contracts/envs";
+import type { EnvDeclaration } from "@codecast/goals/envs";
 import {
   CLIMB_ALWAYS_PROTECTED,
   commandPathGroups,
   globMatch,
   protectedTouches,
-} from "@codecast/shared/contracts/climb";
+} from "@codecast/goals/climb";
 
 const sha = (text: string | Buffer) =>
   crypto.createHash("sha256").update(text).digest("hex");

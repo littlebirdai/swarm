@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { groundRequest } from "../../../../../apps/server/convex/lineGround";
-import { groundCausePrompt } from "../../../../../packages/shared/contracts/goalsBrief";
+import { groundCausePrompt } from "@codecast/goals/goalsBrief";
 import type { Fixture } from "../../adapters/resolver";
 import { STRONG_MODEL } from "../../models";
 import { REPO_ROOT } from "../../paths";

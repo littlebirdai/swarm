@@ -233,7 +233,7 @@ describe("command groups stay off the boot graph", () => {
       // tree itself does rather than a group arriving sideways. The three Claude
       // Code hook handlers with their shared hookJson.ts (cast runs them as
       // hooks, so index.ts dispatches them), initiativeCommand.ts with its
-      // contracts/initiative.ts (the initiative line formatters index.ts renders)
+      // packages/goals/src/initiative.ts (the initiative line formatters index.ts renders)
       // and the four org/idle/handoff contracts the tree reads directly.
       // 253 after hook admission: statusHook.ts now reads its token through
       // hookIdentity.ts (node and atomicWrite only), and session-move.ts copies
@@ -361,7 +361,7 @@ describe("command groups stay off the boot graph", () => {
       // 366 on 2026-11-16: ccFleetState.ts, the fleet state record split out of
       // ccAccounts.ts for its max-lines pin, no new code. 367 the same day:
       // packages/calls/src/screenRecording.ts, which the daemon reads to expand a screen
-      // recording into its brief. 368 on 2026-11-17: contracts/metricStanding.ts,
+      // recording into its brief. 368 on 2026-11-17: packages/goals/src/metricStanding.ts,
       // a goal metric read over a window with a noise band, which initiative.ts
       // reads for every standing (and pure: no imports). 369 on 2026-11-18:
       // orgUnplacedLines.ts, the unplaced-work lines a role brief prints, which
@@ -425,7 +425,7 @@ describe("command groups stay off the boot graph", () => {
       // 4384 on 2026-10-27: snippets.ts's one section writer the capability
       // driver shares, and project instruction targets (ct-42887, ct-74443).
       // 4397 on 2026-10-28: goals and projects read live numbers from metric
-      // series. contracts/initiative.ts (+6.4: series readings, pace, the
+      // series. packages/goals/src/initiative.ts (+6.4: series readings, pace, the
       // metric spec, the value formatter) and contracts/rolePlaybook.ts (+5:
       // the Experiments section and the climbing guidance `cast brief` prints),
       // folded into files already here rather than two new leaves.
@@ -522,7 +522,7 @@ describe("command groups stay off the boot graph", () => {
       // on demand), usageLimits.ts +1, commandGroups.ts and snippets.ts +1 each.
       // 4757 the same day: the `cast guide sim` text in snippets.ts (the rotate
       // verb and its paragraph); the verb loads simstream.ts on demand.
-      // 4784 the same day: contracts/metricStanding.ts +25 (a goal metric read
+      // 4784 the same day: packages/goals/src/metricStanding.ts +25 (a goal metric read
       // over a window with a noise band: the bands, the detectable change and the
       // executable done-when), reached through initiative.ts, plus its callers +2.
       // 4788 on 2026-11-18 (ct-96177): a task's predicted effect: --predict and
@@ -541,7 +541,7 @@ describe("command groups stay off the boot graph", () => {
       // 4806 the same day: 1328df1d0's reading of the Fable probe (the scoped
       // window's headers and the empty-429 rule) +2 in ccAccounts.ts, and
       // ccRateLimitHeaders.ts's header and imports when the parsers moved out +1.
-      // 4815 the same day (ct-96176): contracts/metricStanding.ts +16, the
+      // 4815 the same day (ct-96176): packages/goals/src/metricStanding.ts +16, the
       // periods' own spread, ratio pooling and the periods read (+9), then the
       // narrow target grammar, dated trajectories and the predicate's left-out
       // numbers (+7). 4818 the same day: cohort periods a reader dates itself,

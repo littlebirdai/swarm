@@ -85,7 +85,7 @@ export function recordEvidence(
 /**
  * Scoreboard values the manifest declares, each with a source (H7). The one
  * reporting path for a number a role observed: a template instance's
- * scoreboard and an initiative's metrics (shared/contracts/initiative) both
+ * scoreboard and an initiative's metrics (@codecast/goals/initiative) both
  * declare keys and both record through here, so `cast org template report`
  * and `cast initiative report` read and refuse the same way.
  */

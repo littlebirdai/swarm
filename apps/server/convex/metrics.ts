@@ -2,7 +2,7 @@
 // one number a source can answer (a PostHog HogQL query or saved insight, or
 // an app connector's metric reader), a line and a direction, and how often to
 // look. A watch with no line is a plain series: a goal's live number
-// (contracts/initiative InitiativeMetric.series) that keeps its points and
+// (@codecast/goals/initiative InitiativeMetric.series) that keeps its points and
 // never opens a group. The poll keeps the last
 // GROUP_RULES.metric_points values on the watch and hands each one to the
 // group upsert as a `metric` occurrence, so crossing the line is a
@@ -70,7 +70,7 @@ import {
   definitionOf,
   notRemoved,
   ofVersion,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/metricStanding";
 import {
   MONITOR_LIMITS,
   isMuted,

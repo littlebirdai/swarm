@@ -13,7 +13,7 @@ import {
   protectedTouches,
   readClimbCard,
   separates,
-} from "./climb";
+} from "../src/climb";
 
 const goal = {
   short_id: "in-9",

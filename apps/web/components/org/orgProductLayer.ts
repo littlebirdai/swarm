@@ -6,8 +6,8 @@
 // leads goes to one "No owner yet" group, and the mission (or the company)
 // sits at the top. Pure: the cards' heights come from goalsLayout's own sizing
 // for the zoom level, and their data is what GoalsNodeCards already draws.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
-import { metricReadings } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
+import { metricReadings } from "@codecast/goals/initiative";
 import { projectLeadOf } from "@codecast/org/orgLead";
 import {
   goalCloseExtra,

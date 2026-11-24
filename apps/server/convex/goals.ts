@@ -2,7 +2,7 @@
 // `cast goals` renders for the ground node. Active initiatives with their
 // metrics and scoreboard, and the charter of every live project that has one
 // or that an active initiative carries. The rendering is
-// shared/contracts/goalsBrief; this only gathers, in one workspace. With a
+// @codecast/goals/goalsBrief; this only gathers, in one workspace. With a
 // project (line-profile.md LP1) it gathers that project's charter and the
 // active initiatives that carry it, and nothing else.
 import { v } from "convex/values";
@@ -11,11 +11,11 @@ import {
   type GoalReadTarget,
   type GoalsBrief,
   type GoalsBriefProject,
-} from "@codecast/shared/contracts/goalsBrief";
+} from "@codecast/goals/goalsBrief";
 import {
   detectsWords,
   type PredictionTarget,
-} from "@codecast/shared/contracts/predictedEffect";
+} from "@codecast/goals/predictedEffect";
 import {
   DEFAULT_READ_SPAN_MS,
   envSense,
@@ -25,8 +25,8 @@ import {
 import type {
   InitiativeMetric,
   MetricSeries,
-} from "@codecast/shared/contracts/initiative";
-import { metricDenominatorRef } from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/initiative";
+import { metricDenominatorRef } from "@codecast/goals/metricStanding";
 import { query } from "./functions";
 import { verifyApiToken } from "./apiTokens";
 import { createWorkContext, scopedFetch } from "./data";

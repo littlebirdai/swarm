@@ -8,7 +8,7 @@
 // The task names the goal (and optionally the metric) in its goal_ref. Agents
 // write two things, the climb card (Frame) and the candidates (Propose); every
 // number after that is computed by `cast climb` (climbCommand.ts) under the
-// rules in contracts/climb.ts, which no station can bend: the spending limit is the
+// rules in packages/goals/src/climb.ts, which no station can bend: the spending limit is the
 // smaller of the card's and the goal's (or the default), a level whose
 // minimum detectable change is larger than one change could move is refused,
 // a candidate that touches what grades it is refused, the base's own env

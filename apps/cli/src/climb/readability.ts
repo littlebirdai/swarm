@@ -8,13 +8,13 @@
 import {
   CLIMB_EXPERIMENT_MAX_WEEKS,
   experimentWeeks,
-} from "@codecast/shared/contracts/climb";
+} from "@codecast/goals/climb";
 import {
   formatSeriesValue,
   metricReadings,
   type MetricReading,
-} from "@codecast/shared/contracts/initiative";
-import { MDE_WEEKS, mdeWords } from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/initiative";
+import { MDE_WEEKS, mdeWords } from "@codecast/goals/metricStanding";
 import { liveSeries } from "../initiativeCommand.js";
 
 export type Readability = {

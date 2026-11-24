@@ -21,7 +21,7 @@ import {
   projectLeadOf,
   type LeadRole,
 } from "@codecast/org/orgLead";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { computePlanProgress } from "./liveEntities";
 import { roleInitiatives, type RoleInitiative } from "./roleInitiatives";
 import { HAND_GROUPS } from "./scopePage";

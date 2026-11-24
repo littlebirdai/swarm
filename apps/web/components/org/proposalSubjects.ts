@@ -6,7 +6,7 @@
 // web adapter: which changes belong together, what each field read as before
 // (the live record while a change waits, the stamp once applied, nothing for
 // another workspace) and the faces drawn beside a value.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import type { OrgAppliedDiffRow } from "@codecast/shared/contracts/orgChange";
 import {
   changeWords,

@@ -9,7 +9,7 @@
 import type {
   InitiativeRow,
   InitiativeScore,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   UNION_GOALS_CHANGES,
   UNION_GOALS_DATA,

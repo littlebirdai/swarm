@@ -1,10 +1,10 @@
-// A goal's environments with their latest attempt and link (contracts/envs.ts).
+// A goal's environments with their latest attempt and link (packages/goals/src/envs.ts).
 // The level and note live on the goal row (initiatives.envs); each env's
 // standing lives in envStandings, fed once per workspace by the sync host
 // (envs.workspaceStandings). A goal page joins the two at render.
 import { useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type { EnvStanding, GoalEnv } from "@codecast/shared/contracts/envs";
+import type { EnvStanding, GoalEnv } from "@codecast/goals/envs";
 import { useSyncCollection } from "./useSyncCollection";
 import { useOpsScope } from "./useSyncOps";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";

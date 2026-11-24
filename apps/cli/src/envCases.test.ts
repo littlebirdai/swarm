@@ -11,11 +11,8 @@ import {
 } from "./envCases.js";
 import { execFileSync } from "node:child_process";
 import { LOCAL_CASES_ENV, runEnv, runWithCases } from "./envCommand.js";
-import {
-  heldCaseId,
-  type EnvDeclaration,
-} from "@codecast/shared/contracts/envs";
-import { CASES_FILE_ENV } from "@codecast/shared/contracts/envCases";
+import { heldCaseId, type EnvDeclaration } from "@codecast/goals/envs";
+import { CASES_FILE_ENV } from "@codecast/goals/envCases";
 
 // The CLI half of held sets (envHeld.ts). Pinned: the fetch writes a private
 // file only the runner sees and removes it whatever happens; a dev run never

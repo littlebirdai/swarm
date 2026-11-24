@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { predictionWords } from "@codecast/shared/contracts/predictedEffect";
+import { predictionWords } from "@codecast/goals/predictedEffect";
 import { targetDayStamp } from "@codecast/time";
-import {
-  metricReadings,
-  metricTrends,
-} from "@codecast/shared/contracts/initiative";
+import { metricReadings, metricTrends } from "@codecast/goals/initiative";
 import {
   SOURCE_NEEDED,
   answerWrite,

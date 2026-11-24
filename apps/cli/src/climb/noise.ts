@@ -1,11 +1,11 @@
-// What a climb level can see (flows.md FL10, contracts/climb.ts levelNoise).
+// What a climb level can see (flows.md FL10, packages/goals/src/climb.ts levelNoise).
 // A climb compares each candidate with the base case by case, so on a
 // reproducible base the difference varies only on the cases a change moves:
 // a paired level's floor rests on the share of cases one change moves and
 // the change a moved case makes. This module reads those from the card and
 // from the level's earlier climbs filed in the registry.
-import type { EnvCase } from "@codecast/shared/contracts/envs";
-import type { ClimbCardLevel } from "@codecast/shared/contracts/climb";
+import type { EnvCase } from "@codecast/goals/envs";
+import type { ClimbCardLevel } from "@codecast/goals/climb";
 
 type Post = (
   urlPath: string,

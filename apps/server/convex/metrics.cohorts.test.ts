@@ -16,10 +16,7 @@ import {
   removePoints,
 } from "./metrics";
 import { seriesLookup } from "./lib/metricSeries";
-import {
-  metricLine,
-  metricReadings,
-} from "@codecast/shared/contracts/initiative";
+import { metricLine, metricReadings } from "@codecast/goals/initiative";
 
 const h = (fn: any) => fn._handler;
 const D = (s: string) =>

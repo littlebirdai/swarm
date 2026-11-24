@@ -81,7 +81,7 @@ import {
   buildConversationUrl,
 } from "./conversationRef.js";
 import { matchProject, looksLikeConvexId } from "./projectRef.js";
-import { groundUpdateBody } from "@codecast/shared/contracts/goalsBrief";
+import { groundUpdateBody } from "@codecast/goals/goalsBrief";
 import {
   SOURCE_NEEDED,
   answerWrite,
@@ -115,8 +115,8 @@ import {
   metricTrends,
   parseMetricSpec,
   type IntentSource,
-} from "@codecast/shared/contracts/initiative";
-import { metricWindowNoiseError } from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/initiative";
+import { metricWindowNoiseError } from "@codecast/goals/metricStanding";
 import {
   ORG_CONTEXT_GUIDANCE,
   orgWhereLines,
@@ -25407,7 +25407,7 @@ async function printTaskShow(
     );
   if (t.predicted && want("details")) {
     const { predictionWords, PREDICTION_VERDICT_WORDS } =
-      await import("@codecast/shared/contracts/predictedEffect");
+      await import("@codecast/goals/predictedEffect");
     const w = predictionWords(t.predicted, t.realised ?? null, null);
     console.log(
       `  ${c.dim}Predicts: ${w.said}${t.realised ? `; ${PREDICTION_VERDICT_WORDS[t.realised.verdict as keyof typeof PREDICTION_VERDICT_WORDS]}: ${w.reading}` : ""} :: ${t.predicted.basis}${c.reset}`,

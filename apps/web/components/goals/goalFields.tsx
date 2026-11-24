@@ -9,7 +9,7 @@ import {
   metricTrends,
   type InitiativeMetric,
   type InitiativeRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { useMetricSeries } from "../../hooks/useMetricSeries";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";

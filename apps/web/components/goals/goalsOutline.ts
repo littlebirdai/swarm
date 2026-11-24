@@ -8,7 +8,7 @@
 // moves under one. Siblings read in `position` order (lib/initiatives
 // byListOrder); a move renumbers the siblings it lands among and writes only
 // the positions that changed.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import type { DocGoal, DocProject } from "../company/companyModel";
 
 /** Room between two hand-set positions, so a later move rarely renumbers more than it must. */

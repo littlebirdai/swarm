@@ -11,7 +11,7 @@ import { api as _api } from "@codecast/convex/convex/_generated/api";
 import type {
   InitiativeRow,
   InitiativeUpdateRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { isConvexId } from "../lib/entityLinks";
 import { initiativeSig, type BoardTask } from "../lib/initiatives";
 import { useCollectionRows } from "./useCollectionRows";

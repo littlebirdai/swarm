@@ -4141,7 +4141,7 @@ cliRoute("/cli/initiatives/get", async (ctx, body) =>
   ctx.runQuery(api.initiatives.get, body),
 );
 
-// Environments and attempts (contracts/envs.ts): `cast env`, `cast goal envs`.
+// Environments and attempts (packages/goals/src/envs.ts): `cast env`, `cast goal envs`.
 // Environments and attempts (envs.ts).
 for (const [path, fn, write] of [
   ["record", api.envs.record, true],

@@ -1,5 +1,5 @@
 // A task's predicted effect on a goal metric, read back after ship (ct-96177,
-// shared/contracts/predictedEffect.ts). The prediction and its reading both
+// packages/goals/src/predictedEffect.ts). The prediction and its reading both
 // live on the task; a goal lists its predictions from its tasks, so the record
 // has one home (lib/goalPredictions.ts).
 //
@@ -17,12 +17,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   metricNumber,
   type InitiativeMetric,
-} from "@codecast/shared/contracts/initiative";
-import {
-  deltaPhrase,
-  expandCases,
-  pairedDelta,
-} from "@codecast/shared/contracts/envs";
+} from "@codecast/goals/initiative";
+import { deltaPhrase, expandCases, pairedDelta } from "@codecast/goals/envs";
 import {
   judgeEnvPrediction,
   judgePrediction,
@@ -38,7 +34,7 @@ import {
   type PredictedEffect,
   type RealisedEffect,
   type WindowPoint,
-} from "@codecast/shared/contracts/predictedEffect";
+} from "@codecast/goals/predictedEffect";
 import { readSeries } from "./lib/metricPoints";
 import { watchIn } from "./lib/metricSeries";
 import { patchTask } from "./lib/taskWrite";

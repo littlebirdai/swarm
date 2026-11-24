@@ -12,7 +12,7 @@
 // (`cast env cases get`) and a dev run has no rules beyond that. Held is
 // sealed: no CLI command or web view prints a held case, a held run needs a
 // committed tree whose runner is the base's, its attempt is filed against its
-// own fetch with hashed ids and scores only (contracts/envs.ts), and the
+// own fetch with hashed ids and scores only (packages/goals/src/envs.ts), and the
 // fetches no attempt answered show on the env's standing.
 
 import { ENV_LIMITS } from "./envs";

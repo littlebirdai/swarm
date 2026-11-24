@@ -21,7 +21,7 @@ import {
 
 restoreInboxStoreAfterAll();
 import assert from "node:assert/strict";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import type { InitiativeRecordOp } from "../../store/initiativeRecord";
 import type { OrgTree } from "../org/orgTypes";
 

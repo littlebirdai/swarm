@@ -43,7 +43,7 @@ import {
   type InitiativeRecordList,
   type InitiativeRow,
   type IntentSource,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   formatTargetDay,
   targetDayOf,

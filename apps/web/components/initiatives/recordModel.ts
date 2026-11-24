@@ -1,7 +1,7 @@
 // A goal's record in parts (docs/architecture/initiatives-projects-role-page.md
 // I5): which parts hold something, and the record in a few words for the
 // fold that carries it.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 
 export type RecordPart =
   | "done_when"

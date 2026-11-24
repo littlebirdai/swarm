@@ -1,6 +1,6 @@
 // A goal as a link finds it in the store, by any ref the link may carry.
 // Pure: every reader passes the rows it already holds.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 
 export type Member = {
   _id: string;

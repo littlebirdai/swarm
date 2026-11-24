@@ -5,13 +5,13 @@
 // of it, which entry a person means by a number or a few words, and the op
 // each record command sends. The network calls and the exits live in index.ts.
 
-import type { GoalPredictionRow } from "@codecast/shared/contracts/predictedEffect";
+import type { GoalPredictionRow } from "@codecast/goals/predictedEffect";
 import { targetDayOf, targetDayStamp, targetDayPassed } from "@codecast/time";
 import {
   STANDING_WORD,
   doneWhenPredicate,
   periodsWords,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/metricStanding";
 import {
   INITIATIVE_HEALTH_LABEL,
   INITIATIVE_RECORD_LISTS,
@@ -47,7 +47,7 @@ import {
   type MetricSeries,
   type MetricStanding,
   type MetricTrend,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 
 type Palette = Record<
   "green" | "yellow" | "red" | "cyan" | "dim" | "bold" | "reset",

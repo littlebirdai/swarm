@@ -46,10 +46,7 @@ import {
 import { sessionsUnder } from "@codecast/web/components/org/goalsLayout";
 import type { OrgTree } from "@codecast/web/components/org/orgTypes";
 import { agoOf } from "@codecast/web/lib/threadState";
-import {
-  mdeWords,
-  standingWord,
-} from "@codecast/shared/contracts/metricStanding";
+import { mdeWords, standingWord } from "@codecast/goals/metricStanding";
 import {
   INITIATIVE_STATUSES,
   INITIATIVE_UPDATE_HEALTHS,
@@ -57,7 +54,7 @@ import {
   metricReadings,
   type InitiativeRow,
   type InitiativeUpdateHealth,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { isOnProjectBoard, projectTaskCounts } from "@codecast/shared/tasks";
 import { TaskItemRow, showTaskActions } from "@/components/TaskItem";
 import { PlanItemRow } from "@/components/PlanItem";

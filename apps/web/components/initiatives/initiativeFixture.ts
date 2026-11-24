@@ -1,13 +1,13 @@
 // A typed fixture of the contract's rows
 // (docs/architecture/initiatives-projects-role-page.md I1;
-// @codecast/shared/contracts/initiative). The mount tests and the derivation
+// @codecast/goals/initiative). The mount tests and the derivation
 // tests read it. It carries one initiative owned by a role and one by a
 // person, a sub initiative, a project that sits in two initiatives, and an
 // initiative nobody owns.
 import type {
   InitiativeRow,
   InitiativeUpdateRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 
 const DAY = 86_400_000;
 export const FIXTURE_NOW = Date.UTC(2026, 8, 18, 12);
