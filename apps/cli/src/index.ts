@@ -12017,7 +12017,8 @@ program
         conversationId === undefined || conversationId === "self"
           ? await resolveConversationFullId(config, undefined)
           : parseConversationRef(conversationId).conversationId;
-      const { explainAskFailure } = await import("@codecast/shared/contracts");
+      const { explainAskFailure } =
+        await import("@codecast/sessions/sessionAsk");
       // A long session takes minutes to read whole; say so before the wait, so
       // a caller's own timeout does not kill the answer it is waiting for.
       const size = await tryCliPost("/cli/read", {

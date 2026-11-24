@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { forkSeedClientId, isForkSeedClientId } from "./forkSeed";
+import { forkSeedClientId, isForkSeedClientId } from "../src/forkSeed";
 
 describe("fork seed stamp", () => {
   test("a seed client id round-trips through the predicate", () => {

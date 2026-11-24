@@ -19,7 +19,7 @@ import {
   type ReactNode,
 } from "react";
 import ReactMarkdownBase from "react-markdown";
-import type { SideAnswerRow } from "@codecast/shared/contracts";
+import type { SideAnswerRow } from "@codecast/sessions/sessionAsk";
 import { formatDateFull, relTimeShort } from "@codecast/time";
 import { Loader2, MessageCircleQuestion, X } from "lucide-react";
 import { entityRemarkPlugins } from "../../lib/remarkEntityIds";

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   formatDeliveryFailedNotice,
   parseDeliveryFailedNotice,
-} from "./deliveryFailed";
+} from "../src/deliveryFailed";
 
 describe("the delivery failed notice", () => {
   test("reads back the whole message and whether it was submitted", () => {

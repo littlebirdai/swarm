@@ -19,7 +19,7 @@ import {
   type ThreadStateFreshness,
   type ThreadStateRow,
   type ThreadStateStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 
 export interface ThreadStateView {
   /** Full text, as the agent wrote it. */

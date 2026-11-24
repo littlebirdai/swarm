@@ -26,7 +26,7 @@
 // compare numerically when both sides are numbers (`1.0 = 1`), else as text. A lone operand is true when it names a
 // context value that is non-empty and not "false" or "0".
 
-import { lastJsonBlock } from "@codecast/shared/contracts";
+import { lastJsonBlock } from "@codecast/sessions/threadState";
 import { whenPaths } from "@codecast/flows/flowEdit";
 
 type Token =

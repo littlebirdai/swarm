@@ -89,7 +89,7 @@ import { DeliveryFailedBlock } from "./deliveryFailedBlock";
 import {
   DELIVERY_FAILED_SUBTYPE,
   parseDeliveryFailedNotice,
-} from "@codecast/shared/contracts/deliveryFailed";
+} from "@codecast/sessions/deliveryFailed";
 import { UserIcon } from "./shared";
 import {
   agentBorderMap,

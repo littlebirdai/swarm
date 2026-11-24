@@ -1,5 +1,5 @@
 import type React from "react";
-import type { ThreadStateStatus } from "@codecast/shared/contracts";
+import type { ThreadStateStatus } from "@codecast/sessions/threadState";
 import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import type { AvatarKey } from "@codecast/org/orgAvatars";
 import type { InboxSession, SessionRoleSnapshot } from "../../store/inboxStore";

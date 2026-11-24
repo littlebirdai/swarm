@@ -1,6 +1,6 @@
 // Side answers' optimistic row (lib/sideAnswers holds the rest). A leaf with
 // no store import, so inboxStore can build the stub without a cycle.
-import type { SideAnswerRow } from "@codecast/shared/contracts";
+import type { SideAnswerRow } from "@codecast/sessions/sessionAsk";
 
 export const sideAnswerStubId = (clientId: string) => `btwstub-${clientId}`;
 export const isSideAnswerStub = (row: { _id: string }) =>

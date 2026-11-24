@@ -1,6 +1,6 @@
 import type { GoalFrame } from "@codecast/shared/contracts/sessionGoal";
+import type { ThreadStateFields } from "@codecast/sessions/threadState";
 import type {
-  ThreadStateFields,
   DecisionAnswerMessage,
   SessionEscalationMessage,
   VaultReadyMessage,

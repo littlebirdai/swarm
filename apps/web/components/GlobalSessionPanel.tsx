@@ -31,7 +31,7 @@ import {
 import { useEventListener } from "../hooks/useEventListener";
 import { copyToClipboard, formatShortDate } from "../lib/utils";
 import { LoginCodePaste } from "./LoginCodePaste";
-import type { ThreadStateStatus } from "@codecast/shared/contracts";
+import type { ThreadStateStatus } from "@codecast/sessions/threadState";
 import { ORG_STATE_META } from "./org/orgMeta";
 import { StatusDot } from "./StatusDot";
 import type { WorkState } from "@codecast/sessions/workState";

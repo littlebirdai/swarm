@@ -46,7 +46,6 @@ import {
 import { enqueuePendingMessage, reachableRole } from "./pendingMessages";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
-  normalizeThreadState,
   runOwnerWakeOf,
   runParentOf,
   runResultThreadOf,
@@ -55,6 +54,7 @@ import {
   type RunOutcome,
   type WaitingSession,
 } from "@codecast/shared/contracts";
+import { normalizeThreadState } from "@codecast/sessions/threadState";
 import { type RoleCard } from "@codecast/org/roleCard";
 import {
   triggerFiringSource,

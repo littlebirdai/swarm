@@ -1,5 +1,5 @@
 import type { Id } from "../_generated/dataModel";
-import type { Attendance } from "@codecast/shared/contracts";
+import type { Attendance } from "@codecast/sessions/unattended";
 import { getProfileVisibilityPredicate, isTeamMember } from "../privacy";
 import { dayStartUtc } from "./userSend";
 import {

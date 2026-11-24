@@ -7,7 +7,7 @@
 import {
   threadStateRows,
   threadStateHeadline,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { DORMANT_CLAIM_TTL_MS } from "@codecast/sessions/agentStatus";
 import type { InboxSession } from "../../store/inboxStore";
 import { fmtClock, fmtDuration } from "../triggerCadence";

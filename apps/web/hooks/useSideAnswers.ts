@@ -5,7 +5,7 @@
 // what the store holds, the viewer's own pending rows included.
 import { useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type { SideAnswerRow } from "@codecast/shared/contracts";
+import type { SideAnswerRow } from "@codecast/sessions/sessionAsk";
 import { isConvexId } from "../store/inboxStore";
 import { isSideAnswerStub } from "../store/sideAnswerTypes";
 import { SIDE_ANSWER_STALL_MS } from "../lib/sideAnswers";

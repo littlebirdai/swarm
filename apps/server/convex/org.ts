@@ -1,7 +1,7 @@
 import { query } from "./functions";
 import { memberHandle } from "@codecast/chat";
 import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
-import { sessionProjectId } from "@codecast/shared/contracts/sessionProject";
+import { sessionProjectId } from "@codecast/sessions/sessionProject";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
@@ -18,10 +18,12 @@ import {
   WORKING_SET_RECENCY_MS,
   addressesAgent,
   inboxEpoch,
+} from "@codecast/shared/contracts";
+import {
   parseThreadStateStatus,
   threadStateHeadline,
   type ThreadStateStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import { accessJudgeFor, canAccessDoc, workspaceKey } from "./lib/access";
 import { userCanAccessRole } from "./lib/orgAccess";
@@ -1143,7 +1145,7 @@ export async function sessionsInScope(
   ]);
   const planIds = new Set(resolved.plans.map((p) => p._id.toString()));
   const roleId = resolved.role?._id?.toString();
-  // A session in a scope project (shared/contracts/sessionProject), its
+  // A session in a scope project (packages/sessions/src/sessionProject), its
   // workers included, resolved over the scan so a parent costs no read.
   const projectIds = new Set(resolved.projects.map((p) => p._id.toString()));
   const taskProject = new Map(

@@ -156,11 +156,11 @@ import {
   resolveRestartTarget,
 } from "./conversations";
 import { performReparentSessionToDevice } from "./devices";
+import { isBootstrapPrompt } from "@codecast/shared/contracts";
 import {
-  isBootstrapPrompt,
   normalizeThreadState,
   parseThreadStateStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { siteUrl } from "./lib/siteUrl";
 import {

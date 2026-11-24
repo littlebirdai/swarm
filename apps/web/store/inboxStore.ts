@@ -97,7 +97,7 @@ import {
   type DecisionCommentRow,
   type DecisionThreadItem,
 } from "./decisionThreadTypes";
-import type { SideAnswerRow } from "@codecast/shared/contracts";
+import type { SideAnswerRow } from "@codecast/sessions/sessionAsk";
 import { sideAnswerStub, sideAnswerStubId } from "./sideAnswerTypes";
 import { useSyncExternalStore, useRef } from "react";
 import {
@@ -234,7 +234,6 @@ import { ECHO_SKEW_MS } from "../lib/pendingBanner";
 import {
   cascadeTakesDownRow,
   isClosedSession,
-  CONVERSATION_FIELD_TWINS,
   childAskingAt,
   deriveLiveAt,
   rowLiveDeadlines,
@@ -244,10 +243,13 @@ import {
   parseDecisionAnswer,
   decisionAnswerLabel,
   advisoryAnswerOpen,
-  hasThreadState,
-  answeredThreadStateFields,
   isInboxRowField,
 } from "@codecast/shared/contracts";
+import { CONVERSATION_FIELD_TWINS } from "@codecast/sessions/conversationFields";
+import {
+  hasThreadState,
+  answeredThreadStateFields,
+} from "@codecast/sessions/threadState";
 import { cloudAgentProviderOfConversation } from "@codecast/agent-clients/cloudAgents";
 import { modelOptionKey } from "@codecast/agent-clients/agentClients";
 import {

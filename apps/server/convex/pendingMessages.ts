@@ -7,7 +7,7 @@ import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/sessions/pendingStatus";
 import { noteScreenRecordingSent } from "./lib/screenRecordingSent";
 import { steeringOwnerFor, suggestFromTeammate } from "./teamSuggestions";
-import { unreachableTerminalOf } from "@codecast/shared/contracts/deliveryHold";
+import { unreachableTerminalOf } from "@codecast/sessions/deliveryHold";
 import { isWorkflowRunLog } from "./lib/runLog";
 import { clientRunAnswerRefusal } from "./lib/commandRuns";
 import { formatShare, formatTokens, wakeCost, wakeFieldsOf } from "./wakeCost";
@@ -53,9 +53,7 @@ import {
   reviveConversationOnDelivery,
 } from "./pendingMessageWrites";
 import {
-  answeredThreadStateFields,
   formatUserMessage,
-  hasThreadState,
   isReviveClientId,
   isStashHidden,
   formatSessionMessage,
@@ -66,6 +64,10 @@ import {
   type SendArrival,
   type SessionMessageIntent,
 } from "@codecast/shared/contracts";
+import {
+  answeredThreadStateFields,
+  hasThreadState,
+} from "@codecast/sessions/threadState";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   HEARTBEAT_ALIVE_MS,

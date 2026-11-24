@@ -36,7 +36,7 @@ import { ASK_MAX_QUESTION_CHARS } from "./lib/sessionAsk";
 import {
   SIDE_ANSWER_EXPIRE_MS,
   type SideAnswerRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/sessionAsk";
 
 /** How many of a person's side answers on one conversation the panel holds. */
 export const SIDE_ANSWERS_LIMIT = 50;

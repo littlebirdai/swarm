@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { THIS_DEVICE } from "@codecast/shared/contracts";
+import { THIS_DEVICE } from "@codecast/sessions/newSessionDefaults";
 import { defaultDeviceFor } from "./newSessionDefaults";
 
 const now = Date.now();

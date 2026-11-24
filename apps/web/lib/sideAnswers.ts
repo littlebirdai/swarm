@@ -11,7 +11,7 @@
 import {
   SIDE_ANSWER_EXPIRE_MS,
   type SideAnswerRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/sessionAsk";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { isConvexId, useInboxStore } from "../store/inboxStore";
 import { toast } from "sonner";

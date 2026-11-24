@@ -2,7 +2,7 @@
 // The scope page's store-fed tabs (docs/architecture/scopes-and-feed.md F3):
 // plans, pages, sessions and decisions in the role's area, painted from the
 // local store and the org tree, plus the role's notes and its charter.
-import { threadStateCardLine } from "@codecast/shared/contracts";
+import { threadStateCardLine } from "@codecast/sessions/threadState";
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {

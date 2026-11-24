@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeConversationTaskStats } from "./taskStats";
+import { computeConversationTaskStats } from "../src/taskStats";
 
 const todo = (
   ts: number,

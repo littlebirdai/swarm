@@ -18,7 +18,7 @@ import * as path from "node:path";
 import {
   parseThreadStateStatus,
   type ThreadStateStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { defaultConfigDir } from "./config/configDir.js";
 
 function threadStateDir(): string {

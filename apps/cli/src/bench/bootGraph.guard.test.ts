@@ -400,7 +400,7 @@ describe("command groups stay off the boot graph", () => {
       // 4340 on 2026-10-16: the snippets workflow split (see the file count)
       // adds its header, import and re-export.
       // 4343 with the pinned state rows: threadStateRows, the ask split and the
-      // new card line in contracts/threadState.ts (+2.6 KB), and the longer
+      // new card line in packages/sessions/src/threadState.ts (+2.6 KB), and the longer
       // Thread state section in snippets.ts (+0.6 KB). No new file.
       // 4360 on 2026-10-24: that day's ship added 68.7 KB here after the Vault
       // contract and packages/machines/src/teamHosts.ts were taken off (see the count above).
@@ -436,7 +436,7 @@ describe("command groups stay off the boot graph", () => {
       // lead whose only live work is a nested subagent (child_live).
       // 4405 on 2026-10-31: that day's ship grew files already here: castApi.ts
       // (+1.1, publish limits), index.ts and parser.ts (+0.6 each),
-      // contracts/threadState.ts (+0.5), contracts/lineProfile.ts,
+      // packages/sessions/src/threadState.ts (+0.5), contracts/lineProfile.ts,
       // analytics/events.ts and contracts/transcriptChunk.ts (+0.4 each).
       // +1 on 2026-11-01: the `herd take` subcommand registration in index.ts
       // (its module, herdCommand.ts, loads lazily).
@@ -695,7 +695,7 @@ describe("command groups stay off the boot graph", () => {
       // 512 on 2026-10-26: ccAdoptLogin.ts, split out of ccAccounts.ts (above).
       // 514 on 2026-10-26: managed policy, the same two files as index.ts's (above).
       // 515 on 2026-10-26: managedInstall.ts (above).
-      // 516 on 2026-10-26: contracts/deliveryFailed.ts, the row the daemon writes
+      // 516 on 2026-10-26: packages/sessions/src/deliveryFailed.ts, the row the daemon writes
       // when it stops delivering a message (a subpath import, off the barrel).
       // 518 on 2026-10-26, two splits for max-lines pins: tmuxPaneState.ts (the
       // pane classifiers, out of daemon.ts) and contracts/decisionAnswers.ts (above).
@@ -724,7 +724,7 @@ describe("command groups stay off the boot graph", () => {
       // 537 on 2026-11-05: handHostGrace.ts, whether a message to a session the
       // boot took waits for the terminal that last ran it (a pure leaf).
       // 540 the same day: ghostty.ts (delivery into Ghostty through its
-      // AppleScript dictionary), terminalHold.ts and contracts/deliveryHold.ts
+      // AppleScript dictionary), terminalHold.ts and packages/sessions/src/deliveryHold.ts
       // (the held-send reason the daemon writes). All three are leaves the
       // delivery path calls directly; none is a command group.
       // 576 on 2026-11-08 (minus three that left: tmuxDeliveryTranscript.ts,

@@ -14,7 +14,7 @@ import {
 import {
   threadStateHeadline,
   threadStateResult,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import {
   choiceWords,
   closedAtStep,
