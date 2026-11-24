@@ -5,7 +5,7 @@
 // it in place, return again (or leaving it) sends, escape puts it back, and
 // backspace on the row returns a value the file sets to its default.
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { LineValueSource } from "@codecast/shared/contracts/lineProfile";
+import type { LineValueSource } from "@codecast/line/lineProfile";
 import type { EditState } from "./useLineProfileEdits";
 import { KeyCap } from "../../KeyboardShortcutsHelp";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";

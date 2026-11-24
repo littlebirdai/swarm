@@ -32,7 +32,7 @@ import {
   SUPERSEDED_WORDS,
   type Superseded,
   type SupersededWhy,
-} from "@codecast/shared/contracts/superseded";
+} from "@codecast/line/superseded";
 
 function fail(message: string, code = 2): never {
   console.error(fmt.error(message));

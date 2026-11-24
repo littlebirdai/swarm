@@ -10,7 +10,7 @@ import type {
   FlowMapGroup,
   FlowMapSource,
   FlowMapState,
-} from "@codecast/shared/contracts/flowMap";
+} from "@codecast/line/flowMap";
 import {
   lineViewHome,
   type LineSelection,

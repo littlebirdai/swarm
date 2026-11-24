@@ -7,10 +7,7 @@
 import { memo, useMemo } from "react";
 import Link from "next/link";
 import { Rocket } from "lucide-react";
-import {
-  FLOW_MAP_DAYS,
-  type FlowMapShipped,
-} from "@codecast/shared/contracts/flowMap";
+import { FLOW_MAP_DAYS, type FlowMapShipped } from "@codecast/line/flowMap";
 import { useFlowMapRow } from "../../../../../hooks/useFlowMap";
 import type { LineViewProps } from "../types";
 import "../signals/signals.css";

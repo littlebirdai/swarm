@@ -16,7 +16,7 @@ import {
   type LineProfileEdit,
   type LineValueSource,
   type PublishedLineProfile,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import { deviceDisplayName } from "@codecast/machines/deviceName";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";

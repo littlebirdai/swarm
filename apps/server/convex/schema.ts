@@ -7341,7 +7341,7 @@ export default defineSchema(
       // came from, the loader's notes and warnings, and the checkout and device
       // that published it. The repo holds the truth; this copy is what the app
       // reads. default: this is that profile's `[line] project`. Shape:
-      // @codecast/shared/contracts/lineProfile.
+      // @codecast/line/lineProfile.
       line_profile: v.optional(publishedLineProfileValidator),
       // A trial project (lineTrial.ts): its line runs go through every station
       // up to the decision card and stop there. A gate asks nobody; it becomes a

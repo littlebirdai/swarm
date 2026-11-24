@@ -22,7 +22,7 @@ import {
   LINE_SIGNAL_WINDOW_MS,
   type LineFinderDecl,
   type PublishedLineProfile,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import {
   priority as linePriority,
   type Severity,
@@ -34,7 +34,7 @@ import {
   type LineRunEnd,
 } from "@codecast/line/changeCard";
 import { runEnd, shippedUnanswered } from "@codecast/line/causeHistory";
-import { quietWatchEnd } from "@codecast/shared/contracts/flowMap";
+import { quietWatchEnd } from "@codecast/line/flowMap";
 import {
   isLiveRun,
   runLiveNode,

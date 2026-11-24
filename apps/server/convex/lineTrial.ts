@@ -123,10 +123,7 @@ import {
   runSuperseded,
   type LineMemo,
 } from "./lib/superseded";
-import {
-  supersededCard,
-  type Superseded,
-} from "@codecast/shared/contracts/superseded";
+import { supersededCard, type Superseded } from "@codecast/line/superseded";
 import { graphOfVersion, ownLineAfter, pinnedRowOf } from "./lib/runGraph";
 
 type Ctx = { db: any };

@@ -14,7 +14,7 @@ import {
   emptyOutcomes,
   type FlowMap,
   type FlowMapSource,
-} from "@codecast/shared/contracts/flowMap";
+} from "@codecast/line/flowMap";
 
 const src = (key: string, o: Partial<FlowMapSource> = {}): FlowMapSource => ({
   key,

@@ -7,7 +7,7 @@ import {
   settled,
   windowFromLags,
   type RegretChange,
-} from "./regretRates";
+} from "../src/regretRates";
 
 const DAY = 86_400_000;
 const now = 100 * DAY;

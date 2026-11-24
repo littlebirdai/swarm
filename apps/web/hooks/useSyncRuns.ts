@@ -10,7 +10,7 @@ import { useSyncCollection } from "./useSyncCollection";
 import { settledRun } from "../lib/line/runReport";
 import { useFeederWorkspace } from "./useWorkspaceArgs";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
-import type { Superseded } from "@codecast/shared/contracts/superseded";
+import type { Superseded } from "@codecast/line/superseded";
 
 const api = _api as any;
 

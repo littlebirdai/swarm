@@ -43,7 +43,7 @@ import {
   formatDeliveryFailedNotice,
 } from "@codecast/sessions/deliveryFailed";
 import { formatJointMessage } from "@codecast/messages/jointMessage";
-import { LINE_FENCE_LANG } from "@codecast/shared/contracts/lineChat";
+import { LINE_FENCE_LANG } from "@codecast/line/lineChat";
 import { FLOW_FENCE_LANG } from "./line/flowFence";
 import {
   EDIT_ADD,

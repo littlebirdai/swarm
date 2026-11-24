@@ -2139,7 +2139,7 @@ export type DecisionDetailItem = {
   } | null;
   grant: HandledDecisionItem["grant"];
   /** Why a pending decision no longer stands and what replaced it (line-versions.md LV1); null while current. */
-  superseded?: import("@codecast/shared/contracts/superseded").Superseded;
+  superseded?: import("@codecast/line/superseded").Superseded;
 };
 
 // conversation_id → bucket_id lookup, derived at read time from the assignment

@@ -27,7 +27,7 @@ import {
   sdkErrorFingerprint,
 } from "@codecast/signals/signalFingerprint";
 import type { ReplayIssue } from "@codecast/replay/issues";
-import { utcDayKey } from "@codecast/shared/contracts/flowMap";
+import { utcDayKey } from "@codecast/line/flowMap";
 
 export const HOUR_MS = 3600_000;
 const TRAILING_HOURS = 24;

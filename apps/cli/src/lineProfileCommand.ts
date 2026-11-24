@@ -53,7 +53,7 @@ import {
   type LineProfileEdit,
   type LineProfileFacts,
   type LineStationPatch,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 
 function fail(message: string, code = 2): never {
   console.error(fmt.error(message));

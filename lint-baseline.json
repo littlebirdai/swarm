@@ -29377,11 +29377,32 @@
   "packages/line/src/expectations.ts": {
     "swarm/no-comments": 61
   },
+  "packages/line/src/flowMap.ts": {
+    "swarm/no-comments": 49
+  },
+  "packages/line/src/lineChat.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/line/src/lineFunnel.ts": {
+    "swarm/no-comments": 43
+  },
+  "packages/line/src/linePriority.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/line/src/lineProfile.ts": {
+    "swarm/no-comments": 56
+  },
   "packages/line/src/lineRunEnd.ts": {
     "swarm/no-comments": 26
   },
   "packages/line/src/lineTimeline.ts": {
     "swarm/no-comments": 11
+  },
+  "packages/line/src/lineVolume.ts": {
+    "swarm/no-comments": 42
+  },
+  "packages/line/src/lineWords.ts": {
+    "swarm/no-comments": 15
   },
   "packages/line/src/mainRed.ts": {
     "swarm/no-comments": 39
@@ -29392,17 +29413,38 @@
   "packages/line/src/proposalCard.ts": {
     "swarm/no-comments": 49
   },
+  "packages/line/src/regretRates.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/line/src/superseded.ts": {
+    "swarm/no-comments": 44
+  },
   "packages/line/test/changeCard.test.ts": {
     "swarm/no-comments": 6
   },
   "packages/line/test/expectations.test.ts": {
     "swarm/no-comments": 11
   },
+  "packages/line/test/lineFunnel.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/line/test/lineProfile.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/line/test/lineWords.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/line/test/mainRed.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/line/test/metricSeries.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/line/test/proposalCard.line.test.ts": {
     "swarm/no-comments": 4
+  },
+  "packages/line/test/regretRates.test.ts": {
+    "swarm/no-comments": 2
   },
   "packages/line/test/runEnd.test.ts": {
     "swarm/no-comments": 7
@@ -29986,50 +30028,8 @@
   "packages/sessions/test/threadState.test.ts": {
     "swarm/no-comments": 2
   },
-  "packages/shared/contracts/flowMap.ts": {
-    "swarm/no-comments": 49
-  },
   "packages/shared/contracts/index.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/lineChat.ts": {
-    "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/lineFunnel.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/lineFunnel.ts": {
-    "swarm/no-comments": 43
-  },
-  "packages/shared/contracts/linePriority.ts": {
-    "swarm/no-comments": 35
-  },
-  "packages/shared/contracts/lineProfile.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/lineProfile.ts": {
-    "swarm/no-comments": 56
-  },
-  "packages/shared/contracts/lineVolume.ts": {
-    "swarm/no-comments": 42
-  },
-  "packages/shared/contracts/lineWords.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/lineWords.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/metricSeries.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/regretRates.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/regretRates.ts": {
-    "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/superseded.ts": {
-    "swarm/no-comments": 44
   },
   "packages/ship/src/changeGuide.ts": {
     "swarm/no-comments": 40

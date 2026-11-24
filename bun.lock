@@ -904,9 +904,16 @@
       "name": "@codecast/line",
       "version": "0.0.1",
       "dependencies": {
+        "@codecast/connectors": "workspace:*",
         "@codecast/deploys": "workspace:*",
+        "@codecast/flows": "workspace:*",
+        "@codecast/goals": "workspace:*",
         "@codecast/ingest": "workspace:*",
+        "@codecast/messages": "workspace:*",
+        "@codecast/org": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
+        "@codecast/signals": "workspace:*",
+        "@codecast/tasks": "workspace:*",
         "@platform/evals": "file:../../platform/packages/evals",
       },
       "devDependencies": {

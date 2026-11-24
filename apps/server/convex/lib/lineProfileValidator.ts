@@ -1,13 +1,13 @@
 // Validators for the published line profile (line-profile.md LP3), read by
 // the projects schema and by signals.publishProfile. The shape is
-// @codecast/shared/contracts/lineProfile; the assertions at the bottom fail
+// @codecast/line/lineProfile; the assertions at the bottom fail
 // the typecheck when the two disagree.
 import { v, type Infer } from "convex/values";
 import type {
   LineFinderDecl,
   LineProfileFacts,
   PublishedLineProfile,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 
 const nullableString = v.union(v.string(), v.null());
 

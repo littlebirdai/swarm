@@ -20,7 +20,7 @@ import type { OrgRole, OrgTree } from "../orgTypes";
 import { useInboxStore } from "../../../store/inboxStore";
 import { SwitchReview } from "../../consequential/ConsequentialSwitch";
 import { mergeRateLedger, mergeStepLedger } from "../../consequential/ledgers";
-import { REGRET_WINDOW_DAYS } from "@codecast/shared/contracts/regretRates";
+import { REGRET_WINDOW_DAYS } from "@codecast/line/regretRates";
 
 const serverWords = (e: any, fallback: string) =>
   String(e?.message ?? "")

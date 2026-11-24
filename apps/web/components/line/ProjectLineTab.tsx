@@ -5,7 +5,7 @@
 // and what waits on you in its header. Under it, what each version of the line delivered (LE14). The project's
 // expectations have their own tab (components/expectations/ExpectationsTab).
 import { useMemo, type ReactNode } from "react";
-import type { PublishedLineProfile } from "@codecast/shared/contracts/lineProfile";
+import type { PublishedLineProfile } from "@codecast/line/lineProfile";
 import { useInboxStore } from "../../store/inboxStore";
 import { isCause } from "../../lib/lineFlow";
 import { lineSettingsHref } from "../../lib/lineSettings";

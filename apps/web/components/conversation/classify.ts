@@ -54,7 +54,7 @@ import {
   jointAuthors,
   parseJointMessage,
 } from "@codecast/messages/jointMessage";
-import { parseLineChat } from "@codecast/shared/contracts/lineChat";
+import { parseLineChat } from "@codecast/line/lineChat";
 import {
   parseInboundSessionMessage,
   isSessionMessage,

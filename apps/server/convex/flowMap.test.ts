@@ -4,7 +4,7 @@ import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import * as flowMap from "./flowMap";
 import { foldRollup, recountFrom } from "./flowMap";
-import { FUNNEL_DAYS } from "@codecast/shared/contracts/lineFunnel";
+import { FUNNEL_DAYS } from "@codecast/line/lineFunnel";
 import {
   DAY_MS,
   STALLED_MS,
@@ -13,7 +13,7 @@ import {
   sourceState,
   utcDayKey,
   windowDays,
-} from "@codecast/shared/contracts/flowMap";
+} from "@codecast/line/flowMap";
 
 // The flow map (flowMap.ts): the hourly rollup of a workspace's sources and
 // problems, and the view the Flows page reads from it and from the live rows.

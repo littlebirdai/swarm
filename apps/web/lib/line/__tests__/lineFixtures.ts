@@ -1,6 +1,6 @@
 // Fixture rows for the line map and trace tests: one project's line as the
 // store holds it, shaped like the rows lineFlow and runReport tests use.
-import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
+import type { LineFinderDecl } from "@codecast/line/lineProfile";
 import type { LineCauseTask } from "../../lineFlow";
 import type { MapDecision, MapRun, MapRunNode, MapSignal } from "../lineMap";
 

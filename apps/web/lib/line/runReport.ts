@@ -26,7 +26,7 @@ import {
   phaseOfStation,
   type LinePhaseKey,
 } from "@codecast/flows/linePhases";
-import { HAND_KILLED } from "@codecast/shared/contracts/lineWords";
+import { HAND_KILLED } from "@codecast/line/lineWords";
 import {
   runNodeLine,
   runNodeRows,

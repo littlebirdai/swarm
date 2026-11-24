@@ -9,7 +9,7 @@
 //   useLineSelection()                     { selection, select } in the URL
 //   useStationInput(sessionId, runId)      a station's brief, fed when opened
 //   store action labelDecision(runId, nodeId, verdict, note)
-import type { FlowBar } from "@codecast/shared/contracts/linePriority";
+import type { FlowBar } from "@codecast/line/linePriority";
 import type { DeployAfter, DeployView } from "@codecast/line/deploys";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useWatchEffect } from "./useWatchEffect";
@@ -19,7 +19,7 @@ import { parsePrRef } from "@codecast/pull-requests/prRefs";
 import {
   LINE_SIGNAL_CAP,
   LINE_SIGNAL_WINDOW_MS,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import type { SessionDecisionItem } from "../store/inboxStore";
 import { useSyncTeamLineDecisions } from "./useSyncSessionDecisions";
 import { useInboxStore } from "../store/inboxStore";

@@ -11,7 +11,7 @@ import {
   supersededRun,
   type StationHash,
   type Superseded,
-} from "@codecast/shared/contracts/superseded";
+} from "@codecast/line/superseded";
 import {
   graphOfVersion,
   newGraphMemo,

@@ -273,7 +273,7 @@ describe("client sync registry", () => {
     });
 
     it("a republished line profile that moves only a nested value (a command) reaches the store", () => {
-      // The whole profile rides the row (shared/contracts/lineProfile), so an
+      // The whole profile rides the row (packages/line/src/lineProfile), so an
       // edit of commands.check alone must replace it like a finder change does.
       const profile = (check: string) => ({
         default: true,

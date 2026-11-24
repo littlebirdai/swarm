@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PublishedLineProfile } from "@codecast/shared/contracts/lineProfile";
+import type { PublishedLineProfile } from "@codecast/line/lineProfile";
 import {
   LINE_FIELDS,
   LINE_STATION_SETTINGS,

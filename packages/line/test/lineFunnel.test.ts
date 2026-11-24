@@ -10,7 +10,7 @@ import {
   type FunnelItem,
   type FunnelRun,
   type FunnelTask,
-} from "./lineFunnel";
+} from "../src/lineFunnel";
 
 // The onefix graph, as Union's live flow ran it in November 2026.
 const N = (id: string, label: string, type: string) => ({ id, label, type });

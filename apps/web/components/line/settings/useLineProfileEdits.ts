@@ -9,7 +9,7 @@ import { useCallback, useMemo } from "react";
 import type {
   LineProfileEdit,
   PublishedLineProfile,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import { useInboxStore } from "../../../store/inboxStore";
 import { newRequestId } from "../../../lib/sessionCommands";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";

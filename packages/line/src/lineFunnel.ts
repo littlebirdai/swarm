@@ -16,7 +16,7 @@ import {
   runEnd,
   type AnsweredGate,
   type LineRunStations,
-} from "@codecast/line/lineRunEnd";
+} from "./lineRunEnd";
 
 export const DAY = 86_400_000;
 /** The windows the chart switches between, in days. The longest bounds what the rollup reads. */

@@ -4,11 +4,7 @@
 // readings both share: a problem's outcome, a source's state and its normal
 // day. Pure.
 
-import {
-  runEnd,
-  type AnsweredGate,
-  type LineRunStations,
-} from "@codecast/line/lineRunEnd";
+import { runEnd, type AnsweredGate, type LineRunStations } from "./lineRunEnd";
 import type { FlowFunnel } from "./lineFunnel";
 import type { FlowBacklog, SourceCoverage } from "./lineVolume";
 

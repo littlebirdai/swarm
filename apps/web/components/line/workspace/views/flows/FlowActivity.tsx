@@ -7,7 +7,7 @@
 // live on the flow list, read from the flow map. A row opens the run.
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { STALLED_MS } from "@codecast/shared/contracts/flowMap";
+import { STALLED_MS } from "@codecast/line/flowMap";
 import type { FlowRun } from "../../../../../hooks/useFlowLibrary";
 import { ageShort } from "../../../../../lib/lineFlow";
 import type { LineViewProps } from "../types";

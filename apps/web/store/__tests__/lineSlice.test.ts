@@ -11,7 +11,7 @@ import {
   LINE_PROFILE_DEFAULTS,
   lineProfileNotes,
   type PublishedLineProfile,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import {
   lineEditRows,
   lineEditStates,

@@ -10,4 +10,4 @@ export {
   barWords,
   type Severity,
   type FlowBar,
-} from "@codecast/shared/contracts/linePriority";
+} from "@codecast/line/linePriority";

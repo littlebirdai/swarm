@@ -15,7 +15,7 @@
 import { quietWatchEnd, utcDayKey, windowDays } from "./flowMap";
 import { segmentTopOf } from "@codecast/flows/flowPool";
 import { clearsBar, type FlowBar } from "./linePriority";
-import { endedFailing, mergeLeft, runEnd } from "@codecast/line/lineRunEnd";
+import { endedFailing, mergeLeft, runEnd } from "./lineRunEnd";
 import { FUNNEL_DAYS, type FunnelRun, type FunnelTask } from "./lineFunnel";
 
 /** Where an open problem stands. Before a run: no project to own it, a project with no lead, a source the flow does not

@@ -3,7 +3,7 @@
 // (AgentWatch's comms, match, ...) sit under their source as rows of their
 // own. Each row counts what it filed, the problems it opened and joined, and
 // the process those problems ran. Pure: the view and its tests read this.
-import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
+import type { LineFinderDecl } from "@codecast/line/lineProfile";
 import {
   DAY,
   WEEK,

@@ -2,10 +2,7 @@
 // list (docs/architecture/line-versions.md LV3): that it was replaced, why in
 // a few words, and a link to what replaced it.
 import Link from "next/link";
-import {
-  SUPERSEDED_WORDS,
-  type Superseded,
-} from "@codecast/shared/contracts/superseded";
+import { SUPERSEDED_WORDS, type Superseded } from "@codecast/line/superseded";
 import { cn } from "../lib/utils";
 
 /** Where the replacing thing opens: a problem, a trial card, or a run (by its id). */

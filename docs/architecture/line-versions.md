@@ -77,7 +77,7 @@ a judge that is still published is current: the judge's new version reads
 its moment again and settles it (learning-loop.md LL8), and hiding it first
 would empty problems that version has not read yet.
 
-The predicates live in one module, `packages/shared/contracts/superseded.ts`
+The predicates live in one module, `packages/line/src/superseded.ts`
 (`supersededProblem`, `supersededRun`, `supersededCard`, `supersededFinding`,
 `problemFactsOf`, `currentOnly`), each returning `null` or `{ why, by }`, so
 the server and every client decide with the same code, as `isRunLog` does

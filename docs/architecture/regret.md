@@ -103,7 +103,7 @@ the run went out through `<node>__low`. A station's **miss rate** is
 `landedChanges.summary({ team_id, window_days? })` returns the window and
 how many links it was measured from, and per role, flow and bucket `merged`, `settled`, `regretted`, `partial` and `rate`, and per check
 station `passed`, `settled`, `regretted` and `miss_rate`
-(`shared/contracts/regretRates.ts` does the counting). The role's merge
+(`packages/line/src/regretRates.ts` does the counting). The role's merge
 setting reads the same answer for its line changes (`roleLineRate`).
 
 ## R7. Merging on the measured rate

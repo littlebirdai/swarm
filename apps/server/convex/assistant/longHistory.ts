@@ -53,7 +53,7 @@ import { isRefusalProse } from "../idleSummary";
 import { actionStore } from "../tidemark";
 import { isNoticeUuid, type WindowStart } from "./history";
 import { allOutsideToolNames } from "./tools";
-import { utcDayKey as utcDay } from "@codecast/shared/contracts/flowMap";
+import { utcDayKey as utcDay } from "@codecast/line/flowMap";
 
 export const SCOPE_TYPE = "conversation";
 export const AGENT_ID = "assistant";

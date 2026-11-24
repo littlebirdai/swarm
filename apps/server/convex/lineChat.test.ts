@@ -12,7 +12,7 @@ import {
   lineFenceGuide,
   lineFenceHint,
   LINE_WIDGETS,
-} from "@codecast/shared/contracts/lineChat";
+} from "@codecast/line/lineChat";
 import { askCore } from "./decisionThread";
 
 // A conversation with a project's line (line-workspace.md LW4): a session of

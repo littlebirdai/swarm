@@ -1,10 +1,6 @@
 // The live flow's bar as the Problems page reads it (convex liveFlows, decision sd-1700): a problem under it waits
 // for another finding, under "Waiting for findings", and its row says what it scored and what runs.
-import {
-  barWords,
-  clearsBar,
-  type FlowBar,
-} from "@codecast/shared/contracts/linePriority";
+import { barWords, clearsBar, type FlowBar } from "@codecast/line/linePriority";
 
 /** A problem its live flow's bar holds back: what it scored, its findings, and the bar. */
 export type UnderBar = {

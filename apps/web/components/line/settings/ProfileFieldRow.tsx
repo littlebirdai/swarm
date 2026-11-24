@@ -6,7 +6,7 @@
 import type {
   LineProfileEdit,
   PublishedLineProfile,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import {
   commandNote,
   editForField,

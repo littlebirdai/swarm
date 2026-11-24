@@ -2,13 +2,13 @@
 // count and where to act on it, and the words for where a problem stands.
 // Read from the flow map (its rollup's backlog and coverage) and the live
 // flow's row. Pure, so a test reads it.
-import type { FlowMap } from "@codecast/shared/contracts/flowMap";
+import type { FlowMap } from "@codecast/line/flowMap";
 import {
   RECORDING,
   coverageTotals,
   type BacklogStand,
   type CoverageDay,
-} from "@codecast/shared/contracts/lineVolume";
+} from "@codecast/line/lineVolume";
 import type { LineSelectionPatch } from "./lineWorkspaceUrl";
 
 export const STAND_WORDS: Record<BacklogStand, string> = {

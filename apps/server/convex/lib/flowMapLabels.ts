@@ -2,7 +2,7 @@
 // sits in. A finder's own declaration (the line profile's label, what, group)
 // wins; these are the fallbacks: judges by name, event sources by name and
 // kind, and the fixed sources codecast itself files. Pure.
-import type { FlowMapGroup } from "@codecast/shared/contracts/flowMap";
+import type { FlowMapGroup } from "@codecast/line/flowMap";
 
 export type RowWords = { label: string; what: string; group: FlowMapGroup };
 

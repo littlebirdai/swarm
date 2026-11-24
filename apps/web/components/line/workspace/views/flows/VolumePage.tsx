@@ -10,16 +10,16 @@
 // address, so the page and anything opened on it can be sent.
 import { useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
-import type { FlowMap } from "@codecast/shared/contracts/flowMap";
-import { normalDay } from "@codecast/shared/contracts/flowMap";
-import { FUNNEL_WINDOWS } from "@codecast/shared/contracts/lineFunnel";
+import type { FlowMap } from "@codecast/line/flowMap";
+import { normalDay } from "@codecast/line/flowMap";
+import { FUNNEL_WINDOWS } from "@codecast/line/lineFunnel";
 import {
   BACKLOG_BLOCKED,
   RECORDING,
   backlogItemsOf,
   type BacklogStand,
   type FlowDay,
-} from "@codecast/shared/contracts/lineVolume";
+} from "@codecast/line/lineVolume";
 import { ageShort } from "../../../../../lib/lineFlow";
 import {
   STAND_WORDS,

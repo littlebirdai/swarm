@@ -26,7 +26,7 @@ import { LINE_PROFILE_REL_PATH } from "./lineProfile.js";
 import {
   REPO_LINE_FILE_RE,
   REPO_LINE_REL_DIR,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 
 export const AGENT_CONFIG_BASENAMES: ReadonlySet<string> = new Set([
   "CLAUDE.md",
