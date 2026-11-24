@@ -17,7 +17,7 @@
 import {
   sessionActivityAt,
   shouldAcknowledge,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/sessionRead";
 import { sessionActivityFacts, useInboxStore } from "../store/inboxStore";
 import { usePagePresence } from "./usePagePresence";
 import { useWatchEffect } from "./useWatchEffect";

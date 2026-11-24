@@ -1,11 +1,11 @@
 import {
-  openTasksVouchForWaiting,
   isTransientRateLimit429,
   throttleBannerContent,
   THROTTLE_BANNER_PREFIX,
   BLOCKED_BANNER_KINDS,
   CONTINUE_BANNER_KINDS,
 } from "@codecast/shared/contracts";
+import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import { describe, expect, test } from "bun:test";
 // The REAL web helpers, imported so the cross-check below enforces the
 // convex/web agreement instead of restating it.

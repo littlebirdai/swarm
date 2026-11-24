@@ -8,12 +8,12 @@ import {
   cascadeTakesDownRow,
   closeInFlightReason,
   deriveLiveAt,
-  HEARTBEAT_ALIVE_MS,
-  isLoopFresh,
-  openTasksVouchForWaiting,
   rowHeartbeatAliveAt,
   type InFlightFacts,
 } from "@codecast/shared/contracts";
+import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
+import { isLoopFresh } from "@codecast/sessions/loopState";
+import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import {
   isBlockedConversation,
   isCurrentBlock,

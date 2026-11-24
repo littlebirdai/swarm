@@ -3,10 +3,8 @@ import {
   heartbeatsFor,
 } from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
-import {
-  UNCONFIRMED_DELIVERY_REASON,
-  isReservedDevice,
-} from "@codecast/shared/contracts";
+import { isReservedDevice } from "@codecast/shared/contracts";
+import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/sessions/pendingStatus";
 import { noteScreenRecordingSent } from "./lib/screenRecordingSent";
 import { steeringOwnerFor, suggestFromTeammate } from "./teamSuggestions";
 import { unreachableTerminalOf } from "@codecast/shared/contracts/deliveryHold";
@@ -58,20 +56,22 @@ import {
   answeredThreadStateFields,
   formatUserMessage,
   hasThreadState,
-  HEARTBEAT_ALIVE_MS,
   isHostedAgentType,
   isReviveClientId,
   isStashHidden,
-  SETTLE_VERDICT_STATUSES,
   formatSessionMessage,
   sendArrival,
   sessionMessageIntentOf,
-  trustedAgentStatus,
   restoreFrameTags,
   SESSION_MESSAGE_OPEN_TAG,
   type SendArrival,
   type SessionMessageIntent,
 } from "@codecast/shared/contracts";
+import {
+  HEARTBEAT_ALIVE_MS,
+  SETTLE_VERDICT_STATUSES,
+  trustedAgentStatus,
+} from "@codecast/sessions/agentStatus";
 import { autoRecoveryEnabled, listOnlineDevices } from "./ccAccountsShared";
 import { resolveOwnerDeviceView } from "./lib/ownerDevice";
 import { messagesCommandCoverageTarget } from "./messageViewContracts";

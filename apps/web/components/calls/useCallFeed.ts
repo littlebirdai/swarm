@@ -3,13 +3,13 @@ import { toast } from "sonner";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import {
-  ACTIVE_AGENT_STATUSES,
   formatTranscriptChunk,
   huddleFeedBriefing,
   HUDDLE_FEED_DISREGARD,
   isRecRoomKey,
   transcriptChunkHeader,
 } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
 import {

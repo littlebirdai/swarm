@@ -10,7 +10,7 @@ import { pushReceiptTables } from "./pushReceiptsSchema";
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { AGENT_STATUSES } from "@codecast/shared/contracts";
+import { AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { DAEMON_COMMANDS } from "@codecast/daemon/daemonCommands";
 import {
   TEAM_FEATURE_KEYS,

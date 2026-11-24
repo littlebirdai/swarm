@@ -69,7 +69,7 @@ import {
   nextLiveActivityExpiry,
   type LiveActivityContentState,
   type LiveActivitySessionInput,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveActivity";
 
 export { scheduleLiveActivityRefresh } from "./lib/liveActivityRefresh";
 

@@ -87,7 +87,7 @@ export function seedAcmeWorld({
 
   write("sessions", () => stampAcmeSessions(now));
   // Liveness decays: a working row whose heartbeat is older than the trust
-  // window reads as stopped (shared/contracts/agentStatus.ts), and a session
+  // window reads as stopped (packages/sessions/src/agentStatus.ts), and a session
   // screen quiet for 5 minutes offers to resume. Re-stamp the sessions so the
   // world always stands at "now", however long a capture takes. A scene that
   // empties the inbox (a fresh account) sets __acmeHoldSessions to keep it empty.

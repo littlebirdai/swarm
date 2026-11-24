@@ -21,12 +21,14 @@
 import { afterAll, describe, expect, it, setSystemTime, test } from "bun:test";
 import fc from "fast-check";
 import {
-  AGENT_IDLE_GRACE_MS,
-  HEARTBEAT_ALIVE_MS,
   deriveLiveAt,
   placeProjectableRow,
   type ProjectableInboxRow,
 } from "@codecast/shared/contracts";
+import {
+  AGENT_IDLE_GRACE_MS,
+  HEARTBEAT_ALIVE_MS,
+} from "@codecast/sessions/agentStatus";
 import {
   useInboxStore,
   placeInboxRows,

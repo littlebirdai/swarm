@@ -5,11 +5,11 @@
 // the shell ending: a session sat "waiting" on an open task for days after
 // every worker it watched had finished.
 
+import { threadStateHeadline } from "@codecast/shared/contracts";
 import {
   normalizeWorkStateFilter,
-  threadStateHeadline,
   WORK_STATES,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/workState";
 
 // Everything but "working": the session's turn is over, whoever acts next.
 export const SETTLED_STATES: readonly string[] = WORK_STATES.filter(

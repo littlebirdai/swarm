@@ -13,16 +13,16 @@ import {
   HEARTBEAT_ALIVE_MS,
   STATUS_TRUST_TTL_MS,
   trustedAgentStatus,
-} from "./agentStatus";
+} from "@codecast/sessions/agentStatus";
 import { isMachineDeliveredMessage } from "./machineMessages";
 import {
   isLoopFresh,
   LOOP_OVERDUE_GRACE_MS,
   type LoopState,
-} from "./loopState";
-import { openTasksVouchForWaiting } from "./openTasks";
+} from "@codecast/sessions/loopState";
+import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import { isHostedAgentType } from "./agentClients";
-import type { WorkState } from "./workState";
+import type { WorkState } from "@codecast/sessions/workState";
 import {
   isNoiseTitle,
   type InboxRowIdentity,

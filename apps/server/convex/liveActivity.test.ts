@@ -17,7 +17,7 @@ import {
   LIVE_ACTIVITY_START_GRACE_MS,
   LIVE_ACTIVITY_SWEEP_INTERVAL_MS,
   deriveLiveActivityState,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveActivity";
 
 // ── In-memory Convex-ish ctx ─────────────────────────────────────────────────
 // Same pattern as notifications.needsInput.test.ts, plus the one range shape

@@ -271,7 +271,6 @@ import {
   contextWindowTokens,
   isHostedAgentType,
   parseDecisionAnswer,
-  ACTIVE_AGENT_STATUSES,
   DECISION_ANSWER_TAG_RE,
   SAFETY_BLOCK_HINT,
   CLOUD_AGENT_ACTION_SUBTYPE,
@@ -282,6 +281,7 @@ import {
   isPollResponsePayload,
   type VaultReadyMessage,
 } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import {
   DELIVERY_FAILED_SUBTYPE,

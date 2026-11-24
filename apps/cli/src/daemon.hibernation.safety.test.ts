@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   MID_TURN_AGENT_STATUSES,
   type AgentStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import {
   clearHibernationPark,
   flushHibernationStamps,

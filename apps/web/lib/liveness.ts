@@ -1,10 +1,10 @@
 import {
   deriveLiveAt,
-  isHibernated,
   rowHeartbeatAliveAt,
   trustedStatusAt,
   type LiveFactsRow,
 } from "@codecast/shared/contracts";
+import { isHibernated } from "@codecast/sessions/hibernation";
 
 // A session row as the shared live derivation reads it (deriveLiveAt): the
 // replicated facts plus the base fields the rules branch on. ONE adapter for

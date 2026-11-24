@@ -1,5 +1,5 @@
 import { HOSTED_AGENT_TYPE } from "./assistant";
-import { DORMANT_CLAIM_TTL_MS } from "./agentStatus";
+import { DORMANT_CLAIM_TTL_MS } from "@codecast/sessions/agentStatus";
 import { deriveLiveAt, rowLiveDeadlines } from "./inboxProjection";
 import { describe, expect, test } from "bun:test";
 import {

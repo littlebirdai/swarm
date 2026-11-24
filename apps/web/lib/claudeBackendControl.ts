@@ -4,11 +4,11 @@
 
 import {
   CLAUDE_BACKEND_LABELS,
-  MID_TURN_AGENT_STATUSES,
   hasDirectBackend,
   isHostedAgentType,
   type ClaudeBackend,
 } from "@codecast/shared/contracts";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 
 export type BackendSwitching =
   | { moving: ClaudeBackend }

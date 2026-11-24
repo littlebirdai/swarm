@@ -30,7 +30,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { ACTIVE_AGENT_STATUSES } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { resolveActor } from "./lib/actor";
 import { nextChatStamp, patchChat } from "./lib/chatRows";
 import { chatWaitClientId, parseChatWaitClientId } from "./lib/chatWakeIds";

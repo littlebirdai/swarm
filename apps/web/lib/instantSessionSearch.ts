@@ -12,7 +12,7 @@ import {
   normalizeQueryQuotes,
   parseSessionQuery,
 } from "@codecast/shared/search";
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import {
   useInboxStore,
   filterInboxScopeFromState,

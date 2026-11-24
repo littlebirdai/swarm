@@ -5,7 +5,7 @@ import {
   hibernationCandidate,
   hibernationResultCounts,
 } from "../../lib/hibernation";
-import { sessionCommandOutcome } from "@codecast/shared/contracts";
+import { sessionCommandOutcome } from "@codecast/sessions/hibernation";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {
@@ -31,7 +31,7 @@ import { deriveTriageFlags } from "./triageFlags";
 import {
   ACTIVE_AGENT_STATUSES,
   HEARTBEAT_ALIVE_MS,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import { PageFrame, PageHeader } from "../../components/ui/page-header";
 import { SessionsLegacyHeader } from "./SessionsLegacyHeader";
 import { Button } from "../../components/ui/button";

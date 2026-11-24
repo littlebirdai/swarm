@@ -5,7 +5,7 @@ import {
   HEARTBEAT_FLUSH_INTERVAL_MS,
   HEARTBEAT_REFRESH_MS,
   HEARTBEAT_WRITE_CADENCE_MS,
-} from "./agentStatus";
+} from "@codecast/sessions/agentStatus";
 
 const NOW = 1_000_000_000_000;
 

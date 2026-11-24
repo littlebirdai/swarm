@@ -18,7 +18,7 @@
 // gap and propagates.
 
 import type { SimClient } from "@codecast/convex/convex/simBackend.testing";
-import { type AgentStatus } from "@codecast/shared/contracts";
+import { type AgentStatus } from "@codecast/sessions/agentStatus";
 import { performRedo, performUndo } from "../../undoStack";
 import type { RealmWindow } from "./realm";
 import { daemonDeviceFor, sessionIdFor, type SimWorld } from "./world";

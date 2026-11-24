@@ -6,7 +6,7 @@
 
 import { Platform } from "react-native";
 import { requireOptionalNativeModule } from "expo";
-import type { LiveActivityContentState } from "@codecast/shared/contracts";
+import type { LiveActivityContentState } from "@codecast/sessions/liveActivity";
 
 export type LiveActivityEnvironment = "production" | "sandbox";
 

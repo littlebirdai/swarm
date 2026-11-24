@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { OPEN_TASK_KINDS } from "@codecast/shared/contracts";
+import { OPEN_TASK_KINDS } from "@codecast/sessions/openTasks";
 
 // One background task the daemon reports as still open on a session — the
 // validator twin of shared/contracts OpenTaskReport (kinds derive from the same

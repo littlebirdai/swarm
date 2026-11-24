@@ -15,7 +15,7 @@
 import {
   MID_TURN_AGENT_STATUSES,
   type AgentStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import { descendantRows, type ProcRow } from "./processTable.js";
 
 // Absent config = hibernation does nothing. 0 means "no cap" for the fleet size

@@ -50,10 +50,7 @@ import {
   addressesAgent,
   agentSpokenNames,
   FALLBACK_TRANSCRIBE_MODEL,
-  HEARTBEAT_ALIVE_MS,
   LIVE_TRANSCRIBE_MODEL,
-  MID_TURN_AGENT_STATUSES,
-  trustedAgentStatus,
   REC_LEASE_STALE_MS,
   RECORDING_SUMMARY_PUSH_TYPE,
   asrTranscriptionSession,
@@ -78,6 +75,11 @@ import {
   shareIncludesVideo,
   unionTranscribeLanguages,
 } from "@codecast/shared/contracts";
+import {
+  HEARTBEAT_ALIVE_MS,
+  MID_TURN_AGENT_STATUSES,
+  trustedAgentStatus,
+} from "@codecast/sessions/agentStatus";
 import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
 import {
   canAccessConversation,

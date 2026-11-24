@@ -4,7 +4,7 @@ import { heartbeatsFor } from "./sessionHeartbeat";
 import {
   HEARTBEAT_ALIVE_MS,
   MID_TURN_AGENT_STATUSES,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 import type { SendWaiting } from "@codecast/comments";
 import type { Id } from "../_generated/dataModel";
 

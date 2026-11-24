@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import {
   sessionCommandOutcome,
   type SessionCommandOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/hibernation";
 
 type ParkingIo = {
   post(path: string, body: Record<string, unknown>): Promise<any>;

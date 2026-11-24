@@ -1,4 +1,4 @@
-import { MID_TURN_AGENT_STATUSES } from "@codecast/shared/contracts";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { HIBERNATE_SUBAGENT_QUIET_MS } from "../hibernation.js";
 
 export function hasActiveCloudWork(

@@ -8,7 +8,7 @@
 //
 // Pure: the page hands in rows and the saved arrangement, and gets back what
 // to draw. Edits return a new arrangement for clientState.ui.session_map.
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 
 /** What the person arranged, synced across their devices (clientState.ui.session_map). */
 export type SessionMapLayout = {

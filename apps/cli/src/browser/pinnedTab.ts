@@ -34,7 +34,7 @@ import {
   scanLiveOwners,
   type LiveOwners,
 } from "./engineReap.js";
-import { authorizesTeardown } from "@codecast/shared/contracts";
+import { authorizesTeardown } from "@codecast/sessions/liveness";
 import { paneOwnerId, socketOfTmuxEnv } from "../tmuxRoute.js";
 
 /** The engine daemon for this session, if one is alive. */

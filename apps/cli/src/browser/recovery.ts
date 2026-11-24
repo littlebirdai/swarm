@@ -17,7 +17,7 @@ import type { InstanceState } from "./instance.js";
 import {
   authorizesTeardown,
   type LivenessVerdict,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveness";
 
 /** Raised when a tab's renderer will not answer, with the way out. */
 export class TabUnresponsive extends Error {

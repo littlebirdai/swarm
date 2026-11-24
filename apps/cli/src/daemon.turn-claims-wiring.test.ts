@@ -14,7 +14,7 @@ import path from "node:path";
 import {
   authorizesTeardown,
   verdictFromProbe,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/liveness";
 import { functionBlock } from "./test-helpers/sourceRegion.js";
 import {
   TurnClaimLedger,

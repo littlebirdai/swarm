@@ -21,10 +21,8 @@ import {
   getProjectName,
   teamInboxIdsOf,
 } from "../store/inboxStore";
-import {
-  isLivenessStale,
-  THREAD_STATE_STALE_MSGS,
-} from "@codecast/shared/contracts";
+import { THREAD_STATE_STALE_MSGS } from "@codecast/shared/contracts";
+import { isLivenessStale } from "@codecast/sessions/agentStatus";
 import { makeCollectionSig } from "../store/wakeSig";
 import { agentStatusAt } from "../lib/liveness";
 import { threadStateView, compactAge } from "../lib/threadState";

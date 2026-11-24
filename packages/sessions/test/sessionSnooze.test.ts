@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sessionSnoozeUntil } from "./sessionSnooze";
+import { sessionSnoozeUntil } from "../src/sessionSnooze";
 
 describe("session snooze", () => {
   test("calendar day, week, and month choices preserve local time", () => {

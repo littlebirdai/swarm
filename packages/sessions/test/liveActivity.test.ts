@@ -14,7 +14,7 @@ import {
   liveActivityStatusOf,
   nextLiveActivityExpiry,
   type LiveActivitySessionInput,
-} from "./liveActivity";
+} from "../src/liveActivity";
 
 const NOW = 1_700_000_000_000;
 

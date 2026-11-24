@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { placeSections } from "./__tests__/placeTestHarness";
-import { STATUS_TRUST_TTL_MS } from "@codecast/shared/contracts";
+import { STATUS_TRUST_TTL_MS } from "@codecast/sessions/agentStatus";
 
 // Regression: a session that has aged out of the liveness overlay's window keeps
 // its last-synced live status frozen (the base cache never prunes, the overlay

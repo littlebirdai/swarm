@@ -7,7 +7,7 @@ import { InvalidArgumentError } from "commander";
 import {
   normalizeWorkStateFilter,
   WORK_STATE_FILTERS,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/workState";
 import { inferEntityTypeFromShortId } from "@codecast/shared/entities";
 import { verbTypoNextStep } from "./commandSuggestion.js";
 

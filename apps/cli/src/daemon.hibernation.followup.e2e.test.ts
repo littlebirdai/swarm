@@ -32,7 +32,7 @@ import {
 import { descendantRows, snapshotProcessTableAsync } from "./processTable.js";
 import { hasTmux, tmuxRun, tmuxRunAsync } from "./tmux.js";
 import type { SyncService } from "./syncService.js";
-import type { AgentStatus } from "@codecast/shared/contracts";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
 
 const harnesses: Harness[] = [];
 const roots: string[] = [];

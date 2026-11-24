@@ -1,8 +1,8 @@
 import {
-  MID_TURN_AGENT_STATUSES,
   MOVE_INTERRUPT_MESSAGE,
   moveContinueClientId,
 } from "@codecast/shared/contracts";
+import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import type { Id } from "./_generated/dataModel";
 import { enqueuePendingMessage } from "./pendingMessages";
 

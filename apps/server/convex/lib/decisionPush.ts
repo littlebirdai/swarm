@@ -6,7 +6,7 @@
 // releases it (managedSessions.scheduleNeedsInputCheck → releaseDecisionPushes).
 import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
-import { ACTIVE_AGENT_STATUSES } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import {
   AWAY_DEBOUNCE_MS,
   HOLD_WHILE_ACTIVE_MS,

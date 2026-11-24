@@ -1,4 +1,4 @@
-import type { OpenTaskReport } from "@codecast/shared/contracts";
+import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import { openTaskStart } from "./backgroundTaskStart.js";
 
 // Open background work in a Claude JSONL transcript: tasks the harness started

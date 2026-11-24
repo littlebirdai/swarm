@@ -158,11 +158,11 @@ import {
 } from "./conversations";
 import { performReparentSessionToDevice } from "./devices";
 import {
-  ACTIVE_AGENT_STATUSES,
   isBootstrapPrompt,
   normalizeThreadState,
   parseThreadStateStatus,
 } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { siteUrl } from "./lib/siteUrl";
 import {
   movedFields,

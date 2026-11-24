@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import { ORG_STATE_META } from "../org/orgMeta";
 import { useIsModernStyle } from "../../hooks/useVisualStyle";
 import { ModernSectionHeader } from "./ModernSectionHeader";

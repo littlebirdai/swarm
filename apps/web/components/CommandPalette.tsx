@@ -374,7 +374,7 @@ import {
   SESSION_SNOOZE_CHOICES,
   sessionSnoozeUntil,
   type SessionSnoozeKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/sessionSnooze";
 import { hoverFocus } from "../shortcuts/focusSource";
 import {
   SwitchReview,

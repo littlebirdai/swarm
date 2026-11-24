@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ACTIVE_AGENT_STATUSES } from "@codecast/shared/contracts";
+import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { execFileAsync, findOnPath, TOOL_PATH } from "./proc.js";
 
 /** The herdr session `cast herd` owns. Separate from the person's default

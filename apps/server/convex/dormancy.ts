@@ -15,9 +15,9 @@
 // different strength — see ArmedTriggerHomes — so the loader keeps them apart.
 import {
   isHostedAgentType,
-  isLoopFresh,
   isMachineDeliveredMessage,
 } from "@codecast/shared/contracts";
+import { isLoopFresh } from "@codecast/sessions/loopState";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 

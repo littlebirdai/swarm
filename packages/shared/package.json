@@ -165,6 +165,7 @@
     "@codecast/policy": "workspace:*",
     "@codecast/provider-keys": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
+    "@codecast/sessions": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@platform/agent": "file:../../platform/packages/agent",

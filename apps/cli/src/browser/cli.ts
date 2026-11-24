@@ -153,7 +153,7 @@ import { isRemoteDevice } from "../remote/device.js";
 import { buildHostsCommand } from "../hosts/cli.js";
 import { uploadOne } from "../imageCommand.js";
 import { inlineImageMarker } from "../inlineImage.js";
-import { authorizesTeardown } from "@codecast/shared/contracts";
+import { authorizesTeardown } from "@codecast/sessions/liveness";
 import type { PublishDeps } from "../castApi.js";
 import { fmt, icons } from "../colors.js";
 import { commandGroup } from "../commandGroups.js";

@@ -2,7 +2,7 @@
 import {
   ACTIVE_AGENT_STATUSES,
   HEARTBEAT_REFRESH_MS,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/agentStatus";
 
 type StatusStamps = {
   agent_status?: string;

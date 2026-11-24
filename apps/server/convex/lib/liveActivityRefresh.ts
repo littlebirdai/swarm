@@ -13,7 +13,7 @@
 
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { LIVE_ACTIVITY_PUSH_INTERVAL_MS } from "@codecast/shared/contracts";
+import { LIVE_ACTIVITY_PUSH_INTERVAL_MS } from "@codecast/sessions/liveActivity";
 
 // Users already given a refresh in this transaction (a heartbeat batch can
 // move several of one user's sessions at once).

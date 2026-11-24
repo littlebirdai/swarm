@@ -3,7 +3,7 @@
 // earns, which feed links the SPA does not own, and which scope a role's
 // queries read. Kept out of the components so they test without React.
 import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import type { InitiativeHealth } from "@codecast/shared/contracts/initiative";
 import { isNonTabRoute } from "./tabRoutes";
 import { HEALTH_COLOR } from "./initiativeColors";

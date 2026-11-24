@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AgentStatus } from "@codecast/shared/contracts";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import {
   clearHibernationPark,
   flushHibernationStamps,

@@ -36,7 +36,7 @@ import type {
   SdkTurnError,
 } from "./protocol.js";
 import { parsePollMessage } from "../pollMessage.js";
-import type { LivenessVerdict } from "@codecast/shared/contracts";
+import type { LivenessVerdict } from "@codecast/sessions/liveness";
 
 export interface ClaudeSdkBackendDeps {
   log: (line: string) => void;

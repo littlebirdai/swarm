@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { useInboxStore } from "../store/inboxStore";
 import { isParkedDispatchError } from "../store/mutativeMiddleware";
-import type { AgentStatus } from "@codecast/shared/contracts";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
 
 // The session controls a composer drives, shared by every surface that shows
 // a session's full composer (the conversation view, a Threads card): the

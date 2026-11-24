@@ -34,7 +34,7 @@ import { LoginCodePaste } from "./LoginCodePaste";
 import type { ThreadStateStatus } from "@codecast/shared/contracts";
 import { ORG_STATE_META } from "./org/orgMeta";
 import { StatusDot } from "./StatusDot";
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import {
   useInboxStore,
   useTrackedStore,

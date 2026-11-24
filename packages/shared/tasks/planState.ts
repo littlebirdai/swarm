@@ -7,7 +7,7 @@
 // state and when it last changed) and uses the plan's status only to close it.
 // Edits and comments on its tasks are not movement.
 
-import type { WorkState } from "../contracts/workState";
+import type { WorkState } from "@codecast/sessions/workState";
 
 export const PLAN_STATES = [
   "needs_you",

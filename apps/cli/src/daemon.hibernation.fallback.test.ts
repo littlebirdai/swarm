@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentStatus } from "@codecast/shared/contracts";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import type { HibernationPassIo } from "./daemon.js";
 import { createHibernationHarness } from "./test-helpers/hibernationHarness.js";
 import * as fs from "node:fs";

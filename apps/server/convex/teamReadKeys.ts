@@ -11,7 +11,8 @@
 // opening prompt. Subagent and workflow child sessions are left out.
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { isNestedIdentity, type WorkState } from "@codecast/shared/contracts";
+import { isNestedIdentity } from "@codecast/shared/contracts";
+import { type WorkState } from "@codecast/sessions/workState";
 import { repositoryFromRemote } from "@codecast/capabilities/capabilityScopes";
 import { internalMutation, internalQuery, mutation, query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";

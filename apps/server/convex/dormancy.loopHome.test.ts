@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { isArmedLoopHome } from "./dormancy";
-import { LOOP_OVERDUE_GRACE_MS } from "@codecast/shared/contracts";
+import { LOOP_OVERDUE_GRACE_MS } from "@codecast/sessions/loopState";
 
 const now = 1_788_200_000_000;
 const armed = {

@@ -14,7 +14,7 @@ import { useCallback } from "react";
 import {
   sessionActivityAt,
   shouldAcknowledge,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/sessionRead";
 import {
   sessionActivityFacts,
   useInboxStore,

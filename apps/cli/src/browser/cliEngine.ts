@@ -166,7 +166,7 @@ import {
 } from "./instance.js";
 import { provisionLocalLogins } from "./credentials.js";
 import { isPidAlive } from "../workspace/chrome.js";
-import { authorizesTeardown } from "@codecast/shared/contracts";
+import { authorizesTeardown } from "@codecast/sessions/liveness";
 import {
   auditExplicitLoads,
   auditLanding,

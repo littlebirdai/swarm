@@ -9,7 +9,7 @@ import {
   HEARTBEAT_ALIVE_MS,
   type WorkState,
 } from "./inboxFilters";
-import { openTasksVouchForWaiting } from "@codecast/shared/contracts";
+import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import {
   armedTriggerHomeLoader,
   isArmedTriggerHome,

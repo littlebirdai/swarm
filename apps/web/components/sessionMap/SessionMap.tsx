@@ -50,7 +50,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import type { WorkState } from "@codecast/shared/contracts";
+import type { WorkState } from "@codecast/sessions/workState";
 import { objectHref } from "@codecast/shared/entities";
 import {
   useInboxStore,

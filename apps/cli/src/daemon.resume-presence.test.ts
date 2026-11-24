@@ -4,7 +4,7 @@ import {
   headlessAgentInPanes,
   panePresenceFromProcesses,
 } from "./daemon";
-import type { LivenessVerdict } from "@codecast/shared/contracts";
+import type { LivenessVerdict } from "@codecast/sessions/liveness";
 
 test("a failed or incomplete process snapshot cannot prove an agent exited", () => {
   expect(panePresenceFromProcesses([10], [])).toBe("unverifiable");

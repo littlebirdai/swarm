@@ -367,12 +367,12 @@ export interface TriggerRow {
 
 // Freshness lives in shared/contracts/loopState — the server classifier and
 // this roster must agree on when a loop stops being a live standing intent.
-import { isLoopFresh } from "@codecast/shared/contracts";
+import { isLoopFresh } from "@codecast/sessions/loopState";
 export {
   LOOP_OVERDUE_GRACE_MS,
   LOOP_WAKING_TTL_MS,
   isLoopFresh,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/loopState";
 
 export type LoopStateLike = NonNullable<InboxSession["loop_state"]>;
 
