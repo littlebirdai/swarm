@@ -13048,7 +13048,6 @@
     "swarm/no-comments": 6
   },
   "apps/web/app/(marketing)/features/agents/more.tsx": {
-    "react/static-components": 6,
     "swarm/no-comments": 5
   },
   "apps/web/app/(marketing)/features/agents/parts.tsx": {
@@ -15838,7 +15837,6 @@
     "react-hooks/exhaustive-deps": 3,
     "react/preserve-manual-memoization": 1,
     "react/refs": 1,
-    "react/static-components": 3,
     "swarm/no-comments": 34
   },
   "apps/web/components/anchor/AnchorHeaderPill.tsx": {

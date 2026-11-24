@@ -524,9 +524,13 @@ test("hiring an Executive Assistant is one confirmed press: the review names wha
   await act(async () => {
     root.render(h(HireAssistantCard, { compact: true }));
   });
+  const reachInput = q("[data-assistant-reach='global'] input", el);
   await act(async () => {
     q("[data-assistant-hire]", el)!.click();
   });
+  expect(
+    reachInput?.isSameNode(q("[data-assistant-reach='global'] input", el)),
+  ).toBe(true);
   expect(hires).toEqual([]);
   expect(q("[data-switch-review='Hire Executive Assistant']")).not.toBeNull();
   await act(async () => {
