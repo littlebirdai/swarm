@@ -3,7 +3,7 @@
 // wrong file — so they're tested apart from the component that renders them.
 
 import { test, expect, describe } from "bun:test";
-import type { VaultFileEntry } from "@codecast/shared/contracts";
+import type { VaultFileEntry } from "@codecast/vault/vaultProtocol";
 import {
   buildVaultTree,
   flattenTree,

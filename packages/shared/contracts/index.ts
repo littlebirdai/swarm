@@ -3,8 +3,6 @@
 // the browser. PURE isomorphic data only — no Node or DOM APIs — so the Convex
 // runtime can import them.
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
-export * from "./vaultProtocol";
-export * from "./vaultMirror";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.

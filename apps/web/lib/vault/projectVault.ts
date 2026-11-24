@@ -5,8 +5,8 @@
 // the picker, the landing-note effect and the header strip share ONE definition
 // of each instead of three that drift apart.
 
-import type { VaultInfo } from "@codecast/shared/contracts";
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import type { VaultInfo } from "@codecast/vault/vaultProtocol";
+import { isVaultMarkdownPath } from "@codecast/vault/vaultProtocol";
 
 /** A project the user works in, offered as a vault without ever being
  *  registered — as opposed to a folder someone ran `cast files add` on. */

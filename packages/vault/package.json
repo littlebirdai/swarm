@@ -10,12 +10,13 @@
   "exports": {
     ".": "./src/index.ts",
     "./frontmatter": "./src/frontmatter.ts",
-    "./parseNote": "./src/parseNote.ts"
+    "./parseNote": "./src/parseNote.ts",
+    "./vaultMirror": "./src/vaultMirror.ts",
+    "./vaultProtocol": "./src/vaultProtocol.ts"
   },
   "dependencies": {
     "@codecast/entities": "workspace:*",
-    "@codecast/search": "workspace:*",
-    "@codecast/shared": "workspace:*"
+    "@codecast/search": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"

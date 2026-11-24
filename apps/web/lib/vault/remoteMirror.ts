@@ -10,7 +10,7 @@
 
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type { VaultFileEntry, VaultInfo } from "@codecast/shared/contracts";
+import type { VaultFileEntry, VaultInfo } from "@codecast/vault/vaultProtocol";
 
 export interface RemoteVault extends VaultInfo {
   device_id: string;

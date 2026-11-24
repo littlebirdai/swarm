@@ -11,10 +11,8 @@ import {
 } from "./vaultMirror.js";
 import { addVault, setVaultMirroring } from "./vaultRegistry.js";
 import { scanVault, vaultContentHash } from "./vaultScope.js";
-import type {
-  VaultFileEntry,
-  VaultMirrorUpsertRequest,
-} from "@codecast/shared/contracts";
+import type { VaultFileEntry } from "@codecast/vault/vaultProtocol";
+import type { VaultMirrorUpsertRequest } from "@codecast/vault/vaultMirror";
 
 let base = "";
 let configDir = "";

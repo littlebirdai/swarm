@@ -15,7 +15,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import { isVaultMarkdownPath } from "@codecast/vault/vaultProtocol";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {

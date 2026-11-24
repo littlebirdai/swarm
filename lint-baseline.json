@@ -30028,15 +30028,6 @@
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
   },
-  "packages/shared/contracts/vaultMirror.ts": {
-    "swarm/no-comments": 37
-  },
-  "packages/shared/contracts/vaultProtocol.test.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/vaultProtocol.ts": {
-    "swarm/no-comments": 58
-  },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9
   },
@@ -30225,6 +30216,15 @@
   },
   "packages/vault/src/vaultIndex.ts": {
     "swarm/no-comments": 82
+  },
+  "packages/vault/src/vaultMirror.ts": {
+    "swarm/no-comments": 37
+  },
+  "packages/vault/src/vaultProtocol.ts": {
+    "swarm/no-comments": 58
+  },
+  "packages/vault/test/vaultProtocol.test.ts": {
+    "swarm/no-comments": 8
   },
   "patches/convex-auth-ios-oauth.mjs": {
     "swarm/no-comments": 21

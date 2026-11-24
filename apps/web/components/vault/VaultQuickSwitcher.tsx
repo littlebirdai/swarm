@@ -11,7 +11,7 @@ import { memo, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import fuzzysort from "fuzzysort";
 import { CornerDownLeft, FilePlus2, FileText, Clock } from "lucide-react";
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import { isVaultMarkdownPath } from "@codecast/vault/vaultProtocol";
 import { useVaultStore } from "../../store/vaultStore";
 import { filesHref } from "../../lib/vault/vaultHref";
 import { vaultIndex, useVaultIndexVersion } from "../../lib/vault/indexHost";

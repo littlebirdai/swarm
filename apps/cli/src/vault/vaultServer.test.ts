@@ -16,12 +16,12 @@ import * as os from "os";
 import * as path from "path";
 import type { AddressInfo } from "net";
 import { WebSocket } from "ws";
-import { VAULT_MAX_SERVE_BYTES } from "@codecast/shared/contracts";
+import { VAULT_MAX_SERVE_BYTES } from "@codecast/vault/vaultProtocol";
 import type {
   VaultScanResponse,
   VaultWriteResponse,
   VaultWsEvent,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import { attachTerminalServer } from "../terminal/terminalServer.js";
 import { addVault } from "./vaultRegistry.js";
 import { clearRepoScopeCache } from "./vaultScope.js";

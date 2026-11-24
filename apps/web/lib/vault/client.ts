@@ -13,7 +13,7 @@ import type {
   VaultOpResponse,
   VaultWriteResponse,
   VaultWsEvent,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import {
   getTerminalEndpoint,
   loopbackWsUrl,

@@ -16,7 +16,7 @@ import {
   Laptop,
   Users,
 } from "lucide-react";
-import type { VaultInfo } from "@codecast/shared/contracts";
+import type { VaultInfo } from "@codecast/vault/vaultProtocol";
 import {
   Command,
   CommandEmpty,

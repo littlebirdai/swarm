@@ -26,7 +26,7 @@
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import type { VaultFileEntry, VaultInfo } from "@codecast/shared/contracts";
+import type { VaultFileEntry, VaultInfo } from "@codecast/vault/vaultProtocol";
 import { enumerateProjectRoots } from "../projectRoots.js";
 import {
   isVaultPathRepoIgnored,

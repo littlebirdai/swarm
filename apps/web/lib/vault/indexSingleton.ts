@@ -8,7 +8,7 @@
 // either side. Components keep importing `vaultIndex` from indexHost, which
 // re-exports it.
 
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import { isVaultMarkdownPath } from "@codecast/vault/vaultProtocol";
 import { VaultIndex } from "./vaultIndex";
 import { VaultSearchIndex } from "./searchIndex";
 

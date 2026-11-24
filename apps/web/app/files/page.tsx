@@ -31,7 +31,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import { isVaultMarkdownPath } from "@codecast/vault/vaultProtocol";
 import { AuthGuard } from "../../components/AuthGuard";
 import { LocalDaemonUnreachable } from "../../components/LocalDaemonUnreachable";
 import {

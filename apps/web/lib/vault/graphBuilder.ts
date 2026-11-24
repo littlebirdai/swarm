@@ -19,7 +19,7 @@
 import {
   isVaultAssetPath,
   isVaultMarkdownPath,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import { normalizeTarget } from "./vaultIndex";
 
 /** Ghost-node id prefix. Vault paths are relative and never start with a

@@ -18,8 +18,8 @@
 
 import * as fsp from "fs/promises";
 import * as nodePath from "path";
-import type { VaultFileEntry, VaultInfo } from "@codecast/shared/contracts";
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import type { VaultFileEntry, VaultInfo } from "@codecast/vault/vaultProtocol";
+import { isVaultMarkdownPath } from "@codecast/vault/vaultProtocol";
 import {
   VaultIndex,
   applySpanEdits,
