@@ -224,12 +224,20 @@ describe("applyBatch", () => {
   });
 
   test("a spike announces against a quiet day", async () => {
-    const w = world();
-    const { source } = await teamSource(w);
-    await batch(w, source._id, [err("Boom", { at: NOW - 30 * HOUR_MS })]);
-    const hour = hourStart(NOW);
-    await batch(w, source._id, Array.from({ length: 25 }, (_, i) => err("Boom", { at: hour + i })));
-    expect(w.db._tables.external_events.map((e: any) => e.kind)).toEqual(["error_new", "error_spike"]);
+    // Only an occurrence in the receive hour can spike, so the server's clock
+    // stays on NOW's hour; a suite that crossed an hour boundary before this
+    // test ran used to receive the burst in the next hour.
+    setSystemTime(new Date(NOW));
+    try {
+      const w = world();
+      const { source } = await teamSource(w);
+      await batch(w, source._id, [err("Boom", { at: NOW - 30 * HOUR_MS })]);
+      const hour = hourStart(NOW);
+      await batch(w, source._id, Array.from({ length: 25 }, (_, i) => err("Boom", { at: hour + i })));
+      expect(w.db._tables.external_events.map((e: any) => e.kind)).toEqual(["error_new", "error_spike"]);
+    } finally {
+      setSystemTime();
+    }
   });
 
   test("a deploy is one marker however often it is reported", async () => {
