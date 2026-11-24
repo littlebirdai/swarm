@@ -23,6 +23,12 @@ Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's prog
 
 A watcher built while other sessions were editing several packages keeps checking the half-written tree it first saw: it reports "has no exported member 'X'" for exports present on disk (once 9 errors in `cli` and 25 in `mobile` while `convex` was clean on the same files). When a check is red with errors nobody wrote, confirm the code on disk, then run `cast check <project> --fresh` before changing anything.
 
+## Lint
+
+Run `bun run lint` from the repository root. Oxlint checks the whole repository. The baseline tracks existing violations by file and rule. Baseline counts can only decrease. After you remove violations, run `bun run lint:prune` and commit the baseline update.
+
+Code comments are forbidden except for semantic tool directives. The baseline covers existing code comments. Keep new code free of explanatory comments. Use clear names or record the rationale in the relevant documentation.
+
 ## Tests
 
 Each package's test guidance is in its own `AGENTS.md` (`apps/web`, `apps/cli`, `apps/server`, `apps/mobile`). A flaky test is fixed or deleted within 14 days of being quarantined; the policy and the list are in `QUARANTINE.md`.
@@ -258,7 +264,7 @@ it names; never loosen the budget to get past it.
 
 The web build runs React Compiler over an explicit list of files, `REACT_COMPILER_SOURCES` in `apps/web/plugins/reactCompiler.ts`, and over nothing else. `REACT_COMPILER=0` turns it off for a build or a dev server. Mobile's Metro build does not run it, so a listed file must stay correct uncompiled.
 
-A compiled component keeps whatever it computed from the same props, state, context and hook results. A read of anything else while rendering is kept too, and the value on screen stops changing: `formatRelativeTime(ts)` and every helper that calls `Date.now()` itself, a helper that calls `getState()` or reads the `store` proxy, `localStorage`, a module-level table that fills in later. The same read behind a function a hook hands back is kept as well: a hook whose callback never changes and calls `Date.now()` when called froze every compiled row's "just now", so a hook reads the instant in its own body and makes the callback from it (`useRelativeTime` in `lib/conversationFormat.tsx`). In a listed file, take such a value from a hook and pass it in (`relativeSeen(ts, now)` with `now` from `useNowWhen`), or put `"use no memo"; // <the read, and what would freeze>` first in the component. A direct `useInboxStore.getState()` in render makes the compiler skip the whole component, which is safe and silent.
+A compiled component keeps whatever it computed from the same props, state, context and hook results. A read of anything else while rendering is kept too, and the value on screen stops changing: `formatRelativeTime(ts)` and every helper that calls `Date.now()` itself, a helper that calls `getState()` or reads the `store` proxy, `localStorage`, a module-level table that fills in later. The same read behind a function a hook hands back is kept as well: a hook whose callback never changes and calls `Date.now()` when called froze every compiled row's "just now", so a hook reads the instant in its own body and makes the callback from it (`useRelativeTime` in `lib/conversationFormat.tsx`). In a listed file, take such a value from a hook and pass it in (`relativeSeen(ts, now)` with `now` from `useNowWhen`), or put `"use no memo"` first in the component. Record the read and what would freeze in the change description. A direct `useInboxStore.getState()` in render makes the compiler skip the whole component, which is safe and silent.
 
 - `bun apps/web/scripts/react-compiler-report.ts` lists what compiled, what the compiler left as written and why, and every such read, followed through helpers and through the functions hooks hand back. It also lists each prop called while rendering, which it cannot follow: read those by hand. It must exit 0 for the list. Run it on a candidate (`bun apps/web/scripts/react-compiler-report.ts components/inbox/`) before adding it.
 - `REACT_COMPILER=1 bun test <file>` and `REACT_COMPILER=1 apps/web/scripts/perf-budgets.sh` run the listed files compiled; plain `bun test` never does.

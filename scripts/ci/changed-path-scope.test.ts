@@ -86,10 +86,19 @@ describe("classifyChangedPaths", () => {
     }
   });
 
+  test("source files under docs still run lint", () => {
+    expect(flags(["docs/examples/widget.tsx"]).run_lint).toBe(true);
+  });
+
+  test("lint config and baseline changes run lint", () => {
+    expect(flags([".oxlintrc.json"]).run_lint).toBe(true);
+    expect(flags(["lint-baseline.json"]).run_lint).toBe(true);
+  });
+
   // The few web and convex test files that import cli code run in
   // test-always instead.
-  test("a cli change runs build, typecheck and the cli tests", () => {
-    expect(ran(["apps/cli/src/daemon.ts"])).toEqual(["build", "test-cli", "typecheck"]);
+  test("a cli change runs build, lint, typecheck and the cli tests", () => {
+    expect(ran(["apps/cli/src/daemon.ts"])).toEqual(["build", "lint", "test-cli", "typecheck"]);
   });
 
   // convex source imports web code. The cli test files that read web files
@@ -102,31 +111,31 @@ describe("classifyChangedPaths", () => {
 
   test("a convex change runs the convex, web, cli and mobile tests", () => {
     expect(ran(["apps/server/convex/tasks.ts"])).toEqual(
-      ["build", "test-cli", "test-convex", "test-mobile", "test-web", "typecheck"],
+      ["build", "lint", "test-cli", "test-convex", "test-mobile", "test-web", "typecheck"],
     );
   });
 
   // The eval home's unit tests are a step of test-cli.
-  test("an evals change runs typecheck and the cli tests without forcing every job", () => {
+  test("an evals change runs lint, typecheck and the cli tests without forcing every job", () => {
     const scope = classifyChangedPaths(["apps/evals/src/x.ts"]);
     expect(scope.forcedBy).toEqual([]);
-    expect(ran(["apps/evals/src/x.ts"])).toEqual(["test-cli", "typecheck"]);
+    expect(ran(["apps/evals/src/x.ts"])).toEqual(["lint", "test-cli", "typecheck"]);
   });
 
   test("a shared change runs every job that reads shared", () => {
     expect(ran(["packages/shared/contracts/inboxProjection.ts"])).toEqual(
-      ["build", "test-cli", "test-convex", "test-mobile", "test-shared", "test-web", "typecheck"],
+      ["build", "lint", "test-cli", "test-convex", "test-mobile", "test-shared", "test-web", "typecheck"],
     );
   });
 
   // The vendored mirror is a dependency of every package, so a change to it
   // reaches every job that reads it, and the job that tests the mirror itself
-  // (ct-49675). Only apps/web has a lint script.
-  test("a vendored platform change runs every job but lint", () => {
+  // (ct-49675).
+  test("a vendored platform change runs every gated job", () => {
     const result = flags(["platform/packages/engine/src/store.ts"]);
     expect(result.platform).toBe(true);
     expect(result.shared).toBe(false);
-    expect(ran(["platform/packages/engine/src/store.ts"])).toEqual(GATED_JOBS.filter((job) => job !== "lint").sort());
+    expect(ran(["platform/packages/engine/src/store.ts"])).toEqual([...GATED_JOBS].sort());
   });
 
   test("a workspace manifest re-checks the mirror it declares", () => {
@@ -145,9 +154,9 @@ describe("classifyChangedPaths", () => {
     expect(flags(["docs/architecture/sync-host.md"]).run_test_platform).toBe(false);
   });
 
-  test("a mobile change runs the mobile tests only", () => {
+  test("a mobile change runs lint and the mobile tests", () => {
     expect(flags(["apps/mobile/app/index.tsx"]).mobile).toBe(true);
-    expect(ran(["apps/mobile/app/index.tsx"])).toEqual(["test-mobile"]);
+    expect(ran(["apps/mobile/app/index.tsx"])).toEqual(["lint", "test-mobile"]);
   });
 
   // web imports electron's window registry, so an electron change reaches
@@ -155,28 +164,27 @@ describe("classifyChangedPaths", () => {
   test("an electron change runs the electron tests and everything that loads web", () => {
     const file = "apps/desktop/main.js";
     expect(flags([file]).electron).toBe(true);
-    expect(ran([file])).toEqual(["build", "test-electron", "test-mobile", "test-web", "typecheck"]);
+    expect(ran([file])).toEqual(["build", "lint", "test-electron", "test-mobile", "test-web", "typecheck"]);
   });
 
   // Nothing imports the playground; the root build and typecheck cover it.
-  test("a playground change runs build and typecheck only", () => {
+  test("a playground change runs build, lint and typecheck", () => {
     const scope = classifyChangedPaths(["apps/playground/src/main.tsx"]);
     expect(scope.forcedBy).toEqual([]);
-    expect(ran(["apps/playground/src/main.tsx"])).toEqual(["build", "typecheck"]);
+    expect(ran(["apps/playground/src/main.tsx"])).toEqual(["build", "lint", "typecheck"]);
   });
 
-  // infra's own tests run in test-always; no gated job reads infra/.
-  test("an infra change runs no gated job", () => {
+  test("an infra change runs lint", () => {
     const scope = classifyChangedPaths(["infra/convex-host/Caddyfile", "infra/README.md"]);
     expect(scope.forcedBy).toEqual([]);
     expect(scope.flags.infra).toBe(true);
-    expect(ran(["infra/convex-host/Caddyfile"])).toEqual([]);
+    expect(ran(["infra/convex-host/Caddyfile"])).toEqual(["lint"]);
   });
 
   // The CLI carries the extension to cloud hosts (browser/hostExtension.ts),
   // so an extension change runs the cli tests too.
   test("an extension change runs build and the cli tests", () => {
-    expect(ran(["apps/browser-extension/background.js"])).toEqual(["build", "test-cli"]);
+    expect(ran(["apps/browser-extension/background.js"])).toEqual(["build", "lint", "test-cli"]);
   });
 
   test("the electron tests rerun for the vendored @platform/desktop they require", () => {
@@ -218,7 +226,7 @@ describe("classifyChangedPaths", () => {
     expect(lines).toContain("cli=true");
     expect(lines).toContain("web=false");
     expect(lines).toContain("run_test_cli=true");
-    expect(lines).toContain("run_lint=false");
+    expect(lines).toContain("run_lint=true");
     expect(lines).toHaveLength(AREAS.length + GATED_JOBS.length);
   });
 });

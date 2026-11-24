@@ -53,7 +53,7 @@ export type Area = (typeof AREAS)[number];
 // files reach it; one that only a few files reach is cheaper left to
 // test-always.
 //
-// The other jobs follow what they execute: `lint` lints apps/web only,
+// The other jobs follow what they execute: `lint` covers the whole repository,
 // `typecheck` filters to cli + web (with the sim program) + convex + evals +
 // playground, and `build` builds web, cli, the extensions and playground.
 export const JOB_AREAS: Record<string, Area[]> = {
@@ -64,7 +64,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
   // generated api, so a convex change can break the cli typecheck too. The web
   // program reaches electron's window registry.
   typecheck: ["cli", "evals", "web", "convex", "shared", "electron", "playground", "platform"],
-  lint: ["web"],
+  lint: AREAS.filter((area) => area !== "docs"),
   // About 480 of 620 convex test files import web code through convex source.
   "test-convex": ["convex", "web", "shared", "platform"],
   // About 750 of 1,220 web test files reach convex and 680 reach electron.
@@ -238,6 +238,7 @@ export function classifyChangedPaths(files: string[]): Scope {
   for (const [job, jobAreas] of Object.entries(JOB_AREAS)) {
     flags[jobFlag(job)] = forced || jobAreas.some((area) => areas.has(area));
   }
+  flags.run_lint ||= paths.some((file) => /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(file));
   return { flags, forcedBy };
 }
 

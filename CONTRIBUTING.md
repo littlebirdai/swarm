@@ -69,7 +69,7 @@ Codecast is a Bun monorepo with these packages:
 
 ### React: No Direct useEffect
 
-`useEffect` is banned in `apps/web` (enforced by ESLint; existing violations are baselined in `eslint-suppressions.json`, so new ones fail). Two escape hatches:
+Oxlint bans direct `useEffect` calls in `apps/web`. Existing violations count toward `lint-baseline.json`. Use these hooks for external sync and event subscriptions.
 
 - **`useMountEffect(fn)`** -- one-time external sync on mount
 - **`useEventListener(event, handler, target?, options?)`** -- event subscriptions with cleanup
