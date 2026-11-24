@@ -42,6 +42,8 @@ const meta: AttributionMeta = {
   surfaceInfo: (surface) => ({ model: 'm1', route: surface === 'role-wake' ? 'agent' : 'call', sources: [] }),
   readHeads: () => null,
   freezeSnapshotPath: () => null,
+  freezePointerPath: (f: string) => `evals/freezes/${f}.json`,
+  freezeDirs: [],
 };
 const deps: PlanDeps<PlanWorld> = { verdict, meta, perRepUsd: (surface, model, world) => world.state?.[surface]?.perRep[model]?.usd ?? 0, toolHead: () => 'tool' };
 /** The plan from the records alone (Tier 0) and, once Tier 1 has run, its classes. With no attribution given, it is attributed from the world. */

@@ -70,6 +70,8 @@ export const codecastAttributionMeta: AttributionMeta = {
   },
   readHeads: () => readHeads(),
   freezeSnapshotPath: publicSnapshotPath,
+  freezePointerPath: (freezeId) => `apps/evals/freezes/${freezeId}.json`,
+  freezeDirs: ['apps/evals/freezes', 'apps/evals/fixtures'],
 };
 
 /** Attribution's input with codecast's defaults: the repo's git and the run folders' prompt reader. */

@@ -214,7 +214,7 @@ describe('a product with every source', () => {
       between: () => [],
       commit: (sha) => ({ commit: { sha } }) as never,
       attribution: { resolve: () => null, isAncestor: () => false, path: () => [], changed: () => [], show: () => null },
-      meta: { declaredPaths: () => [], surfaceInfo: () => ({ model: 'm1', route: 'call', sources: [] }), readHeads: () => null, freezeSnapshotPath: () => null },
+      meta: { declaredPaths: () => [], surfaceInfo: () => ({ model: 'm1', route: 'call', sources: [] }), readHeads: () => null, freezeSnapshotPath: () => null, freezePointerPath: (f) => `evals/freezes/${f}.json`, freezeDirs: [] },
     },
     bisects: { summaries: () => [bisect], settle: () => void settled.push(1), running: () => null, get: (id) => (id === bisect.id ? ({ state: {}, steps: [] } as never) : null) },
     changes: { sig: (r) => String(r.checks.k ?? ''), extra: (since) => ({ jobs: since > 0 ? [{ id: 'job' }] : [] }) },
