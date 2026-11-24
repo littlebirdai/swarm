@@ -240,7 +240,7 @@ describe("what the CLI and web can print", () => {
   });
 
   test("only envCases.ts reaches the fetch routes; no web source reaches the case-set functions", () => {
-    const root = path.resolve(import.meta.dir, "../..");
+    const root = path.resolve(import.meta.dir, "../../..");
     const hits: string[] = [];
     const walk = (d: string) => {
       for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -253,9 +253,9 @@ describe("what the CLI and web can print", () => {
         }
       }
     };
-    walk(path.join(root, "cli/src"));
-    walk(path.join(root, "web"));
-    expect(hits).toEqual(["cli/src/envCases.ts"]);
+    walk(path.join(root, "apps/cli/src"));
+    walk(path.join(root, "packages/web"));
+    expect(hits).toEqual(["apps/cli/src/envCases.ts"]);
   });
 });
 
