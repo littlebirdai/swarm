@@ -35,6 +35,7 @@
     "@codecast/memory": "workspace:*",
     "@codecast/mods": "workspace:*",
     "@codecast/network": "workspace:*",
+    "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
     "@codecast/ratchet": "workspace:*",

@@ -6,7 +6,7 @@ import {
   useGalleryMessageId,
   ImageLightbox,
 } from "../ImageGallery";
-import { isVideoSrc } from "@codecast/shared/contracts/castPlayer";
+import { isVideoSrc } from "@codecast/pages/castPlayer";
 import { isRemoteImageSrc } from "../../lib/trustedImageOrigins";
 import { loadCastPlayer } from "../../lib/loadCastPlayer";
 import { MarkdownImageSize, type ImageSize } from "../../lib/markdownImageSize";

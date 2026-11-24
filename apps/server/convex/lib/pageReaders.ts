@@ -20,7 +20,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import {
   PAGE_DATA_LIMITS,
   type PageDataReader,
-} from "@codecast/shared/contracts/pageData";
+} from "@codecast/pages/pageData";
 import { isOnHumanBoard } from "@codecast/shared/tasks";
 import { parseWorkspaceKey } from "./accessKeys";
 import { fetchUserUsageDays, seesTeamSpend } from "./usageDaily";

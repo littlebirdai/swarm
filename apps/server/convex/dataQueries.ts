@@ -29,7 +29,7 @@ import {
   PAGE_DATA_LIMITS,
   capResult,
   parseRefresh,
-} from "@codecast/shared/contracts/pageData";
+} from "@codecast/pages/pageData";
 import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { PAGE_READERS, queryText, type ReaderScope } from "./lib/pageReaders";
 import { runReader, normalizeRow, dueAt } from "./pageData";

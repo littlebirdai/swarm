@@ -31,7 +31,7 @@ import {
   PAGE_STATE_LIMITS,
   encodeStateValue,
   type PageStateCollection,
-} from "@codecast/shared/contracts/pageData";
+} from "@codecast/pages/pageData";
 import {
   accountAdmission,
   artifactUrl,

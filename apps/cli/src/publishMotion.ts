@@ -18,7 +18,7 @@ import {
   MOTION_RENDER_MP4,
   pageIsMotion,
   type MotionRenderManifest,
-} from "@codecast/shared/contracts";
+} from "@codecast/pages/castMotion";
 import { pickBundleEntry } from "./publishCommand.js";
 import { captureThumb } from "./publishThumb.js";
 

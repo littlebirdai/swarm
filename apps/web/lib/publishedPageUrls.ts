@@ -1,4 +1,4 @@
-import { pageEmbedUrl, pageServingOrigin } from "@codecast/shared/contracts";
+import { pageEmbedUrl, pageServingOrigin } from "@codecast/pages/pageEdge";
 import { CONVEX_URL } from "./convexUrl";
 import { DOCS_SHOTS, DOCS_SHOTS_PAGES_ORIGIN } from "./docsShots/flag";
 

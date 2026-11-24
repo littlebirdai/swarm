@@ -28864,6 +28864,24 @@
   "packages/network/src/internalHost.ts": {
     "swarm/no-comments": 22
   },
+  "packages/pages/src/castMotion.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/pages/src/castPlayer.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/pages/src/pageAgent.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/pages/src/pageAnchor.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/pages/src/pageData.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/pages/src/pageEdge.ts": {
+    "swarm/no-comments": 8
+  },
   "packages/policy/src/managedPolicy.ts": {
     "swarm/no-comments": 68
   },
@@ -29091,12 +29109,6 @@
   },
   "packages/shared/contracts/capabilitySlug.test.ts": {
     "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/castMotion.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/contracts/castPlayer.ts": {
-    "swarm/no-comments": 8
   },
   "packages/shared/contracts/causeHistory.ts": {
     "swarm/no-comments": 146
@@ -29646,18 +29658,6 @@
   },
   "packages/shared/contracts/orgWhere.ts": {
     "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/pageAgent.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/pageAnchor.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/pageData.ts": {
-    "swarm/no-comments": 29
-  },
-  "packages/shared/contracts/pageEdge.ts": {
-    "swarm/no-comments": 8
   },
   "packages/shared/contracts/peerTransport.ts": {
     "swarm/no-comments": 16

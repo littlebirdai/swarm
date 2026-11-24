@@ -21,7 +21,7 @@ import {
   parsePageDataDeclaration,
   type PageDataResult,
   type PageStateCollection,
-} from "@codecast/shared/contracts/pageData";
+} from "@codecast/pages/pageData";
 import {
   PAGE_READERS,
   queryText,

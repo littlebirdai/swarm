@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { useWatchEffect } from "@/hooks/useWatchEffect";
 import { loadCastPlayer } from "@/lib/loadCastPlayer";
-import { MEDIA_ORIGIN } from "@codecast/shared/contracts/castPlayer";
+import { MEDIA_ORIGIN } from "@codecast/pages/castPlayer";
 
 // The hand drawn tour (videos/codecast-explainer), hosted on media.codecast.sh
 // and played by the same <cast-player> published pages use. One chapter per

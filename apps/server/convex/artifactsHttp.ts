@@ -36,15 +36,15 @@ import { mediaBucketFromEnv, r2Presign } from "./lib/r2";
 import { CAST_PLAYER_JS } from "./lib/castPlayer";
 import { CAST_MOTION_JS } from "./lib/castMotion";
 import { CAST_DATA_JS } from "./lib/castData";
-import { pageUsesData } from "@codecast/shared/contracts/pageData";
+import { pageUsesData } from "@codecast/pages/pageData";
 import { servePageData, type PageDataSet } from "./pageData";
 import {
   HYPERFRAMES_RUNTIME,
   pageHasHyperframesRuntime,
   pageIsMotion,
-  pageServingOrigin,
-  pageUsesPlayer,
-} from "@codecast/shared/contracts";
+} from "@codecast/pages/castMotion";
+import { pageServingOrigin } from "@codecast/pages/pageEdge";
+import { pageUsesPlayer } from "@codecast/pages/castPlayer";
 import { injectPageTheme } from "@codecast/shared/render";
 import {
   sha256Hex,

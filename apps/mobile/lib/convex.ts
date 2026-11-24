@@ -1,7 +1,4 @@
-import {
-  isVideoSrc,
-  MEDIA_ORIGIN,
-} from "@codecast/shared/contracts/castPlayer";
+import { isVideoSrc, MEDIA_ORIGIN } from "@codecast/pages/castPlayer";
 import { ConvexReactClient } from "convex/react";
 import { countingWebSocket } from "./socketStats";
 import { STORE_SHOTS } from "./storeShots/flag";

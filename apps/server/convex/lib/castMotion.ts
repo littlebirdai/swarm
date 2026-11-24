@@ -23,7 +23,7 @@
 // page was written with. Scripts read a value with
 // window.castMotion.value(id, col, row, agg) -> Promise<number | string | null>.
 //
-import { MOTION_POSTER_TIME_JS } from "@codecast/shared/contracts";
+import { MOTION_POSTER_TIME_JS } from "@codecast/pages/castMotion";
 
 // Kept as source text for the same reason as lib/castPlayer.ts: plain ES5 in a
 // String.raw template, never a backtick or a dollar brace.

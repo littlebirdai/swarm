@@ -22,7 +22,7 @@ import { lookupByHash, storeUpload } from "./imageCache.js";
 import { detectImageMediaType, hashImageBytes } from "./imagePayload.js";
 import { fmt, icons } from "./colors.js";
 import { commandGroup } from "./commandGroups.js";
-import { isVideoSrc } from "@codecast/shared/contracts/castPlayer";
+import { isVideoSrc } from "@codecast/pages/castPlayer";
 
 const FETCH_TIMEOUT_MS = 20_000;
 

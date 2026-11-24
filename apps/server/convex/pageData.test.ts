@@ -22,7 +22,7 @@ import {
   parseRefresh,
   pageUsesData,
   capResult,
-} from "@codecast/shared/contracts/pageData";
+} from "@codecast/pages/pageData";
 
 const router = httpRouter();
 router.route({ pathPrefix: "/cli/a/", method: "GET", handler: serve });

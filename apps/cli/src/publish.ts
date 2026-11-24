@@ -36,14 +36,13 @@ import {
   type ArtifactLsRow,
 } from "./publishCommand.js";
 import { apiPost, apiUpload, type PublishDeps } from "./castApi.js";
+import { CAST_PLAYER_GUIDE, pageUsesPlayer } from "@codecast/pages/castPlayer";
 import {
-  CAST_PLAYER_GUIDE,
   describePageAnchor,
-  pageEmbedUrl,
-  pageIsMotion,
-  pageUsesPlayer,
   parsePageAnchor,
-} from "@codecast/shared/contracts";
+} from "@codecast/pages/pageAnchor";
+import { pageEmbedUrl } from "@codecast/pages/pageEdge";
+import { pageIsMotion } from "@codecast/pages/castMotion";
 import { commandGroup } from "./commandGroups.js";
 import { addVerbHelp, type VerbHelpSpec } from "./verbHelp.js";
 import { verbTypoNextStep } from "./commandSuggestion.js";
@@ -57,7 +56,7 @@ import {
   runPublishState,
   type StateWrite,
 } from "./publishData.js";
-import { PAGE_DATA_FILE } from "@codecast/shared/contracts/pageData";
+import { PAGE_DATA_FILE } from "@codecast/pages/pageData";
 import {
   captureMotionThumb,
   renderMotion,

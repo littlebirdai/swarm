@@ -1,0 +1,22 @@
+{
+  "name": "@codecast/pages",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./castMotion": "./src/castMotion.ts",
+    "./castPlayer": "./src/castPlayer.ts",
+    "./pageAgent": "./src/pageAgent.ts",
+    "./pageAnchor": "./src/pageAnchor.ts",
+    "./pageData": "./src/pageData.ts",
+    "./pageEdge": "./src/pageEdge.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  }
+}

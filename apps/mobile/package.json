@@ -27,6 +27,7 @@
     "@codecast/files": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/network": "workspace:*",
+    "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
     "@codecast/shared": "workspace:*",
