@@ -141,6 +141,38 @@
         "vite": "^6.3.5",
       },
     },
+    "apps/server": {
+      "name": "@codecast/convex",
+      "version": "0.1.0",
+      "dependencies": {
+        "@auth/core": "^0.37.2",
+        "@codecast/shared": "workspace:*",
+        "@convex-dev/auth": "0.0.79",
+        "@convex-dev/prosemirror-sync": "^0.2.3",
+        "@platform/agent": "file:../../platform/packages/agent",
+        "@platform/analytics": "file:../../platform/packages/analytics",
+        "@platform/assistant": "file:../../platform/packages/assistant",
+        "@platform/auth": "file:../../platform/packages/auth",
+        "@platform/billing": "file:../../platform/packages/billing",
+        "@platform/crypto": "file:../../platform/packages/crypto",
+        "@platform/email": "file:../../platform/packages/email",
+        "@platform/flags": "file:../../platform/packages/flags",
+        "@platform/tidemark": "file:../../platform/packages/tidemark",
+        "@simplewebauthn/server": "^14.0.3",
+        "convex": "^1.31.6",
+        "fflate": "^0.4.8",
+        "highlight.js": "^11.11.1",
+        "jose": "5.10.0",
+        "marked": "^18.0.7",
+        "oslo": "^1.2.1",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.13",
+        "@types/node": "^22.19.17",
+        "convex-test": "0.0.54",
+        "typescript": "^5.7.2",
+      },
+    },
     "apps/vscode-extension": {
       "name": "codecast-blame",
       "version": "0.1.4",
@@ -182,38 +214,6 @@
       },
       "optionalDependencies": {
         "e2b": "^2.24.0",
-      },
-    },
-    "packages/convex": {
-      "name": "@codecast/convex",
-      "version": "0.1.0",
-      "dependencies": {
-        "@auth/core": "^0.37.2",
-        "@codecast/shared": "workspace:*",
-        "@convex-dev/auth": "0.0.79",
-        "@convex-dev/prosemirror-sync": "^0.2.3",
-        "@platform/agent": "file:../../platform/packages/agent",
-        "@platform/analytics": "file:../../platform/packages/analytics",
-        "@platform/assistant": "file:../../platform/packages/assistant",
-        "@platform/auth": "file:../../platform/packages/auth",
-        "@platform/billing": "file:../../platform/packages/billing",
-        "@platform/crypto": "file:../../platform/packages/crypto",
-        "@platform/email": "file:../../platform/packages/email",
-        "@platform/flags": "file:../../platform/packages/flags",
-        "@platform/tidemark": "file:../../platform/packages/tidemark",
-        "@simplewebauthn/server": "^14.0.3",
-        "convex": "^1.31.6",
-        "fflate": "^0.4.8",
-        "highlight.js": "^11.11.1",
-        "jose": "5.10.0",
-        "marked": "^18.0.7",
-        "oslo": "^1.2.1",
-      },
-      "devDependencies": {
-        "@types/bun": "^1.3.13",
-        "@types/node": "^22.19.17",
-        "convex-test": "0.0.54",
-        "typescript": "^5.7.2",
       },
     },
     "packages/shared": {
@@ -732,7 +732,7 @@
 
     "@codecast/cli": ["@codecast/cli@workspace:packages/cli"],
 
-    "@codecast/convex": ["@codecast/convex@workspace:packages/convex"],
+    "@codecast/convex": ["@codecast/convex@workspace:apps/server"],
 
     "@codecast/electron": ["@codecast/electron@workspace:apps/desktop"],
 
@@ -4588,6 +4588,8 @@
 
     "@codecast/convex/@platform/tidemark": ["@platform/tidemark@file:platform/packages/tidemark", { "devDependencies": { "@types/bun": "latest", "typescript": "^5.7.2" }, "peerDependencies": { "@platform/agent": "*", "convex": "^1.31.6" }, "optionalPeers": ["@platform/agent", "convex"] }],
 
+    "@codecast/convex/@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
+
     "@codecast/electron/@platform/desktop": ["@platform/desktop@file:platform/packages/desktop", { "devDependencies": { "typescript": "^5.7.2" }, "peerDependencies": { "@electron/notarize": ">=2", "electron": ">=28", "electron-builder": ">=24" }, "optionalPeers": ["@electron/notarize", "electron-builder"] }],
 
     "@codecast/evals/@platform/cli-kit": ["@platform/cli-kit@file:platform/packages/cli-kit", { "devDependencies": { "@types/bun": "latest", "@types/node": "^22.0.0", "typescript": "^5.7.2" } }],
@@ -5630,7 +5632,13 @@
 
     "@codecast/convex/@platform/assistant/@platform/fence": ["@platform/fence@file:platform/packages/fence", { "devDependencies": { "typescript": "^5.7.2" } }],
 
+    "@codecast/convex/@platform/auth/@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
+
     "@codecast/convex/@platform/billing/@platform/crypto": ["@platform/crypto@file:platform/packages/crypto", { "devDependencies": { "typescript": "^5.7.2" } }],
+
+    "@codecast/convex/@platform/email/@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
+
+    "@codecast/convex/@platform/tidemark/@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
     "@codecast/evals/@platform/evals/@platform/cli-kit": ["@platform/cli-kit@file:platform/packages/cli-kit", { "devDependencies": { "@types/bun": "latest", "@types/node": "^22.0.0", "typescript": "^5.7.2" } }],
 
